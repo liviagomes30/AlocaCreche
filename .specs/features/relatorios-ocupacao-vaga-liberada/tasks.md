@@ -228,7 +228,7 @@ fila `relatorios.ocupacao.dlq`, bindings, `Jackson2JsonMessageConverter`, e o
 
 ---
 
-### T7: Implementar `VagaLiberadaListener` + teste unitário
+### T7: Implementar `VagaLiberadaListener` + teste unitário — ✅ Complete
 
 **What**: `@RabbitListener` + `@Transactional` que valida o payload (lança
 `EventoInvalidoException` se inválido), aplica `SET LOCAL app.current_tenant` via `EntityManager`,
@@ -245,11 +245,11 @@ validação.
 - Skill: `test-quality`
 
 **Done when**:
-- [ ] Payload válido: chama `SET LOCAL` com o `municipioId` correto e delega ao repositório
-- [ ] Payload com campo obrigatório faltando: lança `EventoInvalidoException`, repositório NUNCA é chamado
-- [ ] `vagasDisponiveis` negativo: lança `EventoInvalidoException`, repositório NUNCA é chamado
-- [ ] Gate check passa: `mvn -pl alocacreche-relatorios test -Dtest=VagaLiberadaListenerTest`
-- [ ] Contagem de testes: 3 testes passam
+- [x] Payload válido: chama `SET LOCAL` com o `municipioId` correto e delega ao repositório
+- [x] Payload com campo obrigatório faltando: lança `EventoInvalidoException`, repositório NUNCA é chamado
+- [x] `vagasDisponiveis` negativo: lança `EventoInvalidoException`, repositório NUNCA é chamado
+- [x] Gate check passa: `mvn -pl alocacreche-relatorios test -Dtest=VagaLiberadaListenerTest`
+- [x] Contagem de testes: 3 testes passam
 
 **Tests**: unit
 **Gate**: quick
