@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
@@ -110,6 +111,20 @@ class VagaLiberadaConsumerIT {
 
         Message naFilaPrincipal = rabbitTemplate.receive(RabbitMqConfig.OCUPACAO_QUEUE, 500);
         assertThat(naFilaPrincipal).isNull();
+    }
+
+    @Test
+    void payloadValidoComVagasNegativasVaiDiretoParaDlqSemRetentarNoRepositorio() {
+        Long turmaId = 500L;
+        VagaLiberadaEvent evento =
+                new VagaLiberadaEvent(1L, "VagaLiberada", 1L, turmaId, 50L, -1, LocalDateTime.now());
+
+        rabbitTemplate.convertAndSend(
+                RabbitMqConfig.DOMINIO_EXCHANGE, RabbitMqConfig.VAGA_LIBERADA_ROUTING_KEY, evento);
+
+        Message naDlq = rabbitTemplate.receive(RabbitMqConfig.OCUPACAO_DLQ, 5_000);
+        assertThat(naDlq).isNotNull();
+        verify(repository, never()).upsert(eq(turmaId), any(), any(), any(), any());
     }
 
     @Test

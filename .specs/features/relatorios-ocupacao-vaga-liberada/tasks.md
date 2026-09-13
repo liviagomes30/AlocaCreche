@@ -26,8 +26,8 @@ Verifier, discrimination sensor).
 | Code Layer | Required Test Type | Coverage Expectation | Location Pattern | Run Command |
 | --- | --- | --- | --- | --- |
 | `VagaLiberadaListener` (validação de payload) | unit | Todos os ramos de validação (payload válido, campo faltando, `vagasDisponiveis` negativo) — 1:1 com OCUP-06/07 | `alocacreche-relatorios/src/test/java/org/alocacreche/relatorios/ocupacao/VagaLiberadaListenerTest.java` | `mvn -pl alocacreche-relatorios test -Dtest=VagaLiberadaListenerTest` |
-| `OcupacaoTurmaRepository` (upsert nativo) + RLS | integration (Testcontainers Postgres) | Upsert idempotente, ordem/duplicata, concorrência (OCUP-01/02/03) e isolamento por município via RLS (OCUP-10) | `alocacreche-relatorios/src/test/java/org/alocacreche/relatorios/ocupacao/OcupacaoTurmaRepositoryIT.java` | `mvn -pl alocacreche-relatorios test -Dtest=OcupacaoTurmaRepositoryIT` |
-| Fluxo ponta a ponta (RabbitMQ + Postgres reais) | integration (Testcontainers) | Caminho feliz completo (OCUP-01/04/05), DLQ imediato para payload malformado (OCUP-06), DLQ após 3 tentativas por falha transitória (OCUP-08/09) | `alocacreche-relatorios/src/test/java/org/alocacreche/relatorios/ocupacao/VagaLiberadaConsumerIT.java` | `mvn -pl alocacreche-relatorios test -Dtest=VagaLiberadaConsumerIT` |
+| `OcupacaoTurmaRepository` (upsert nativo) + RLS | integration (Testcontainers Postgres) | Upsert idempotente, ordem/duplicata, concorrência (OCUP-01/02/03) e isolamento por município via RLS (OCUP-10) | `alocacreche-relatorios/src/test/java/org/alocacreche/relatorios/ocupacao/OcupacaoTurmaRepositoryIT.java` | `mvn -pl alocacreche-relatorios verify -Dit.test=OcupacaoTurmaRepositoryIT` |
+| Fluxo ponta a ponta (RabbitMQ + Postgres reais) | integration (Testcontainers) | Caminho feliz completo (OCUP-01/04/05), DLQ imediato para payload malformado (OCUP-06), DLQ após 3 tentativas por falha transitória (OCUP-08/09) | `alocacreche-relatorios/src/test/java/org/alocacreche/relatorios/ocupacao/VagaLiberadaConsumerIT.java` | `mvn -pl alocacreche-relatorios verify -Dit.test=VagaLiberadaConsumerIT` |
 | `VagaLiberadaEvent`, `EventoInvalidoException`, `OcupacaoTurma`, `RabbitMqConfig`, `schema.sql` | none | Cobertos indiretamente pelas camadas acima | — | build gate only |
 
 ## Gate Check Commands
@@ -35,8 +35,8 @@ Verifier, discrimination sensor).
 | Gate Level | When to Use | Command |
 | --- | --- | --- |
 | Quick | Depois de T7 (teste unitário do listener) | `mvn -pl alocacreche-relatorios test -Dtest=VagaLiberadaListenerTest` |
-| Full | Depois de T5 e T8 (Testcontainers — requer Docker rodando) | `mvn -pl alocacreche-relatorios test` |
-| Build | Depois de completar a feature | `mvn clean install` (raiz do reactor) |
+| Full | Depois de T5 e T8 (Testcontainers — requer Docker rodando) | `mvn -pl alocacreche-relatorios verify` (**não** `test` — as classes `*IT.java` só rodam via `maven-failsafe-plugin`, ligado às fases `integration-test`/`verify`; `mvn test` sozinho as ignora silenciosamente, sem erro. Achado do Verifier, corrigido no `pom.xml` do módulo) |
+| Build | Depois de completar a feature | `mvn clean verify` (raiz do reactor) |
 
 ---
 
@@ -189,8 +189,10 @@ duplicata, concorrência e isolamento por RLS.
       dedicada `alocacreche_app` (`docker/postgres-relatorios-init/01-app-role.sql` +
       `db/relatorios-app-role.sql` para o Testcontainers) — ver AD-002, gotcha 3. Reverificado
       também contra o Postgres real do `docker-compose` (não só o Testcontainers efêmero).
-- [x] Gate check passa: `mvn -pl alocacreche-relatorios test -Dtest=OcupacaoTurmaRepositoryIT`
-- [x] Contagem de testes: 5 testes passam
+- [x] Gate check passa: `mvn -pl alocacreche-relatorios verify -Dit.test=OcupacaoTurmaRepositoryIT`
+- [x] Contagem de testes: 8 testes passam (5 originais + 3 adicionados após o Verificador
+      independente: fronteira `eventId` igual — OCUP-02, ver `validation.md` Fix 2 — e
+      concorrência entre turmas distintas + "sem SET LOCAL" fail-closed — ver Fix 4)
 
 **Tests**: integration
 **Gate**: full
@@ -284,8 +286,11 @@ teste do módulo)
 - [x] Simular falha transitória (ex.: repositório lança exceção não-`EventoInvalidoException` nas 3
       primeiras tentativas) → mensagem aparece em `relatorios.ocupacao.dlq` só após a 3ª tentativa —
       confirmado via `@MockitoSpyBean` + `verify(repository, times(3))`
-- [x] Gate check passa: `mvn -pl alocacreche-relatorios test -Dtest=VagaLiberadaConsumerIT`
-- [x] Contagem de testes: 3 testes passam
+- [x] Gate check passa: `mvn -pl alocacreche-relatorios verify -Dit.test=VagaLiberadaConsumerIT`
+- [x] Contagem de testes: 4 testes passam (3 originais + 1 adicionado após o Verificador
+      independente: payload válido mas com `vagasDisponiveis` negativo, publicado no broker real,
+      confirmando que `EventoInvalidoException` nunca é retentada fim a fim — ver `validation.md`
+      Fix 3)
 
 **Tests**: integration
 **Gate**: full

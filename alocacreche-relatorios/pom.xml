@@ -85,6 +85,25 @@
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
             </plugin>
+            <!--
+                Surefire (goal "test") so casa com *Test.java/*Tests.java - as classes de
+                integracao deste modulo usam o sufixo *IT.java (convencao do Failsafe), entao
+                precisam do Failsafe para rodar como parte do gate de build (`mvn verify`).
+                Sem isso, `mvn test`/`mvn install` reportava sucesso sem executar nenhum teste
+                de integracao (Testcontainers) - achado do Verifier em validation.md, Fix 1.
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-failsafe-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>integration-test</goal>
+                            <goal>verify</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
     </build>
 </project>

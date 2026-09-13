@@ -1,6 +1,7 @@
 package org.alocacreche.relatorios.ocupacao;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
@@ -93,11 +94,21 @@ class OcupacaoTurmaRepositoryIT {
     }
 
     @Test
-    void upsertNaoAplicaQuandoSequenciaRecebidaEMenorOuIgual() {
+    void upsertNaoAplicaQuandoSequenciaRecebidaEMenor() {
         upsertComoTenant(1L, 100L, 10L, 5, 5L);
         upsertComoTenant(1L, 100L, 10L, 999, 3L);
 
         OcupacaoTurma turma = buscarComoTenant(1L, 100L);
+        assertThat(turma.getVagasDisponiveis()).isEqualTo(5);
+        assertThat(turma.getUltimaSequenciaAplicada()).isEqualTo(5L);
+    }
+
+    @Test
+    void upsertNaoAplicaQuandoSequenciaRecebidaEIgual() {
+        upsertComoTenant(1L, 101L, 10L, 5, 5L);
+        upsertComoTenant(1L, 101L, 10L, 999, 5L);
+
+        OcupacaoTurma turma = buscarComoTenant(1L, 101L);
         assertThat(turma.getVagasDisponiveis()).isEqualTo(5);
         assertThat(turma.getUltimaSequenciaAplicada()).isEqualTo(5L);
     }
@@ -123,6 +134,48 @@ class OcupacaoTurmaRepositoryIT {
         OcupacaoTurma turma = buscarComoTenant(1L, 100L);
         assertThat(turma.getUltimaSequenciaAplicada()).isEqualTo(10L);
         assertThat(turma.getVagasDisponiveis()).isEqualTo(7);
+    }
+
+    @Test
+    void upsertConcorrenteParaTurmasDiferentesNaoInterfereEntreSi() throws InterruptedException {
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        CountDownLatch latch = new CountDownLatch(2);
+        executor.submit(() -> {
+            upsertComoTenant(1L, 700L, 70L, 4, 1L);
+            latch.countDown();
+        });
+        executor.submit(() -> {
+            upsertComoTenant(1L, 800L, 80L, 9, 1L);
+            latch.countDown();
+        });
+        boolean finished = latch.await(10, TimeUnit.SECONDS);
+        executor.shutdown();
+
+        assertThat(finished).isTrue();
+        assertThat(buscarComoTenant(1L, 700L).getVagasDisponiveis()).isEqualTo(4);
+        assertThat(buscarComoTenant(1L, 800L).getVagasDisponiveis()).isEqualTo(9);
+    }
+
+    @Test
+    void semSetLocalDefinidoFalhaFechadoEmVezDeVazarDados() {
+        upsertComoTenant(1L, 600L, 60L, 3, 1L);
+
+        // Fail-closed: sem SET LOCAL, a query sempre lanca excecao - nunca retorna a linha nem
+        // uma lista vazia silenciosa. A mensagem exata do Postgres varia com o estado da conexao
+        // do pool ("unrecognized configuration parameter" numa conexao nunca usada com esse GUC;
+        // "invalid input syntax for type bigint: ''" numa conexao que ja teve o GUC referenciado
+        // antes, mesmo sem valor no momento) - por isso a asserção é sobre o tipo (falha), não a
+        // string exata da mensagem.
+        assertThatThrownBy(
+                        () ->
+                                transactionTemplate.executeWithoutResult(
+                                        status ->
+                                                entityManager
+                                                        .createQuery(
+                                                                "SELECT o FROM OcupacaoTurma o WHERE o.turmaId = :id")
+                                                        .setParameter("id", 600L)
+                                                        .getResultList()))
+                .isInstanceOf(RuntimeException.class);
     }
 
     @Test
