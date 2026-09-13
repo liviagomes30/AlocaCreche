@@ -3,7 +3,7 @@
 ## Decisions
 
 ### AD-001
-- **Decision**: Consumidores RabbitMQ neste projeto usam o interceptor de retry do Spring Retry (stateless, 3 tentativas) com `RejectAndDontRequeueRecoverer`, mais uma dead-letter queue nativa do RabbitMQ (DLX declarado na fila principal). Exceções de payload inválido (ex.: `EventoInvalidoException`) ficam fora da política de retry — rejeição imediata, sem reentrega.
+- **Decision**: Consumidores RabbitMQ neste projeto usam o interceptor de retry do Spring Retry (stateless, 3 tentativas) com `RejectAndDontRequeueRecoverer`, mais uma dead-letter queue nativa do RabbitMQ (DLX declarado na fila principal). Exceções de payload inválido (ex.: `EventoInvalidoException`) **e de conversão de mensagem** (`org.springframework.amqp.support.converter.MessageConversionException`) ficam fora da política de retry — rejeição imediata, sem reentrega.
 - **Reason**: Reusa `spring-retry`, já dependência do projeto (para `@Retryable` no módulo Matrícula); é o padrão documentado do Spring AMQP para "N tentativas, depois dead-letter", sem precisar de lógica de contagem manual.
 - **Trade-off**: Acopla a política de retry à configuração do listener container (`RabbitMqConfig`), não ao código de negócio — quem adicionar um novo consumidor precisa replicar essa config, não só o `@RabbitListener`.
 - **Scope**: Qualquer consumidor RabbitMQ futuro em `alocacreche-relatorios` ou `alocacreche-core` (ex.: consumidor de `MatriculaCriada`, consumidor de notificações no módulo Notificação).
@@ -20,6 +20,14 @@
   `RabbitTemplate`). Um `@SpringBootTest` que só sobe o contexto sem nenhum listener **não prova
   nada** sobre a topologia estar declarada no broker — só o teste de integração ponta a ponta (T8,
   com um listener real) verifica isso de fato.
+- **Gotcha descoberto na implementação (T8)**: JSON malformado falha na **conversão** da mensagem
+  (`Jackson2JsonMessageConverter`), **antes** do método do `@RabbitListener` ser invocado — ou
+  seja, antes de qualquer validação de negócio (`EventoInvalidoException`) rodar. Classificar só
+  `EventoInvalidoException` como não-retryable não cobre esse caso: JSON malformado cairia na
+  política de retry genérica (3 tentativas) antes de ir pra DLQ, violando o requisito de rejeição
+  imediata. A correção é classificar `MessageConversionException` como não-retryable também.
+  Verificado com um teste que publica bytes de JSON inválido diretamente e confirma que a mensagem
+  aparece na DLQ sem nunca aparecer na fila principal.
 
 ### AD-002
 - **Decision**: Row-Level Security é provisionada via `schema.sql` idempotente (`ENABLE ROW LEVEL SECURITY` + `FORCE ROW LEVEL SECURITY` + `DROP POLICY IF EXISTS` + `CREATE POLICY`), com **`spring.sql.init.mode=always`** (não só `defer-datasource-initialization=true`), **e a aplicação conecta como uma role dedicada não-superuser** (`alocacreche_app`), nunca como o usuário bootstrap do container Postgres.

@@ -124,15 +124,15 @@ que ela aparece na fila `relatorios.ocupacao.dlq` imediatamente, sem reentrega.
 
 | Requirement ID | Story | Phase | Status | Task(s) |
 | --- | --- | --- | --- | --- |
-| OCUP-01 | P1 | Tasks | In Tasks | T1, T3, T5, T8 |
+| OCUP-01 | P1 | Tasks | Implementing | T1, T3, T5, T8 |
 | OCUP-02 | P1 | Tasks | Implementing | T5 |
 | OCUP-03 | P1 | Tasks | Implementing | T5 |
 | OCUP-04 | P1 | Tasks | Implementing | T7 |
-| OCUP-05 | P1 | Tasks | In Tasks | T6, T8 |
-| OCUP-06 | P2 | Tasks | In Tasks | T2, T7, T8 |
+| OCUP-05 | P1 | Tasks | Implementing | T6, T8 |
+| OCUP-06 | P2 | Tasks | Implementing | T2, T7, T8 |
 | OCUP-07 | P2 | Tasks | Implementing | T2, T7 |
-| OCUP-08 | P2 | Tasks | In Tasks | T6, T8 |
-| OCUP-09 | P2 | Tasks | In Tasks | T6, T8 |
+| OCUP-08 | P2 | Tasks | Implementing | T6, T8 |
+| OCUP-09 | P2 | Tasks | Implementing | T6, T8 |
 | OCUP-10 | P1 | Tasks | Implementing | T4, T5 |
 
 **ID format:** `OCUP-NN` (Ocupação).

@@ -14,6 +14,7 @@ import org.springframework.amqp.rabbit.config.SimpleRabbitListenerContainerFacto
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.retry.RejectAndDontRequeueRecoverer;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
+import org.springframework.amqp.support.converter.MessageConversionException;
 import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -93,6 +94,10 @@ public class RabbitMqConfig {
         Map<Class<? extends Throwable>, Boolean> retryableExceptions = new HashMap<>();
         // EventoInvalidoException nunca tenta de novo - rejeicao imediata para a DLQ (OCUP-06/07).
         retryableExceptions.put(EventoInvalidoException.class, false);
+        // JSON malformado falha na conversao, antes do listener/validar() rodar - tambem precisa
+        // ser rejeicao imediata (OCUP-06 cobre "nao puder ser desserializado", nao so campo
+        // faltando), senao cairia na politica de retry generica abaixo.
+        retryableExceptions.put(MessageConversionException.class, false);
         retryableExceptions.put(Exception.class, true);
 
         // traverseCauses=true: o Spring AMQP pode envolver a excecao original numa

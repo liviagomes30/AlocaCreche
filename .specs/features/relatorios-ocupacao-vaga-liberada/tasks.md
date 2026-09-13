@@ -258,7 +258,7 @@ validação.
 
 ---
 
-### T8: Teste de integração ponta a ponta (RabbitMQ + Postgres reais)
+### T8: Teste de integração ponta a ponta (RabbitMQ + Postgres reais) — ✅ Complete
 
 **What**: Teste com Testcontainers (RabbitMQ + Postgres) publicando mensagens reais na fila
 `relatorios.ocupacao` e verificando o comportamento fim a fim: upsert bem-sucedido, payload
@@ -274,13 +274,18 @@ teste do módulo)
 - Skill: `test-quality`
 
 **Done when**:
-- [ ] Publicar `VagaLiberada` válido → linha aparece na projeção (verificado via repositório)
-- [ ] Publicar payload malformado (JSON inválido ou campo faltando) → mensagem aparece em
-      `relatorios.ocupacao.dlq` imediatamente, sem reentrega
-- [ ] Simular falha transitória (ex.: repositório lança exceção não-`EventoInvalidoException` nas 3
-      primeiras tentativas) → mensagem aparece em `relatorios.ocupacao.dlq` só após a 3ª tentativa
-- [ ] Gate check passa: `mvn -pl alocacreche-relatorios test -Dtest=VagaLiberadaConsumerIT`
-- [ ] Contagem de testes: 3 testes passam
+- [x] Publicar `VagaLiberada` válido → linha aparece na projeção (verificado via repositório)
+- [x] Publicar payload malformado (JSON inválido ou campo faltando) → mensagem aparece em
+      `relatorios.ocupacao.dlq` imediatamente, sem reentrega. **Achado real**: JSON malformado
+      falha na conversão (`MessageConversionException`), antes do `validar()` do listener rodar —
+      precisou classificar essa exceção como não-retryable também em `RabbitMqConfig` (não só
+      `EventoInvalidoException`), senão cairia 3x na política de retry genérica antes da DLQ. Ver
+      AD-001.
+- [x] Simular falha transitória (ex.: repositório lança exceção não-`EventoInvalidoException` nas 3
+      primeiras tentativas) → mensagem aparece em `relatorios.ocupacao.dlq` só após a 3ª tentativa —
+      confirmado via `@MockitoSpyBean` + `verify(repository, times(3))`
+- [x] Gate check passa: `mvn -pl alocacreche-relatorios test -Dtest=VagaLiberadaConsumerIT`
+- [x] Contagem de testes: 3 testes passam
 
 **Tests**: integration
 **Gate**: full
