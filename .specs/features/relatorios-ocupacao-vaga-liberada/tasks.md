@@ -113,7 +113,7 @@ T8
 
 ---
 
-### T3: Criar entidade `OcupacaoTurma`
+### T3: Criar entidade `OcupacaoTurma` — ✅ Complete
 
 **What**: Entidade JPA da projeção — `turmaId` como `@Id` (chave de negócio), `municipioId`,
 `crecheId`, `vagasDisponiveis`, `ultimaSequenciaAplicada`, `atualizadoEm`.
@@ -127,8 +127,8 @@ T8
 - Skill: `jpa-patterns`
 
 **Done when**:
-- [ ] Entidade mapeada para tabela `ocupacao_turma` com todos os campos do design
-- [ ] `mvn -pl alocacreche-relatorios test` sobe o contexto e cria a tabela via `ddl-auto=update` (reusa o smoke test já existente)
+- [x] Entidade mapeada para tabela `ocupacao_turma` com todos os campos do design
+- [x] `mvn -pl alocacreche-relatorios test` sobe o contexto e cria a tabela via `ddl-auto=update` (reusa o smoke test já existente) — confirmado via `\d ocupacao_turma` no Postgres real
 
 **Tests**: none
 **Gate**: build
