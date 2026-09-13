@@ -2,7 +2,9 @@ package org.alocacreche.relatorios.ocupacao;
 
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.alocacreche.relatorios.config.RabbitMqConfig;
+import org.alocacreche.relatorios.tenant.TenantContext;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -10,9 +12,10 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * Consome VagaLiberada da fila declarada em RabbitMqConfig. Valida o payload (lanca
  * EventoInvalidoException se invalido - exclui da politica de retry, ver AD-001), aplica o tenant
- * da sessao via SET LOCAL, e delega o upsert idempotente ao repositorio - tudo na mesma transacao
- * (OCUP-01/04).
+ * da sessao via TenantContext, e delega o upsert idempotente ao repositorio - tudo na mesma
+ * transacao (OCUP-01/04).
  */
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class VagaLiberadaListener {
@@ -25,9 +28,7 @@ public class VagaLiberadaListener {
     public void receber(VagaLiberadaEvent evento) {
         validar(evento);
 
-        entityManager
-                .createNativeQuery("SET LOCAL app.current_tenant = '" + evento.municipioId() + "'")
-                .executeUpdate();
+        TenantContext.aplicar(entityManager, evento.municipioId());
 
         repository.upsert(
                 evento.turmaId(),
@@ -35,24 +36,37 @@ public class VagaLiberadaListener {
                 evento.crecheId(),
                 evento.vagasDisponiveis(),
                 evento.eventId());
+
+        log.info(
+                "Ocupacao atualizada: turmaId={}, municipioId={}, eventId={}",
+                evento.turmaId(),
+                evento.municipioId(),
+                evento.eventId());
     }
 
     private void validar(VagaLiberadaEvent evento) {
         if (evento.eventId() == null) {
-            throw new EventoInvalidoException("eventId ausente");
+            rejeitar(evento, "eventId ausente");
         }
         if (evento.municipioId() == null) {
-            throw new EventoInvalidoException("municipioId ausente");
+            rejeitar(evento, "municipioId ausente");
         }
         if (evento.turmaId() == null) {
-            throw new EventoInvalidoException("turmaId ausente");
+            rejeitar(evento, "turmaId ausente");
+        }
+        if (evento.crecheId() == null) {
+            rejeitar(evento, "crecheId ausente");
         }
         if (evento.vagasDisponiveis() == null) {
-            throw new EventoInvalidoException("vagasDisponiveis ausente");
+            rejeitar(evento, "vagasDisponiveis ausente");
         }
         if (evento.vagasDisponiveis() < 0) {
-            throw new EventoInvalidoException(
-                    "vagasDisponiveis negativo: " + evento.vagasDisponiveis());
+            rejeitar(evento, "vagasDisponiveis negativo: " + evento.vagasDisponiveis());
         }
+    }
+
+    private void rejeitar(VagaLiberadaEvent evento, String motivo) {
+        log.warn("Evento VagaLiberada rejeitado (turmaId={}): {}", evento.turmaId(), motivo);
+        throw new EventoInvalidoException(motivo);
     }
 }

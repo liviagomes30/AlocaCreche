@@ -11,8 +11,13 @@ public interface OcupacaoTurmaRepository extends JpaRepository<OcupacaoTurma, Lo
      * Upsert atomico e idempotente: cria a linha se turmaId nao existir; atualiza somente se a
      * sequencia recebida for maior que a ja aplicada. Sem janela de corrida - o Postgres serializa
      * concorrencia no INSERT ... ON CONFLICT (ver OCUP-01/02/03).
+     *
+     * <p>clearAutomatically = true: um upsert nativo nao atualiza o primeiro nivel de cache do
+     * EntityManager - sem isso, um find() na mesma transacao apos este upsert devolveria dado
+     * obsoleto. Hoje nenhum consumidor le e escreve a mesma entidade na mesma transacao, mas e uma
+     * garantia barata para um consumidor futuro que vier a fazer isso.
      */
-    @Modifying
+    @Modifying(clearAutomatically = true)
     @Query(
             value = """
                 INSERT INTO ocupacao_turma (turma_id, municipio_id, creche_id, vagas_disponiveis, ultima_sequencia_aplicada, atualizado_em)

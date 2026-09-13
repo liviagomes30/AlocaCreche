@@ -5,7 +5,7 @@
 ### AD-001
 - **Decision**: Consumidores RabbitMQ neste projeto usam o interceptor de retry do Spring Retry (stateless, 3 tentativas) com `RejectAndDontRequeueRecoverer`, mais uma dead-letter queue nativa do RabbitMQ (DLX declarado na fila principal). Exceções de payload inválido (ex.: `EventoInvalidoException`) **e de conversão de mensagem** (`org.springframework.amqp.support.converter.MessageConversionException`) ficam fora da política de retry — rejeição imediata, sem reentrega.
 - **Reason**: Reusa `spring-retry`, já dependência do projeto (para `@Retryable` no módulo Matrícula); é o padrão documentado do Spring AMQP para "N tentativas, depois dead-letter", sem precisar de lógica de contagem manual.
-- **Trade-off**: Acopla a política de retry à configuração do listener container (`RabbitMqConfig`), não ao código de negócio — quem adicionar um novo consumidor precisa replicar essa config, não só o `@RabbitListener`.
+- **Trade-off**: Acopla a política de retry à configuração do listener container (`RabbitMqConfig`), não ao código de negócio — quem adicionar um novo consumidor precisa replicar essa config, não só o `@RabbitListener`. **Atualizado após revisão independente de código**: o mapa agora classifica pela classe-base `EventoDominioInvalidoException` (não mais pela concreta `EventoInvalidoException`) — um novo consumidor só precisa lançar uma subclasse dessa base para herdar "rejeição imediata", sem editar `RabbitMqConfig`. Confirmado via bytecode (`SubclassClassifier.classify` caminha por `getSuperclass()`) e por teste unitário decisivo (`RabbitMqConfigRetryClassificationTest`) que usa a policy de produção real, não uma reconstrução do mapa.
 - **Scope**: Qualquer consumidor RabbitMQ futuro em `alocacreche-relatorios` ou `alocacreche-core` (ex.: consumidor de `MatriculaCriada`, consumidor de notificações no módulo Notificação).
 - **Date**: 2026-09-12
 - **Status**: active
@@ -58,6 +58,15 @@
   consumidor futuro que reusar este padrão de retry/DLQ deve tratar cada entrada não-retryable do
   mapa como precisando do seu próprio sinal decisivo — não presumir que uma classificação vizinha
   já corrigida cobre as demais.
+- **Nuance de OCUP-08/09 registrada após revisão independente de código**: a spec descreve "nack com
+  requeue" — a implementação real usa retry local (Spring Retry) dentro do mesmo processamento de
+  mensagem, sem nack-requeue real ao broker entre as tentativas; só ao final das 3 tentativas há um
+  único reject de fato (`RejectAndDontRequeueRecoverer`). Equivalente no caminho feliz, mas com uma
+  consequência: se o processo cair no meio das 3 tentativas locais, a mensagem nunca foi
+  efetivamente "nacked" — fica "unacked" no broker, é redistribuída após reconexão, e a contagem de
+  3 tentativas **reinicia do zero no novo processo**. Ou seja, "no máximo 3 tentativas" é garantido
+  por processo, não globalmente por mensagem. Aceito como trade-off do padrão (não é um bug), mas
+  registrado aqui para não ser lido como uma garantia mais forte do que realmente é.
 
 ### AD-003
 - **Decision**: Testes de integração neste projeto usam o sufixo `*IT.java` (não `*Test.java`) e todo módulo Maven que os tiver **precisa** declarar `maven-failsafe-plugin` com as execuções padrão (`integration-test` + `verify`) no seu `pom.xml`. O gate "Full"/"Build" de qualquer feature roda `mvn verify`, nunca `mvn test` sozinho.
@@ -87,14 +96,25 @@
 - **Phase / Task**: Execute concluído — T1-T8 implementadas, commitadas, e passadas por 3 rodadas de
   Verificador independente (o máximo permitido pela skill). Encerrada por decisão do usuário com um
   gap conhecido documentado como TODO (não corrigido).
-- **Completed**: T1-T8 (todas), `mvn -pl alocacreche-relatorios verify` verde (16/16 testes), 3
+- **Completed**: T1-T8 (todas), `mvn -pl alocacreche-relatorios verify` verde (19/19 testes), 3
   commits de feature (`469a88d`, `aee3b91`, `33aabc5`) + 2 commits de correção pós-Verificador
-  (`7ad51ef` rodada 1, `fa99510` rodada 2)
+  (`7ad51ef` rodada 1, `fa99510` rodada 2) + 1 commit de fechamento com TODO (`442a33f`). Depois
+  disso, uma revisão independente de código (agente novo, sem contexto de quem implementou) avaliou
+  boas práticas Java/Spring, arquitetura e cobertura de teste — achados corrigidos nesta sessão:
+  validação de `crecheId` ausente, `@Setter` morto removido de `OcupacaoTurma`, `@Modifying(clearAutomatically = true)`,
+  `spring-boot-starter-validation` não usado removido do pom, logging adicionado ao listener,
+  `SET LOCAL` por concatenação trocado por `TenantContext` (set_config parametrizado, ver AD-002),
+  acoplamento de `RabbitMqConfig` a `EventoInvalidoException` reduzido via classe-base
+  `EventoDominioInvalidoException` (com teste unitário decisivo provando a classificação por
+  hierarquia), teste de concorrência com `CyclicBarrier` para overlap real, e dreno de fila em loop
+  no teardown do teste e2e. Nuance de OCUP-08/09 (retry por-processo, não global) documentada em
+  AD-001.
 - **In-progress**: nenhum — feature fechada com um TODO documentado (não bloqueante para uso, ver
   AD-001 último gotcha e T8 em `tasks.md`)
 - **Next step**: nenhum próximo passo automático. Se o TODO de `MessageConversionException` for
   retomado no futuro, é uma correção pequena e isolada (spy no `MessageConverter`) — não precisa
   reabrir o loop de fix→re-verify formal, pode ser um commit direto com teste.
 - **Blockers**: none
-- **Uncommitted files**: `.specs/STATE.md`, `.specs/features/relatorios-ocupacao-vaga-liberada/{spec,tasks}.md` (TODO recém-documentado, ainda não commitado nesta sessão)
+- **Uncommitted files**: mudanças da revisão de código (produção + testes + `.specs/STATE.md`),
+  ainda não commitadas nesta sessão
 - **Branch**: main

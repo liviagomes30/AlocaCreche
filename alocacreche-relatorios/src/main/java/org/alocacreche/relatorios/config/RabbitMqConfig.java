@@ -2,7 +2,7 @@ package org.alocacreche.relatorios.config;
 
 import java.util.HashMap;
 import java.util.Map;
-import org.alocacreche.relatorios.ocupacao.EventoInvalidoException;
+import org.alocacreche.relatorios.evento.EventoDominioInvalidoException;
 import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.BindingBuilder;
 import org.springframework.amqp.core.DirectExchange;
@@ -25,8 +25,8 @@ import org.springframework.retry.support.RetryTemplate;
 /**
  * Topologia RabbitMQ do consumidor VagaLiberada (ver design.md e ADR 0001, decisao 10). Retry +
  * dead-lettering seguem o padrao AD-001 (.specs/STATE.md): 3 tentativas via Spring Retry,
- * EventoInvalidoException excluida da politica (rejeicao imediata), DLX nativo do RabbitMQ na
- * fila principal.
+ * EventoDominioInvalidoException (classe-base, compartilhada por qualquer consumidor deste modulo)
+ * excluida da politica (rejeicao imediata), DLX nativo do RabbitMQ na fila principal.
  */
 @Configuration
 public class RabbitMqConfig {
@@ -90,15 +90,26 @@ public class RabbitMqConfig {
         return factory;
     }
 
-    private RetryOperationsInterceptor retryInterceptor() {
+    /**
+     * Exposto package-private (nao private) para ser testado isoladamente em
+     * RabbitMqConfigRetryClassificationTest, sem precisar de broker/Testcontainers - ver AD-001.
+     */
+    static Map<Class<? extends Throwable>, Boolean> retryableExceptions() {
         Map<Class<? extends Throwable>, Boolean> retryableExceptions = new HashMap<>();
-        // EventoInvalidoException nunca tenta de novo - rejeicao imediata para a DLQ (OCUP-06/07).
-        retryableExceptions.put(EventoInvalidoException.class, false);
+        // EventoDominioInvalidoException (classe-base, nao uma excecao concreta de um dominio
+        // especifico) nunca tenta de novo - rejeicao imediata para a DLQ (OCUP-06/07). Qualquer
+        // consumidor futuro (ex.: MatriculaCriada) so precisa lancar uma subclasse desta excecao
+        // para herdar a mesma politica, sem editar esta classe - SubclassClassifier resolve pela
+        // hierarquia, nao por igualdade exata de classe (confirmado via bytecode, ver AD-001).
+        retryableExceptions.put(EventoDominioInvalidoException.class, false);
         // JSON malformado falha na conversao, antes do listener/validar() rodar - tambem precisa
         // ser rejeicao imediata (OCUP-06 cobre "nao puder ser desserializado", nao so campo
         // faltando), senao cairia na politica de retry generica abaixo.
         retryableExceptions.put(MessageConversionException.class, false);
+        return retryableExceptions;
+    }
 
+    private RetryOperationsInterceptor retryInterceptor() {
         // traverseCauses=true: o Spring AMQP envolve a excecao original numa
         // ListenerExecutionFailedException antes de chegar aqui. defaultValue=true: qualquer
         // excecao NAO listada acima (ex.: falha transitoria de banco) continua retryable por
@@ -109,7 +120,7 @@ public class RabbitMqConfig {
         // serem retentadas mesmo estando mapeadas como false - descoberto por um teste fim a
         // fim que contava invocacoes do listener, nao so o resultado final (DLQ + repositorio
         // nunca chamado e verdade tanto com 1 tentativa quanto com 3).
-        SimpleRetryPolicy retryPolicy = new SimpleRetryPolicy(3, retryableExceptions, true, true);
+        SimpleRetryPolicy retryPolicy = new SimpleRetryPolicy(3, retryableExceptions(), true, true);
         RetryTemplate retryTemplate = new RetryTemplate();
         retryTemplate.setRetryPolicy(retryPolicy);
 

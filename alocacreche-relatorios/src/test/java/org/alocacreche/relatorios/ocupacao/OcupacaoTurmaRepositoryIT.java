@@ -7,9 +7,11 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import org.alocacreche.relatorios.tenant.TenantContext;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -66,7 +68,7 @@ class OcupacaoTurmaRepositoryIT {
     @AfterEach
     void tearDown() {
         transactionTemplate.executeWithoutResult(status -> {
-            entityManager.createNativeQuery("SET LOCAL app.current_tenant = '1'").executeUpdate();
+            TenantContext.aplicar(entityManager, 1L);
             entityManager.createNativeQuery("DELETE FROM ocupacao_turma").executeUpdate();
         });
     }
@@ -117,13 +119,20 @@ class OcupacaoTurmaRepositoryIT {
     void upsertConcorrenteAplicaSoAMaiorSequencia() throws InterruptedException {
         upsertComoTenant(1L, 100L, 10L, 10, 1L);
 
+        // CyclicBarrier forca as duas threads a chegarem no upsert praticamente no mesmo instante -
+        // sem isso, o SO poderia executar as duas chamadas de forma efetivamente sequencial e o
+        // teste provaria menos do que o nome promete (a garantia real e a clausula WHERE atomica no
+        // SQL, mas so ha overlap de fato para exercita-la sob concorrencia real com essa barreira).
+        CyclicBarrier barreira = new CyclicBarrier(2);
         ExecutorService executor = Executors.newFixedThreadPool(2);
         CountDownLatch latch = new CountDownLatch(2);
         executor.submit(() -> {
+            aguardarBarreira(barreira);
             upsertComoTenant(1L, 100L, 10L, 3, 5L);
             latch.countDown();
         });
         executor.submit(() -> {
+            aguardarBarreira(barreira);
             upsertComoTenant(1L, 100L, 10L, 7, 10L);
             latch.countDown();
         });
@@ -183,7 +192,7 @@ class OcupacaoTurmaRepositoryIT {
         upsertComoTenant(1L, 200L, 20L, 8, 1L);
 
         List<?> resultadoComoTenantErrado = transactionTemplate.execute(status -> {
-            entityManager.createNativeQuery("SET LOCAL app.current_tenant = '2'").executeUpdate();
+            TenantContext.aplicar(entityManager, 2L);
             return entityManager
                     .createQuery("SELECT o FROM OcupacaoTurma o WHERE o.turmaId = :id")
                     .setParameter("id", 200L)
@@ -196,19 +205,23 @@ class OcupacaoTurmaRepositoryIT {
     private void upsertComoTenant(
             Long municipioId, Long turmaId, Long crecheId, Integer vagas, Long eventId) {
         transactionTemplate.executeWithoutResult(status -> {
-            entityManager
-                    .createNativeQuery("SET LOCAL app.current_tenant = '" + municipioId + "'")
-                    .executeUpdate();
+            TenantContext.aplicar(entityManager, municipioId);
             repository.upsert(turmaId, municipioId, crecheId, vagas, eventId);
         });
     }
 
     private OcupacaoTurma buscarComoTenant(Long municipioId, Long turmaId) {
         return transactionTemplate.execute(status -> {
-            entityManager
-                    .createNativeQuery("SET LOCAL app.current_tenant = '" + municipioId + "'")
-                    .executeUpdate();
+            TenantContext.aplicar(entityManager, municipioId);
             return entityManager.find(OcupacaoTurma.class, turmaId);
         });
+    }
+
+    private void aguardarBarreira(CyclicBarrier barreira) {
+        try {
+            barreira.await(10, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 }

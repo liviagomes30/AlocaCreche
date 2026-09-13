@@ -14,6 +14,7 @@ import jakarta.persistence.PersistenceContext;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import org.alocacreche.relatorios.config.RabbitMqConfig;
+import org.alocacreche.relatorios.tenant.TenantContext;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.amqp.core.Message;
@@ -72,13 +73,18 @@ class VagaLiberadaConsumerIT {
         new TransactionTemplate(transactionManager)
                 .executeWithoutResult(
                         status -> {
-                            entityManager
-                                    .createNativeQuery("SET LOCAL app.current_tenant = '1'")
-                                    .executeUpdate();
+                            TenantContext.aplicar(entityManager, 1L);
                             entityManager.createNativeQuery("DELETE FROM ocupacao_turma").executeUpdate();
                         });
-        rabbitTemplate.receive(RabbitMqConfig.OCUPACAO_QUEUE, 200);
-        rabbitTemplate.receive(RabbitMqConfig.OCUPACAO_DLQ, 200);
+        drenarFila(RabbitMqConfig.OCUPACAO_QUEUE);
+        drenarFila(RabbitMqConfig.OCUPACAO_DLQ);
+    }
+
+    private void drenarFila(String fila) {
+        while (rabbitTemplate.receive(fila, 200) != null) {
+            // esvazia qualquer mensagem residual de um teste anterior - um unico receive()
+            // deixaria lixo se algum teste vier a publicar mais de uma mensagem por fila.
+        }
     }
 
     @Test
@@ -160,10 +166,7 @@ class VagaLiberadaConsumerIT {
                     new TransactionTemplate(transactionManager)
                             .execute(
                                     status -> {
-                                        entityManager
-                                                .createNativeQuery(
-                                                        "SET LOCAL app.current_tenant = '" + municipioId + "'")
-                                                .executeUpdate();
+                                        TenantContext.aplicar(entityManager, municipioId);
                                         return entityManager.find(OcupacaoTurma.class, turmaId);
                                     });
             if (turma != null) {
