@@ -9,8 +9,16 @@ spring:
     username: ${SPRING_DATASOURCE_USERNAME:alocacreche}
     password: ${SPRING_DATASOURCE_PASSWORD:alocacreche}
 
+  sql:
+    init:
+      # Sem isso, schema.sql so roda para banco embutido - Postgres real e ignorado
+      # silenciosamente por padrao, mesmo com defer-datasource-initialization.
+      mode: always
+
   jpa:
     open-in-view: false
+    # Roda schema.sql (RLS) depois do ddl-auto criar as tabelas - ver ADR 0002 / AD-002.
+    defer-datasource-initialization: true
     hibernate:
       # TODO: trocar para "validate" assim que Flyway/Liquibase gerenciar o
       # schema das projecoes de leitura.

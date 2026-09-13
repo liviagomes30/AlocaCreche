@@ -135,11 +135,12 @@ T8
 
 ---
 
-### T4: Provisionar RLS via `schema.sql`
+### T4: Provisionar RLS via `schema.sql` — ✅ Complete
 
-**What**: `schema.sql` com `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` + `DROP POLICY IF EXISTS` +
-`CREATE POLICY` (idempotente), e `spring.jpa.defer-datasource-initialization=true` no
-`application.yml` para rodar depois do Hibernate criar a tabela.
+**What**: `schema.sql` com `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` + `FORCE ROW LEVEL SECURITY` +
+`DROP POLICY IF EXISTS` + `CREATE POLICY` (idempotente), e `spring.sql.init.mode=always` +
+`spring.jpa.defer-datasource-initialization=true` no `application.yml` para rodar depois do
+Hibernate criar a tabela.
 **Where**: `alocacreche-relatorios/src/main/resources/schema.sql` (novo),
 `alocacreche-relatorios/src/main/resources/application.yml` (modificar)
 **Depends on**: T3
@@ -151,9 +152,9 @@ T8
 - Skill: NONE
 
 **Done when**:
-- [ ] `schema.sql` contém a policy exata do design.md
-- [ ] `application.yml` tem `spring.jpa.defer-datasource-initialization: true`
-- [ ] `mvn -pl alocacreche-relatorios test` sobe o contexto sem erro (reusa o smoke test)
+- [x] `schema.sql` contém a policy exata do design.md (corrigido: `FORCE ROW LEVEL SECURITY` adicionado — ver AD-002)
+- [x] `application.yml` tem `spring.jpa.defer-datasource-initialization: true` e `spring.sql.init.mode: always` (o segundo não estava no design original — sem ele, `schema.sql` é ignorado silenciosamente contra Postgres real; ver AD-002)
+- [x] `mvn -pl alocacreche-relatorios test` sobe o contexto sem erro (reusa o smoke test) — e confirmado via `pg_class.relrowsecurity`/`relforcerowsecurity` e `pg_policies` que a policy está ativa de verdade no Postgres real, não só "contexto sobe"
 
 **Tests**: none
 **Gate**: build

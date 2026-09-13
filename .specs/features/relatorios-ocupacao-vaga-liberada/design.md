@@ -134,6 +134,7 @@ MSRelatorios não tem as tabelas de domínio do monólito).
 
 ```sql
 ALTER TABLE ocupacao_turma ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ocupacao_turma FORCE ROW LEVEL SECURITY;  -- sem isso, o dono da tabela (mesma role da app) fica isento da policy
 DROP POLICY IF EXISTS ocupacao_turma_tenant_isolation ON ocupacao_turma;
 CREATE POLICY ocupacao_turma_tenant_isolation ON ocupacao_turma
     USING (municipio_id = current_setting('app.current_tenant')::bigint);
