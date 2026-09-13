@@ -199,7 +199,7 @@ duplicata, concorrência e isolamento por RLS.
 
 ---
 
-### T6: Declarar topologia RabbitMQ (`RabbitMqConfig`)
+### T6: Declarar topologia RabbitMQ (`RabbitMqConfig`) — ✅ Complete
 
 **What**: Beans do exchange topic `alocacreche.dominio`, fila `relatorios.ocupacao` (com DLX),
 fila `relatorios.ocupacao.dlq`, bindings, `Jackson2JsonMessageConverter`, e o
@@ -215,8 +215,13 @@ fila `relatorios.ocupacao.dlq`, bindings, `Jackson2JsonMessageConverter`, e o
 - Skill: `spring-boot-patterns`
 
 **Done when**:
-- [ ] Todos os beans do design declarados (exchange, 2 filas, 2 bindings, converter, container factory)
-- [ ] `mvn -pl alocacreche-relatorios test` sobe o contexto sem erro (reusa o smoke test)
+- [x] Todos os beans do design declarados (exchange, 2 filas, 2 bindings, converter, container factory)
+- [x] `mvn -pl alocacreche-relatorios test` sobe o contexto sem erro (reusa o smoke test) — bean
+      wiring confirmado sem exceção via `rabbitAdmin.initialize()` manual num teste descartável
+      (removido depois). **Achado**: `RabbitAdmin` só declara no broker quando o `ConnectionFactory`
+      cria a primeira conexão real (via `ConnectionListener`), não no `ContextRefreshedEvent` como a
+      doc sugere — sem um `@RabbitListener` ativo (T7), nada força essa conexão. Ver AD-001. A
+      declaração real no broker só é verificada de fato em T8.
 
 **Tests**: none
 **Gate**: build

@@ -9,6 +9,17 @@
 - **Scope**: Qualquer consumidor RabbitMQ futuro em `alocacreche-relatorios` ou `alocacreche-core` (ex.: consumidor de `MatriculaCriada`, consumidor de notificações no módulo Notificação).
 - **Date**: 2026-09-12
 - **Status**: active
+- **Gotcha descoberto na implementação (T6 de `relatorios-ocupacao-vaga-liberada`)**: usar
+  `org.springframework.amqp.rabbit.config.RetryInterceptorBuilder` (especifico do Spring AMQP),
+  **não** `org.springframework.retry.interceptor.RetryInterceptorBuilder` (generico do Spring
+  Retry) — o generico nao aceita `MessageRecoverer` (ex.: `RejectAndDontRequeueRecoverer`), so
+  `MethodInvocationRecoverer`, e nao compila. Alem disso, `RabbitAdmin` **não** declara
+  exchanges/filas/bindings no `ContextRefreshedEvent` como a documentação sugere — a declaração só
+  acontece quando o `ConnectionFactory` cria sua primeira conexão real (via `ConnectionListener`),
+  o que só acontece quando algo de fato usa o broker (um `@RabbitListener` ativo, ou uso do
+  `RabbitTemplate`). Um `@SpringBootTest` que só sobe o contexto sem nenhum listener **não prova
+  nada** sobre a topologia estar declarada no broker — só o teste de integração ponta a ponta (T8,
+  com um listener real) verifica isso de fato.
 
 ### AD-002
 - **Decision**: Row-Level Security é provisionada via `schema.sql` idempotente (`ENABLE ROW LEVEL SECURITY` + `FORCE ROW LEVEL SECURITY` + `DROP POLICY IF EXISTS` + `CREATE POLICY`), com **`spring.sql.init.mode=always`** (não só `defer-datasource-initialization=true`), **e a aplicação conecta como uma role dedicada não-superuser** (`alocacreche_app`), nunca como o usuário bootstrap do container Postgres.
