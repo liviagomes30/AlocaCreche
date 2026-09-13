@@ -224,6 +224,12 @@ fila `relatorios.ocupacao.dlq`, bindings, `Jackson2JsonMessageConverter`, e o
       cria a primeira conexão real (via `ConnectionListener`), não no `ContextRefreshedEvent` como a
       doc sugere — sem um `@RabbitListener` ativo (T7), nada força essa conexão. Ver AD-001. A
       declaração real no broker só é verificada de fato em T8.
+- [x] **Correção pós-Verificador (rodada 2)**: a classificação `EventoInvalidoException -> false`
+      não tinha efeito nenhum em produção — uma entrada catch-all `Exception.class -> true` no
+      mesmo mapa fazia o classifier casar o wrapper `ListenerExecutionFailedException` (que É uma
+      `Exception`) antes de olhar a causa real. Corrigido trocando para o construtor de 4
+      argumentos `SimpleRetryPolicy(3, map, traverseCauses=true, defaultValue=true)` e removendo o
+      catch-all. Ver AD-001 e `validation.md` (rodada 2).
 
 **Tests**: none
 **Gate**: build
@@ -291,6 +297,14 @@ teste do módulo)
       independente: payload válido mas com `vagasDisponiveis` negativo, publicado no broker real,
       confirmando que `EventoInvalidoException` nunca é retentada fim a fim — ver `validation.md`
       Fix 3)
+- [x] **Correção pós-Verificador (rodada 2)**: o teste do Fix 3 acima, do jeito que foi escrito
+      originalmente, não provava nada — "repositório nunca chamado" é verdade tanto com rejeição
+      imediata quanto com 3 tentativas (a exceção acontece antes do repositório ser tocado nos dois
+      casos). O Verificador reinjetou o catch-all `Exception.class -> true` removido no Fix 3 e o
+      teste continuou passando, expondo que o bug real (catch-all shadowing a causa específica no
+      `BinaryExceptionClassifier`) não tinha sido corrigido de verdade. Corrigido adicionando
+      `@MockitoSpyBean` no próprio `VagaLiberadaListener` e `verify(listener, times(1)).receber(...)`
+      — sinal que distingue de fato 1 tentativa de 3. Ver AD-001 (rodada 2) e `validation.md`.
 
 **Tests**: integration
 **Gate**: full

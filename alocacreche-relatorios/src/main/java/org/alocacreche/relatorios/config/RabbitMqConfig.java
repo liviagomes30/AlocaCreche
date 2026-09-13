@@ -98,12 +98,18 @@ public class RabbitMqConfig {
         // ser rejeicao imediata (OCUP-06 cobre "nao puder ser desserializado", nao so campo
         // faltando), senao cairia na politica de retry generica abaixo.
         retryableExceptions.put(MessageConversionException.class, false);
-        retryableExceptions.put(Exception.class, true);
 
-        // traverseCauses=true: o Spring AMQP pode envolver a excecao original numa
-        // ListenerExecutionFailedException antes de chegar aqui - sem isso, a classificacao
-        // acima nao enxergaria EventoInvalidoException dentro da causa.
-        SimpleRetryPolicy retryPolicy = new SimpleRetryPolicy(3, retryableExceptions, true);
+        // traverseCauses=true: o Spring AMQP envolve a excecao original numa
+        // ListenerExecutionFailedException antes de chegar aqui. defaultValue=true: qualquer
+        // excecao NAO listada acima (ex.: falha transitoria de banco) continua retryable por
+        // padrao. Ver .specs/STATE.md AD-001 - NAO adicionar uma entrada catch-all
+        // "Exception.class -> true" aqui: o classifier casa o wrapper externo
+        // (ListenerExecutionFailedException, que É uma Exception) com essa entrada antes de
+        // sequer olhar a causa, fazendo EventoInvalidoException/MessageConversionException
+        // serem retentadas mesmo estando mapeadas como false - descoberto por um teste fim a
+        // fim que contava invocacoes do listener, nao so o resultado final (DLQ + repositorio
+        // nunca chamado e verdade tanto com 1 tentativa quanto com 3).
+        SimpleRetryPolicy retryPolicy = new SimpleRetryPolicy(3, retryableExceptions, true, true);
         RetryTemplate retryTemplate = new RetryTemplate();
         retryTemplate.setRetryPolicy(retryPolicy);
 

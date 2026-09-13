@@ -2,6 +2,7 @@ package org.alocacreche.relatorios.ocupacao;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
@@ -59,6 +60,8 @@ class VagaLiberadaConsumerIT {
     @Autowired private RabbitTemplate rabbitTemplate;
 
     @MockitoSpyBean private OcupacaoTurmaRepository repository;
+
+    @MockitoSpyBean private VagaLiberadaListener listener;
 
     @Autowired private PlatformTransactionManager transactionManager;
 
@@ -125,6 +128,11 @@ class VagaLiberadaConsumerIT {
         Message naDlq = rabbitTemplate.receive(RabbitMqConfig.OCUPACAO_DLQ, 5_000);
         assertThat(naDlq).isNotNull();
         verify(repository, never()).upsert(eq(turmaId), any(), any(), any(), any());
+        // Sinal decisivo: repositorio nunca chamado tambem seria verdade se a mensagem tivesse
+        // sido retentada 3x antes de cair na DLQ (a excecao acontece antes do repositorio ser
+        // tocado nas 3 tentativas). Só a contagem de invocacoes do listener distingue rejeicao
+        // imediata (1 chamada) de retry-entao-DLQ (3 chamadas) - ver validation.md rodada 2.
+        verify(listener, times(1)).receber(argThat(e -> turmaId.equals(e.turmaId())));
     }
 
     @Test

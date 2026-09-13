@@ -38,6 +38,12 @@ Seen once or not yet corroborated. Tracked, not trusted.
 - evidence: OCUP-10 (multi-tenancy)
 - last seen: 2026-09-13T02:10:10Z
 
+### L-005 - When proving a non-retryable exception classification end-to-end, assert on retry attempt count (a spy on the listener invocation count, or the broker's delivery/death header), not on downstream side-effect absence or final dead-letter-queue arrival, because both are identical whether the exception retries first or is rejected immediately.
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `messaging` · harmful: 0
+- features: relatorios-ocupacao-vaga-liberada
+- evidence: alocacreche-relatorios/src/main/java/org/alocacreche/relatorios/config/RabbitMqConfig.java:96 (messaging)
+- last seen: 2026-09-13T16:44:19Z
+
 ## Quarantined (failed when applied - ignore)
 
 A confirmed lesson that recurred alongside failure. Kept for the maintainer to review.

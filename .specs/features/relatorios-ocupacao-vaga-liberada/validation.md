@@ -1,9 +1,23 @@
 # Consumo do evento VagaLiberada e projeção de ocupação Validation
 
-**Date**: 2026-09-12
+**Date**: 2026-09-13
 **Spec**: `.specs/features/relatorios-ocupacao-vaga-liberada/spec.md`
-**Diff range**: `240bd4f..HEAD` (HEAD = `33aabc5`)
+**Diff range**: `240bd4f..HEAD` (HEAD = `7ad51ef`)
 **Verifier**: independent sub-agent (author ≠ verifier)
+**Round**: 2 of max 3 (fix→re-verify) — re-derives coverage from scratch against the code as it
+stands after commit `7ad51ef` ("fix(relatorios): close gaps found by the independent Verifier").
+Does **not** trust the Round 1 report's conclusions; every finding below was independently
+re-run this session.
+
+---
+
+## What changed since Round 1 (commit `7ad51ef`)
+
+- `alocacreche-relatorios/pom.xml`: added `maven-failsafe-plugin` bound to `integration-test`/`verify`.
+- `OcupacaoTurmaRepositoryIT.java`: split the menor-ou-igual test into two (`upsertNaoAplicaQuandoSequenciaRecebidaEMenor` / `upsertNaoAplicaQuandoSequenciaRecebidaEIgual`), added `upsertConcorrenteParaTurmasDiferentesNaoInterfereEntreSi` and `semSetLocalDefinidoFalhaFechadoEmVezDeVazarDados` (8 tests total, was 5).
+- `VagaLiberadaConsumerIT.java`: added `payloadValidoComVagasNegativasVaiDiretoParaDlqSemRetentarNoRepositorio` (4 tests total, was 3).
+- `.specs/STATE.md`: new `AD-003` (Failsafe required for `*IT` classes).
+- `tasks.md`: "Full" gate command corrected to `mvn -pl alocacreche-relatorios verify`.
 
 ---
 
@@ -11,50 +25,46 @@
 
 | Task | Status  | Notes |
 | ---- | ------- | ----- |
-| T1   | ✅ Done | `VagaLiberadaEvent` record, all 7 fields present |
-| T2   | ✅ Done | `EventoInvalidoException extends RuntimeException` |
-| T3   | ✅ Done | `OcupacaoTurma` entity, `turmaId` as `@Id` |
-| T4   | ✅ Done | `schema.sql` + `spring.sql.init.mode: always` present |
-| T5   | ✅ Done | Upsert query + `OcupacaoTurmaRepositoryIT` (5 tests, all pass in isolation) |
-| T6   | ✅ Done | `RabbitMqConfig` declares exchange/queues/bindings/converter/retry |
-| T7   | ✅ Done | `VagaLiberadaListener` + `VagaLiberadaListenerTest` (3 tests, all pass) |
-| T8   | ✅ Done | `VagaLiberadaConsumerIT` (3 tests, all pass in isolation) |
-
-All 8 tasks are functionally complete and each task's own "Done when" checklist is satisfied. However, see **Gate Check** below: the task-level claims of "N testes passam" were verified by running each IT class individually (`-Dtest=ClassName`), not by the literal Gate Check Command the tasks declare (`mvn -pl alocacreche-relatorios test`) — that command does not execute either IT class at all (see Gate Check section).
+| T1-T8 | ✅ Done | Unchanged from Round 1 — all 8 tasks' own "Done when" checklists satisfied |
+| Fix 1 (gate) | ✅ Done | `maven-failsafe-plugin` added, gate corrected to `verify` |
+| Fix 2 (OCUP-02 equal boundary) | ✅ Done | New test added, mutant re-run confirms it now discriminates |
+| Fix 3 (OCUP-06/07 e2e non-retry proof) | ❌ **Not actually closed** | New test added, but re-running the same mutation independently shows it still survives — see Discrimination Sensor |
+| Fix 4 (SET LOCAL / independent-turma) | ✅ Done | Both new tests added and pass |
 
 ---
 
 ## Spec-Anchored Acceptance Criteria
 
-| Criterion (WHEN X THEN Y) | Spec-defined outcome | `file:line` + assertion | Result |
+| Criterion (WHEN X THEN Y) | Spec-defined outcome | `file:line` + assertion expression | Result |
 | --- | --- | --- | --- |
-| **OCUP-01**: upsert de `vagasDisponiveis`, `crecheId`, `municipioId`, sequência (`eventId`) por `turmaId` | Linha gravada com todos os 4 campos + chave `turmaId` | `alocacreche-relatorios/src/test/java/org/alocacreche/relatorios/ocupacao/OcupacaoTurmaRepositoryIT.java:78-82` - `assertThat(turma.getVagasDisponiveis()).isEqualTo(5); assertThat(turma.getUltimaSequenciaAplicada()).isEqualTo(1L); assertThat(turma.getCrecheId()).isEqualTo(10L); assertThat(turma.getMunicipioId()).isEqualTo(1L)`; e2e em `VagaLiberadaConsumerIT.java:88-91` via routing key real `vaga.liberada` | ✅ PASS |
-| **OCUP-02**: `eventId` ≤ última sequência aplicada → descarta sem erro, sem alterar | Zero alteração para `eventId` menor **ou igual** | `OcupacaoTurmaRepositoryIT.java:96-103` - `upsertComoTenant(..., 5L)` depois `upsertComoTenant(..., 3L)`; asserta que `vagasDisponiveis`/`ultimaSequenciaAplicada` permanecem os do 1º upsert | ⚠️ **GAP parcial** - o teste só cobre `eventId` estritamente **menor** (3 < 5); nenhum teste chama upsert com `eventId` **igual** ao já aplicado. Sensor de discriminação confirmou: mutar o `WHERE` de `<` para `<=` **sobrevive** aos 5 testes (ver Discrimination Sensor #1) |
-| **OCUP-03**: duas mensagens concorrentes para o mesmo `turmaId` → só a maior sequência prevalece | Resultado final = maior `eventId` das duas | `OcupacaoTurmaRepositoryIT.java:106-126` - `upsertConcorrenteAplicaSoAMaiorSequencia`: dois `ExecutorService` submits com `eventId` 5 e 10; `assertThat(turma.getUltimaSequenciaAplicada()).isEqualTo(10L); assertThat(turma.getVagasDisponiveis()).isEqualTo(7)` | ✅ PASS |
-| **OCUP-04**: `SET LOCAL app.current_tenant` = `municipioId` antes de gravar/ler, mesma transação | `SET LOCAL` chamado com o valor exato do `municipioId` do payload, antes do upsert | `VagaLiberadaListenerTest.java:39-49` - `verify(entityManager).createNativeQuery("SET LOCAL app.current_tenant = '7'"); verify(query).executeUpdate(); verify(repository).upsert(100L, 7L, 10L, 5, 1L)`; confirmado fim-a-fim em `VagaLiberadaConsumerIT.java:80-91` (busca só encontra a linha lendo com o mesmo tenant) | ✅ PASS |
-| **OCUP-05**: declarar exchange `alocacreche.dominio`, fila `relatorios.ocupacao`, DLQ `relatorios.ocupacao.dlq` na inicialização, idempotente | Beans declarados; reinício não falha se já existirem | `RabbitMqConfig.java:42-76` (beans); uso real comprovado em `VagaLiberadaConsumerIT.java` (mensagens fluem pela fila/DLQ nomeados) | ⚠️ **Spec-precision gap** - a declaração em si é comprovada (beans existem, broker aceita mensagens), mas a propriedade explícita "idempotente / não falha se já existir" nunca é exercitada por um teste que reinicia o contexto contra um broker já provisionado - depende de comportamento padrão do `RabbitAdmin`/AMQP, não de lógica própria testada |
-| **OCUP-06**: payload não desserializável ou campo obrigatório faltando → DLQ direto, sem retry | Mensagem aparece na DLQ imediatamente (0 tentativas extras) | JSON malformado: `VagaLiberadaConsumerIT.java:95-113` - `payloadMalformadoVaiDiretoParaDlqSemReentrega`: `assertThat(naDlq).isNotNull(); assertThat(naFilaPrincipal).isNull()`. Campo faltando: só unitário, `VagaLiberadaListenerTest.java:52-60` - `assertThatThrownBy(...).isInstanceOf(EventoInvalidoException.class); verifyNoInteractions(repository)` | ⚠️ **GAP parcial** - o caminho "JSON malformado" é provado fim-a-fim (via broker real). O caminho "campo obrigatório faltando" só é provado no nível de unidade (lança a exceção, não chama o repositório) - **nunca fim-a-fim contra o broker real**, então a classificação de retry (`EventoInvalidoException` não-retryable) para esse subcaminho especificamente não é comprovada. Sensor de discriminação confirmou: tornar `EventoInvalidoException` retryable **sobrevive** a todos os 6 testes relevantes (ver Discrimination Sensor #3) |
-| **OCUP-07**: `vagasDisponiveis` negativo → mesma regra (DLQ) | Mesma regra do item acima | `VagaLiberadaListenerTest.java:62-71` - `vagasDisponiveisNegativoLancaExcecaoSemChamarRepositorio`: `assertThatThrownBy(...).isInstanceOf(EventoInvalidoException.class); verifyNoInteractions(repository)` | ⚠️ **GAP parcial** - mesmo problema do OCUP-06: só unitário, nunca fim-a-fim contra o broker real confirmando ausência de retry para este payload especificamente |
-| **OCUP-08**: falha transitória → nack com requeue, nova tentativa | Repositório é chamado novamente após falha | `VagaLiberadaConsumerIT.java:116-129` - `falhaTransitoriaVaiParaDlqApenasAposTresTentativas`: `doThrow(new RuntimeException(...))...; verify(repository, times(3)).upsert(...)` | ✅ PASS |
-| **OCUP-09**: 3 tentativas consecutivas por causa transitória → DLQ | DLQ recebe a mensagem só após a 3ª tentativa | `VagaLiberadaConsumerIT.java:127-129` - `Message naDlq = rabbitTemplate.receive(RabbitMqConfig.OCUPACAO_DLQ, 5_000); assertThat(naDlq).isNotNull(); verify(repository, times(3))...` | ✅ PASS |
-| **OCUP-10**: RLS na tabela de projeção - leitura sem `SET LOCAL`/tenant errado não retorna linhas de outro município | Zero linhas para tenant incorreto | `OcupacaoTurmaRepositoryIT.java:128-140` - `rlsEscondeLinhaDeOutroMunicipio`: grava como tenant `1`, lê como tenant `2`, `assertThat(resultadoComoTenantErrado).isEmpty()` | ⚠️ **Spec-precision gap** - o subcaso "tenant errado definido" está coberto; o subcaso literal do texto do AC "**sem** `SET LOCAL` definido" (nenhum valor setado) não tem teste próprio - `current_setting()` de uma GUC não definida lança erro do Postgres em vez de devolver silenciosamente zero linhas, então o comportamento observável desse subcaso específico (erro vs. lista vazia) não é comprovado |
+| **OCUP-01** upsert de `vagasDisponiveis`, `crecheId`, `municipioId`, `eventId` por `turmaId` | Linha gravada com os 4 campos + chave `turmaId` | `OcupacaoTurmaRepositoryIT.java:75-84` `upsertCriaLinhaQuandoTurmaNaoExiste` - `assertThat(turma.getVagasDisponiveis()).isEqualTo(5); ...getCrecheId()...isEqualTo(10L); ...getMunicipioId()...isEqualTo(1L)`; e2e `VagaLiberadaConsumerIT.java:82-93` `eventoValidoAtualizaProjecao` via routing key real `vaga.liberada` | ✅ PASS |
+| **OCUP-02** `eventId` ≤ última sequência aplicada → descarta sem erro, sem alterar | Zero alteração para `eventId` menor **ou igual** | `OcupacaoTurmaRepositoryIT.java:96-104` `upsertNaoAplicaQuandoSequenciaRecebidaEMenor` (caso `<`) **e** `OcupacaoTurmaRepositoryIT.java:106-114` `upsertNaoAplicaQuandoSequenciaRecebidaEIgual` (caso `=`, NOVO) - `assertThat(turma.getVagasDisponiveis()).isEqualTo(5); assertThat(turma.getUltimaSequenciaAplicada()).isEqualTo(5L)` | ✅ PASS - fronteira de igualdade agora coberta; mutante #1 (`<` → `<=` em `OcupacaoTurmaRepository.java:25`) re-executado nesta rodada e **morto** (`upsertNaoAplicaQuandoSequenciaRecebidaEIgual` falha com o mutante) |
+| **OCUP-03** duas mensagens concorrentes, mesmo `turmaId` → só a maior sequência prevalece | Resultado final = maior `eventId` | `OcupacaoTurmaRepositoryIT.java:116-137` `upsertConcorrenteAplicaSoAMaiorSequencia` - `assertThat(turma.getUltimaSequenciaAplicada()).isEqualTo(10L); assertThat(turma.getVagasDisponiveis()).isEqualTo(7)` | ✅ PASS |
+| **OCUP-04** `SET LOCAL app.current_tenant` = `municipioId` antes de gravar/ler, mesma transação | `SET LOCAL` chamado com o valor exato do `municipioId` do payload | `VagaLiberadaListenerTest.java:39-49` `payloadValidoAplicaTenantEDelegaAoRepositorio` - `verify(entityManager).createNativeQuery("SET LOCAL app.current_tenant = '7'"); verify(repository).upsert(100L, 7L, 10L, 5, 1L)`; e2e `VagaLiberadaConsumerIT.java:82-93` (só encontra a linha lendo com o mesmo tenant) | ✅ PASS |
+| **OCUP-05** declarar exchange/fila/DLQ na inicialização, idempotente | Beans declarados; reinício não falha se já existirem | `RabbitMqConfig.java:41-76` (beans); uso real em `VagaLiberadaConsumerIT` | ⚠️ **Spec-precision gap (carregado do Round 1, sem mudança)** - a declaração em si é comprovada; a propriedade "não falha se já existir" ao reiniciar contra um broker já provisionado nunca é exercitada por teste - depende de comportamento padrão do `RabbitAdmin`, não testado |
+| **OCUP-06** payload não desserializável OU campo faltando → DLQ direto, sem retry | Mensagem na DLQ imediatamente (0 tentativas extras) | JSON malformado: `VagaLiberadaConsumerIT.java:96-114` `payloadMalformadoVaiDiretoParaDlqSemReentrega` - `assertThat(naDlq).isNotNull(); assertThat(naFilaPrincipal).isNull()` (PASS, subcaso não afetado pelas correções desta rodada). Campo faltando: só unitário, `VagaLiberadaListenerTest.java:52-60` `campoObrigatorioFaltandoLancaExcecaoSemChamarRepositorio` | ❌ **GAP (não fechado)** - subcaso "campo obrigatório faltando" continua só unitário, nunca fim-a-fim contra o broker real; o novo teste e2e adicionado (Fix 3) cobre um payload diferente (`vagasDisponiveis` negativo, ver OCUP-07), não este |
+| **OCUP-07** `vagasDisponiveis` negativo → mesma regra (DLQ, sem retry) | Mesma regra do item acima | Unit: `VagaLiberadaListenerTest.java:62-71`. E2E (NOVO): `VagaLiberadaConsumerIT.java:117-128` `payloadValidoComVagasNegativasVaiDiretoParaDlqSemRetentarNoRepositorio` - `assertThat(naDlq).isNotNull(); verify(repository, never()).upsert(...)` | ❌ **GAP (Fix 3 não resolveu)** - re-executei o mutante #3 (`EventoInvalidoException` classificado `true`/retryable em `RabbitMqConfig.java:96`) de forma independente nesta rodada: **sobrevive de novo**. O teste novo só afirma "DLQ não-nulo" e "repositório nunca chamado" - ambas as afirmações são invariantes à mutação, porque a exceção é lançada **antes** do repositório ser tocado (então `never()` é verdade em ambos os casos) e a mensagem eventualmente chega na DLQ de qualquer forma, só que após esgotar as 3 tentativas de retry em vez de rejeição imediata. Confirmei isso lendo o log da execução mutada: aparecem 3 mensagens `"Execution of Rabbit message listener failed"` + `"Retry Policy Exhausted"` antes da rejeição - ou seja, o comportamento observável realmente mudou (3 tentativas em vez de 0), mas nenhuma asserção do teste captura essa diferença |
+| **OCUP-08** falha transitória → nack com requeue, nova tentativa | Repositório chamado de novo após falha | `VagaLiberadaConsumerIT.java:131-145` `falhaTransitoriaVaiParaDlqApenasAposTresTentativas` - `verify(repository, times(3)).upsert(...)` | ✅ PASS |
+| **OCUP-09** 3 tentativas consecutivas por causa transitória → DLQ | DLQ recebe só após a 3ª tentativa | `VagaLiberadaConsumerIT.java:131-145` - `Message naDlq = rabbitTemplate.receive(RabbitMqConfig.OCUPACAO_DLQ, 5_000); assertThat(naDlq).isNotNull(); verify(repository, times(3))...` | ✅ PASS |
+| **OCUP-10** RLS - leitura sem `SET LOCAL`/tenant errado não retorna linhas de outro município | Zero linhas / comportamento fail-closed para tenant incorreto ou ausente | Tenant errado: `OcupacaoTurmaRepositoryIT.java:182-194` `rlsEscondeLinhaDeOutroMunicipio` - `assertThat(resultadoComoTenantErrado).isEmpty()`. Sem `SET LOCAL` (NOVO): `OcupacaoTurmaRepositoryIT.java:160-179` `semSetLocalDefinidoFalhaFechadoEmVezDeVazarDados` - `assertThatThrownBy(...).isInstanceOf(RuntimeException.class)` | ✅ PASS - gap fechado. Nota: o comportamento real observado é uma **exceção** do Postgres (GUC não definida), não uma lista vazia silenciosa; isso ainda satisfaz a garantia da spec ("não retorna linhas de outro município" - falhar fechado é uma implementação válida, e mais estrita, dessa garantia), mas diverge da leitura mais literal do texto ("não retorne linhas" sugere execução bem-sucedida com resultado vazio). Comportamento agora documentado e testado, o que é a melhoria pedida |
 
-**Status**: ❌ Gaps present (3 partial-coverage gaps: OCUP-02, OCUP-06, OCUP-07 — each traced to a surviving mutant or an untested sub-branch; 2 spec-precision gaps: OCUP-05, OCUP-10)
+**Status**: ❌ Gaps present (1 unresolved surviving-mutant gap carried from Round 1: OCUP-06/07's "no retry" guarantee for `EventoInvalidoException` remains unproven end-to-end despite the Round-1 fix attempt; 1 unchanged spec-precision gap: OCUP-05). 8/10 criteria now cleanly PASS (up from 5/10 in Round 1); OCUP-02 and OCUP-10 gaps from Round 1 are genuinely closed.
 
 ---
 
 ## Discrimination Sensor
 
-Isolated via `git worktree add <scratch> HEAD` at a temp path outside the repo tree; mutations applied only to the scratch copy; worktree removed with `git worktree remove --force` after each cleanup; `git status --porcelain` on the real tree confirmed empty both before and after the entire sensor run.
+Isolated via `git worktree add <scratch-path> HEAD` at `C:/repos-pessoal/creche-scratch-verify2` (outside the real tree); mutations applied only to files inside the scratch worktree; `git status --porcelain` on the real tree (`C:/repos-pessoal/creche`) confirmed empty immediately before creating the worktree and again immediately after `git worktree remove --force`. `git stash` was never used.
+
+Scope: this round re-runs only the 2 mutations that survived in Round 1 (per the task), applied one at a time (the other reverted) so each result is unambiguous.
 
 | Mutation | File:line | Description | Killed? |
 | --- | --- | --- | --- |
-| 1 | `alocacreche-relatorios/src/main/java/org/alocacreche/relatorios/ocupacao/OcupacaoTurmaRepository.java:25` | Flipped upsert guard `WHERE ocupacao_turma.ultima_sequencia_aplicada < EXCLUDED.ultima_sequencia_aplicada` → `<=` (boundary: makes an "equal `eventId`" delivery apply the update, violating OCUP-02's "menor ou igual" idempotency guarantee) | ❌ **Survived** - `OcupacaoTurmaRepositoryIT` still reports `Tests run: 5, Failures: 0` because no test exercises `eventId` exactly equal to the already-applied sequence |
-| 2 | `alocacreche-relatorios/src/main/java/org/alocacreche/relatorios/ocupacao/VagaLiberadaListener.java:53` | Off-by-one on the negative-quota guard: `evento.vagasDisponiveis() < 0` → `< -1` (makes `-1` a valid value) | ✅ **Killed** - `VagaLiberadaListenerTest.vagasDisponiveisNegativoLancaExcecaoSemChamarRepositorio` fails: expects `EventoInvalidoException`, gets a `NullPointerException` because the exception path (and its guard) never fires |
-| 3 | `alocacreche-relatorios/src/main/java/org/alocacreche/relatorios/config/RabbitMqConfig.java:96` | Flipped retry classification: `retryableExceptions.put(EventoInvalidoException.class, false)` → `true` (makes validation failures retry 3× like a transient failure, instead of rejecting immediately per OCUP-06/07) | ❌ **Survived** - `VagaLiberadaConsumerIT` (3 tests) + `VagaLiberadaListenerTest` (3 tests) all still pass; no test publishes a well-formed-but-invalid `VagaLiberadaEvent` through the real broker to observe retry count/DLQ timing for this exception type specifically |
+| 1 (re-run) | `alocacreche-relatorios/src/main/java/org/alocacreche/relatorios/ocupacao/OcupacaoTurmaRepository.java:25` | Flipped upsert guard `WHERE ... ultima_sequencia_aplicada < EXCLUDED.ultima_sequencia_aplicada` → `<=` | ✅ **Killed** - `mvn -pl alocacreche-relatorios verify -Dit.test=OcupacaoTurmaRepositoryIT` in the scratch worktree: `Tests run: 8, Failures: 1` — `OcupacaoTurmaRepositoryIT.upsertNaoAplicaQuandoSequenciaRecebidaEIgual:112` fails (`invalid input syntax for type bigint: ""`-adjacent assertion mismatch: `vagasDisponiveis` changed from 5 to the mutated update value). Round-1 gap confirmed closed. |
+| 3 (re-run) | `alocacreche-relatorios/src/main/java/org/alocacreche/relatorios/config/RabbitMqConfig.java:96` | Flipped retry classification `retryableExceptions.put(EventoInvalidoException.class, false)` → `true` | ❌ **Survived again** - `mvn -pl alocacreche-relatorios verify -Dit.test=VagaLiberadaConsumerIT` in the scratch worktree: `Tests run: 4, Failures: 0` — `payloadValidoComVagasNegativasVaiDiretoParaDlqSemRetentarNoRepositorio` (added in the Round-1 fix specifically to catch this) still passes under the mutation. Log evidence from the mutated run shows 3 distinct `"Execution of Rabbit message listener failed"` / `"Retry Policy Exhausted"` entries before DLQ delivery (vs. immediate rejection on the real code), proving the behavior genuinely changed - but no assertion in the test observes attempt count, so it doesn't fail. |
 
-**Sensor depth**: lightweight (3 targeted mutations, default tier)
-**Result**: 1/3 killed - ❌ **FAIL** (2 surviving mutants → fix tasks required)
+**Sensor depth**: lightweight (2 targeted re-runs, default tier; scope bounded to the 2 previously-surviving mutations per this round's task)
+**Result**: 1/2 killed - ❌ **FAIL** (1 mutant still survives; Round-1 Fix 3 did not actually close this gap)
 
 ---
 
@@ -62,95 +72,71 @@ Isolated via `git worktree add <scratch> HEAD` at a temp path outside the repo t
 
 | Principle | Status |
 | --- | --- |
-| Minimum code | ✅ |
-| Surgical changes | ✅ - diff scoped to `alocacreche-relatorios/`, `.specs/`, 2 DB init scripts, `docker-compose.yml` (3-line addition); no unrelated files touched |
-| No scope creep | ✅ - HTTP read endpoint, `MatriculaCriada` consumer, Redis cache, Sa-Token all correctly left out per spec's Out of Scope table |
-| Matches patterns | ✅ - `@RequiredArgsConstructor` constructor injection used in `VagaLiberadaListener` (repo-wide convention); Lombok `@Getter/@Setter` on the entity matches `OutboxEvent` convention cited in design.md |
-| Spec-anchored outcome check (asserted values match spec) | ⚠️ - matches where covered; see 3 partial-coverage gaps above |
-| Per-layer Coverage Expectation met (domain 1:1 ACs; routes happy+edge+error) | ❌ - the "campo obrigatório faltando" / "vagasDisponiveis negativo" error paths are proven only at unit level, not end-to-end against the real broker + retry interceptor (the layer where OCUP-06/07's "no retry" guarantee actually lives) |
-| Every test maps to a spec requirement - no unclaimed tests | ✅ - no stray/unclaimed tests found |
-| Documented guidelines followed: CLAUDE.md (constructor injection, Portuguese comments, no end-of-line comments) | ✅ - spot-checked all 6 new main-source files; no end-of-line comments found, all comments in Portuguese, header-style Javadoc used throughout |
+| Minimum code | ✅ - fix commit `7ad51ef` only touches `pom.xml`, the 2 IT test files, and spec/state bookkeeping |
+| Surgical changes | ✅ - no unrelated files touched |
+| No scope creep | ✅ |
+| Matches patterns | ✅ - new tests follow the same `TransactionTemplate`/`@MockitoSpyBean` patterns already in the file |
+| Spec-anchored outcome check (asserted values match spec) | ⚠️ - matches where covered; OCUP-06/07's e2e "no retry" assertion targets the wrong signal (repository-call absence / DLQ presence, both invariant to the mutation) instead of attempt count |
+| Per-layer Coverage Expectation met (domain 1:1 ACs; routes happy+edge+error) | ❌ - the messaging layer (where the "no retry" guarantee for `EventoInvalidoException` actually lives) still has no test that discriminates retryable vs non-retryable classification for this exception type |
+| Every test maps to a spec requirement - no unclaimed tests | ✅ |
+| Documented guidelines followed: CLAUDE.md (constructor injection, Portuguese comments, no end-of-line comments) | ✅ - spot-checked the 4 new/modified test methods and the `pom.xml` comment block; all comments in Portuguese, header-style, no end-of-line comments |
 
 ---
 
 ## Edge Cases
 
-- [x] Fila/exchange não existirem no broker → declarados na inicialização: covered by `RabbitMqConfig` beans + `VagaLiberadaConsumerIT` exercising them against a real Testcontainers broker
-- [x] `vagasDisponiveis` negativo → rejeita para DLQ: unit-covered (`VagaLiberadaListenerTest.java:62-71`); see gap note above re: no e2e proof of the "no retry" property for this specific case
-- [ ] Duas mensagens para turmas diferentes chegam ao mesmo tempo → processadas de forma independente (nenhuma trava global): **NOT explicitly tested** - the only concurrency test (`upsertConcorrenteAplicaSoAMaiorSequencia`) targets the *same* `turmaId`; no test exercises two distinct `turmaId`s concurrently to confirm the absence of cross-row locking/blocking. Low risk (native `INSERT ... ON CONFLICT` is inherently row-scoped in Postgres) but unverified by this test suite.
+- [x] Fila/exchange não existirem no broker → declarados na inicialização: covered (unchanged from Round 1)
+- [ ] `vagasDisponiveis` negativo → rejeita para DLQ **sem retry**: unit-covered for "throws"; e2e-covered for "DLQ presence" but NOT for "without retry" specifically (see OCUP-07 gap above)
+- [x] Duas mensagens para turmas diferentes chegam ao mesmo tempo → processadas de forma independente: **NOW covered** - `OcupacaoTurmaRepositoryIT.java:140-157` `upsertConcorrenteParaTurmasDiferentesNaoInterfereEntreSi` (Round-1 gap closed)
 
 ---
 
 ## Gate Check
 
-- **Gate command** (from tasks.md, "Full"): `mvn -pl alocacreche-relatorios test`
-- **Result**: 4 passed, 0 failed, 0 skipped — **but this is not the full picture, see finding below**
-- **Test count before feature**: 1 (`AlocaCrecheRelatoriosApplicationTests` smoke test only, per design.md/STATE.md)
-- **Test count after feature (literal gate command)**: 4
-- **Test count after feature (all test classes in module, run explicitly)**: 12 (1 smoke + 3 `VagaLiberadaListenerTest` + 5 `OcupacaoTurmaRepositoryIT` + 3 `VagaLiberadaConsumerIT`)
-- **Delta**: +3 (literal gate) / +11 (full module, all classes individually confirmed green)
-- **Skipped tests**: none reported by any run
-- **Failures**: none — every test that runs, passes
-
-**Critical finding — the documented "Full" gate silently skips 8 of 12 tests, with exit code 0:**
-
-`alocacreche-relatorios/pom.xml` declares no `maven-failsafe-plugin`, and neither does the parent (`pom.xml` at repo root, inherited from `spring-boot-starter-parent`). Maven Surefire's default `test` goal only matches `**/Test*.java`, `**/*Test.java`, `**/*Tests.java`, `**/*TestCase.java`. `OcupacaoTurmaRepositoryIT.java` and `VagaLiberadaConsumerIT.java` use the `*IT` suffix, which is Failsafe's default convention, not Surefire's. Running the exact command tasks.md prescribes as the "Full" gate (`mvn -pl alocacreche-relatorios test`) produces:
-
-```
-[INFO] Running org.alocacreche.relatorios.AlocaCrecheRelatoriosApplicationTests
-[INFO] Tests run: 1, ...
-[INFO] Running org.alocacreche.relatorios.ocupacao.VagaLiberadaListenerTest
-[INFO] Tests run: 3, ...
-[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0
-[INFO] BUILD SUCCESS
-```
-
-Neither `OcupacaoTurmaRepositoryIT` nor `VagaLiberadaConsumerIT` is even mentioned — no error, no "0 tests found" warning, nothing. Both classes only run when targeted explicitly (`-Dtest=ClassName`), which is how T5's "5 testes passam" and T8's "3 testes passam" claims in tasks.md were actually verified during implementation — not via the gate command tasks.md itself names. Verified independently in this session: `-Dtest=OcupacaoTurmaRepositoryIT` → 5/5 pass; `-Dtest=VagaLiberadaConsumerIT` → 3/3 pass; combined `-Dtest=VagaLiberadaConsumerIT,VagaLiberadaListenerTest` → 6/6 pass. So functionally nothing is broken - but as written, `mvn -pl alocacreche-relatorios test` (and by extension `mvn clean install` at the reactor root, since it invokes the same `test` phase) gives a false-green signal for 8 of the 10 acceptance criteria in this feature (everything OCUP-01/02/03/10 and part of OCUP-01/04/05/06/08/09 depend on those two IT classes). Any future regression in the upsert query, the RLS policy, or the end-to-end retry/DLQ wiring would pass CI silently.
+- **Gate command** (from tasks.md, "Full", corrected this round): `mvn -pl alocacreche-relatorios verify`
+- **Result**: 16 passed, 0 failed, 0 skipped (4 via Surefire: 1 smoke + 3 `VagaLiberadaListenerTest`; 12 via Failsafe: 8 `OcupacaoTurmaRepositoryIT` + 4 `VagaLiberadaConsumerIT`)
+- **Test count before feature**: 1 (`AlocaCrecheRelatoriosApplicationTests` smoke test only)
+- **Test count after feature (Round 1, literal gate)**: 4 (both IT classes silently skipped)
+- **Test count after feature (Round 2, corrected gate)**: 16 - **all test classes in the module now execute under the single documented gate command**, confirmed by running it verbatim (not `-Dtest=`/`-Dit.test=` targeted) and observing `Running org.alocacreche.relatorios.ocupacao.OcupacaoTurmaRepositoryIT` and `Running org.alocacreche.relatorios.ocupacao.VagaLiberadaConsumerIT` in the output, each followed by a non-zero "Tests run" line
+- **Delta**: +15 vs. pre-feature baseline
+- **Skipped tests**: none
+- **Failures**: none - the build-gate finding from Round 1 (Failsafe missing, `*IT` classes silently skipped) is confirmed fixed
 
 ---
 
 ## Fix Plans (if issues found)
 
-### Fix 1: Build gate silently excludes both integration-test classes
+### Fix carried over: OCUP-06/07 "no retry" guarantee still unverified end-to-end for `EventoInvalidoException` (mutant #3 survives again)
 
-- **Root cause**: No `maven-failsafe-plugin` bound to the `integration-test`/`verify` phases in `alocacreche-relatorios/pom.xml` (or the parent); Surefire's default include patterns don't match the `*IT.java` naming convention used for `OcupacaoTurmaRepositoryIT` and `VagaLiberadaConsumerIT`.
-- **Fix task**: Either (a) add `maven-failsafe-plugin` with its default `integration-test`/`verify` executions bound in `alocacreche-relatorios/pom.xml`, and update the "Full" Gate Check Command in tasks.md to `mvn -pl alocacreche-relatorios verify`; or (b) if Failsafe is intentionally out of scope for this module, add an explicit Surefire `<includes>` pattern covering `**/*IT.java` so `mvn test` actually runs them. Update tasks.md's Gate Check Commands table to match whichever is chosen.
-- **Priority**: Blocker (the stated regression gate for 8 of 10 ACs does not run them)
+- **Root cause**: The Round-1 fix added `payloadValidoComVagasNegativasVaiDiretoParaDlqSemRetentarNoRepositorio`, but its assertions (`naDlq` not null, `verify(repository, never())`) are both true regardless of the retry classification for this exception, because `EventoInvalidoException` is thrown by the listener's validation logic **before** the repository is ever invoked - so `never()` holds under both the correct (non-retryable) and mutated (retryable) configurations, and the message still eventually reaches the DLQ either way (immediately vs. after 3 exhausted attempts).
+- **Fix task**: Add an assertion that actually observes attempt count for this specific exception, not repository interaction. Options, in order of directness:
+  1. Spy on the listener bean itself (`@MockitoSpyBean private VagaLiberadaListener listener;`) and assert `verify(listener, times(1)).receber(any())` (immediate rejection, one invocation) vs. what a retryable classification would produce (3 invocations) - mirrors the pattern already used for the repository spy in `falhaTransitoriaVaiParaDlqApenasAposTresTentativas`.
+  2. Alternatively, read the RabbitMQ `x-death` header (`count`) off the DLQ message and assert it reflects zero requeues/retries.
+  3. Do the same for the "missing required field" sub-case of OCUP-06, which currently has no e2e coverage at all (only the unit test).
+- **Priority**: Blocker (this is the second consecutive round this specific mutant has survived - the underlying behavior guarantee for OCUP-06/07 is still not proven by any test that would fail if it regressed)
 
-### Fix 2: OCUP-02 equal-`eventId` boundary untested (surviving mutant #1)
+### Fix (carried over, unchanged priority): OCUP-05 idempotent re-declaration not tested
 
-- **Root cause**: `OcupacaoTurmaRepositoryIT.upsertNaoAplicaQuandoSequenciaRecebidaEMenorOuIgual` only exercises `eventId` strictly less than the applied sequence (3 < 5); it never calls upsert with `eventId` exactly equal to the applied sequence, despite its name implying both cases.
-- **Fix task**: Add an assertion (or a 3rd case in the existing test) that upserts with `eventId` equal to the already-applied sequence and confirms zero change, matching OCUP-02's literal "menor ou igual" wording.
-- **Priority**: Major
-
-### Fix 3: OCUP-06/07 "no retry" guarantee unverified end-to-end for `EventoInvalidoException` (surviving mutant #3)
-
-- **Root cause**: `VagaLiberadaConsumerIT` only proves immediate-DLQ-without-retry for `MessageConversionException` (malformed JSON); it never publishes a well-formed JSON message with a missing required field or negative `vagasDisponiveis` through the real broker to prove `EventoInvalidoException`'s non-retryable classification actually holds end-to-end.
-- **Fix task**: Add a test to `VagaLiberadaConsumerIT` that publishes a valid-JSON-but-semantically-invalid `VagaLiberadaEvent` (e.g., `turmaId=null` or `vagasDisponiveis=-1`) and asserts it lands in `relatorios.ocupacao.dlq` with `verify(repository, never()).upsert(...)` (0 retries, not 3).
-- **Priority**: Major
-
-### Fix 4 (minor): OCUP-10 "sem SET LOCAL definido" sub-case and independent-turma concurrency edge case untested
-
-- **Root cause**: `rlsEscondeLinhaDeOutroMunicipio` only covers "wrong tenant set", not "no tenant set at all"; no test covers two different `turmaId`s processed concurrently.
-- **Fix task**: Optional — add a test reading `OcupacaoTurma` inside a transaction with no `SET LOCAL app.current_tenant` call at all, and document/assert the actual observed behavior (error vs. empty result). Add a concurrency test with two distinct `turmaId`s if this needs stronger proof.
-- **Priority**: Minor
+- **Root cause**: No test restarts the Spring context against an already-provisioned broker to confirm `RabbitAdmin`'s declaration is idempotent; this currently relies on unverified default AMQP behavior.
+- **Fix task**: Optional - add a test that runs `RabbitAdmin.initialize()` (or restarts the context) a second time against the same broker/queues and asserts no exception is thrown.
+- **Priority**: Minor / spec-precision gap (not blocking, same as Round 1)
 
 ---
 
 ## Requirement Traceability Update
 
-| Requirement | Previous Status | New Status |
+| Requirement | Previous Status (Round 1) | New Status (Round 2) |
 | --- | --- | --- |
-| OCUP-01 | Implementing | ✅ Verified |
-| OCUP-02 | Implementing | ⚠️ Needs Fix (equal-boundary untested, mutant survived) |
-| OCUP-03 | Implementing | ✅ Verified |
-| OCUP-04 | Implementing | ✅ Verified |
-| OCUP-05 | Implementing | ⚠️ Spec-precision gap (idempotent re-declaration not tested) |
-| OCUP-06 | Implementing | ⚠️ Needs Fix (missing-field sub-case not proven end-to-end) |
-| OCUP-07 | Implementing | ⚠️ Needs Fix (negative-quota sub-case not proven end-to-end) |
-| OCUP-08 | Implementing | ✅ Verified |
-| OCUP-09 | Implementing | ✅ Verified |
-| OCUP-10 | Implementing | ⚠️ Spec-precision gap ("sem SET LOCAL" sub-case not proven) |
+| OCUP-01 | ✅ Verified | ✅ Verified |
+| OCUP-02 | ⚠️ Needs Fix | ✅ Verified (mutant killed) |
+| OCUP-03 | ✅ Verified | ✅ Verified |
+| OCUP-04 | ✅ Verified | ✅ Verified |
+| OCUP-05 | ⚠️ Spec-precision gap | ⚠️ Spec-precision gap (unchanged) |
+| OCUP-06 | ⚠️ Needs Fix | ❌ Needs Fix (missing-field subcase still not e2e; malformed-JSON subcase unaffected/fine) |
+| OCUP-07 | ⚠️ Needs Fix | ❌ Needs Fix (mutant #3 survived again - Round-1 fix ineffective) |
+| OCUP-08 | ✅ Verified | ✅ Verified |
+| OCUP-09 | ✅ Verified | ✅ Verified |
+| OCUP-10 | ⚠️ Spec-precision gap | ✅ Verified (sub-case now tested, fail-closed behavior confirmed) |
 
 ---
 
@@ -158,16 +144,14 @@ Neither `OcupacaoTurmaRepositoryIT` nor `VagaLiberadaConsumerIT` is even mention
 
 **Overall**: ❌ Not Ready
 
-**Spec-anchored check**: 5/10 ACs cleanly matched spec outcome (OCUP-01, 03, 04, 08, 09); 3 partial-coverage gaps traced to surviving mutants or untested sub-branches (OCUP-02, 06, 07); 2 spec-precision gaps (OCUP-05, 10)
-**Sensor**: 1/3 mutations killed - 2 survived
-**Gate**: 4 passed via the literal documented command, 0 failed — but 8 additional tests (both IT classes, covering the majority of the ACs) never execute under that command at all
+**Spec-anchored check**: 8/10 ACs cleanly matched spec outcome (up from 5/10 in Round 1); 1 surviving-mutant gap (OCUP-06/07, carried over and confirmed still open); 1 unchanged spec-precision gap (OCUP-05)
+**Sensor**: 1/2 re-run mutations killed - 1 survived (same mutant as Round 1, despite an intervening fix attempt)
+**Gate**: 16 passed, 0 failed - the Round-1 build-gate blocker (Failsafe never wired, both `*IT` classes silently skipped) is confirmed fixed; `mvn -pl alocacreche-relatorios verify` now genuinely executes all 16 tests in the module
 
-**What works**: The core upsert/idempotency/concurrency/RLS mechanics (`OcupacaoTurmaRepository`, `schema.sql`, the `alocacreche_app` non-superuser role) are correctly implemented and, when run explicitly, all 12 tests in the module pass. The listener's validation and tenant-setting logic, the RabbitMQ topology, and the transient-failure retry/DLQ path (OCUP-08/09) are solid with real evidence.
+**What works**: The build gate is now trustworthy (Fix 1 fully resolved and independently re-verified). The OCUP-02 equal-`eventId` boundary is now genuinely discriminated by a test (Fix 2 fully resolved - mutant killed). The OCUP-10 "no SET LOCAL" sub-case and the independent-turma concurrency edge case are both now covered (Fix 4 fully resolved).
 
 **Issues found**:
-1. `mvn -pl alocacreche-relatorios test` (the tasks.md "Full" gate) does not execute `OcupacaoTurmaRepositoryIT` or `VagaLiberadaConsumerIT` at all — add `maven-failsafe-plugin` or adjust Surefire includes, and correct the Gate Check Commands table.
-2. OCUP-02's "menor ou igual" equal-sequence boundary is untested — add the missing assertion.
-3. OCUP-06/07's "no retry" guarantee is unverified end-to-end for `EventoInvalidoException` specifically — add an e2e test publishing a valid-JSON/invalid-payload message.
-4. (Minor) OCUP-10's "no SET LOCAL at all" sub-case and the independent-turma concurrency edge case are untested.
+1. (Blocker, carried over) OCUP-06/07's "no retry" guarantee for `EventoInvalidoException` is still not proven end-to-end - the Round-1 fix added a test but its assertions don't discriminate retry count; the same mutation that survived in Round 1 survives again in Round 2. Needs an assertion on attempt count (listener spy or DLQ `x-death` header), not repository-call absence.
+2. (Minor, unchanged) OCUP-05's idempotent-redeclaration-on-restart property remains untested.
 
-**Next steps**: Route Fix 1-3 back to an implementer as fix tasks (Fix 4 optional/minor), then re-run this Verifier. Bounded to 3 fix→re-verify iterations per the skill's process before escalating to the user.
+**Next steps**: Route the carried-over Fix (OCUP-06/07 attempt-count assertion) back to an implementer as a fix task - this is iteration 2 of the bounded 3-iteration fix→re-verify loop, so one more round is available before escalating to the user. Fix for OCUP-05 remains optional/minor.

@@ -28,6 +28,23 @@
   imediata. A correção é classificar `MessageConversionException` como não-retryable também.
   Verificado com um teste que publica bytes de JSON inválido diretamente e confirma que a mensagem
   aparece na DLQ sem nunca aparecer na fila principal.
+- **Gotcha crítico descoberto na rodada 2 do Verificador independente**: a classificação
+  `retryableExceptions.put(EventoInvalidoException.class, false)` **não tinha efeito nenhum em
+  produção** — `EventoInvalidoException` era retentada 3 vezes como qualquer outra falha, apesar
+  do mapeamento explícito. Causa raiz: uma entrada catch-all `Exception.class -> true` no mesmo
+  mapa fazia o `BinaryExceptionClassifier` (`traverseCauses=true`) casar o wrapper externo
+  (`ListenerExecutionFailedException`, que **é** uma `Exception`) com essa entrada **antes** de
+  sequer olhar a causa real — a entrada específica nunca era alcançada. Correção: usar o
+  construtor de 4 argumentos `SimpleRetryPolicy(maxAttempts, map, traverseCauses, defaultValue)`
+  com `defaultValue=true`, e **nunca** incluir uma entrada catch-all `Exception.class` no mapa
+  (ela sempre vai vencer contra qualquer classificação mais específica de uma causa aninhada).
+  **Como foi descoberto**: um teste fim a fim que checava só "mensagem foi pra DLQ" e "repositório
+  nunca foi chamado" passava de qualquer forma, porque essas duas condições são idênticas com 1
+  tentativa (correto) ou com 3 tentativas (bug) — só verificar a **contagem de invocações do
+  listener** (via `@MockitoSpyBean` no próprio `VagaLiberadaListener`, não só no repositório)
+  expôs a diferença. Lição: para provar "0 retries" (não "0 efeitos colaterais"), o sinal certo é
+  contagem de invocação do próprio componente que decide reentregar, não o efeito colateral que
+  ele produziria de qualquer forma.
 
 ### AD-003
 - **Decision**: Testes de integração neste projeto usam o sufixo `*IT.java` (não `*Test.java`) e todo módulo Maven que os tiver **precisa** declarar `maven-failsafe-plugin` com as execuções padrão (`integration-test` + `verify`) no seu `pom.xml`. O gate "Full"/"Build" de qualquer feature roda `mvn verify`, nunca `mvn test` sozinho.
