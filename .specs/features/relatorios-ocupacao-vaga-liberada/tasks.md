@@ -266,7 +266,7 @@ validação.
 
 ---
 
-### T8: Teste de integração ponta a ponta (RabbitMQ + Postgres reais) — ✅ Complete
+### T8: Teste de integração ponta a ponta (RabbitMQ + Postgres reais) — ✅ Complete (TODO parcial)
 
 **What**: Teste com Testcontainers (RabbitMQ + Postgres) publicando mensagens reais na fila
 `relatorios.ocupacao` e verificando o comportamento fim a fim: upsert bem-sucedido, payload
@@ -305,6 +305,18 @@ teste do módulo)
       `BinaryExceptionClassifier`) não tinha sido corrigido de verdade. Corrigido adicionando
       `@MockitoSpyBean` no próprio `VagaLiberadaListener` e `verify(listener, times(1)).receber(...)`
       — sinal que distingue de fato 1 tentativa de 3. Ver AD-001 (rodada 2) e `validation.md`.
+- [ ] **TODO (adiamento estratégico — ver CLAUDE.md, "Estratégia de Resolução de Problemas")**: o
+      Verificador independente da rodada 3 (final, ver `validation.md`) achou que o mesmo tipo de
+      lacuna da correção acima (rodada 2) também existe para `MessageConversionException` (JSON
+      malformado) — `payloadMalformadoVaiDiretoParaDlqSemReentrega` só prova "acabou na DLQ", que é
+      verdade tanto com rejeição imediata quanto com 3 tentativas antes da DLQ. O
+      `@MockitoSpyBean` do listener não serve aqui porque a exceção acontece na **conversão** da
+      mensagem, antes do `receber()` ser chamado — o listener mostra 0 invocações nos dois casos.
+      **Correção sugerida** (não aplicada — decisão do usuário foi documentar e não estender o loop
+      de fix→re-verify além das 3 rodadas permitidas pela skill): `@MockitoSpyBean private
+      MessageConverter messageConverter;` + `verify(messageConverter, times(1)).fromMessage(any())`
+      para a mensagem malformada, espelhando o padrão já usado para `EventoInvalidoException`. Ver
+      `validation.md` (rodada 3), Fix 1, e AD-001.
 
 **Tests**: integration
 **Gate**: full

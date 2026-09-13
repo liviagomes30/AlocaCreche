@@ -3,7 +3,7 @@
   "promote_threshold": 2,
   "window_days": 45,
   "quarantine_threshold": 2,
-  "next_id": 6,
+  "next_id": 7,
   "lessons": [
     {
       "id": "L-001",
@@ -90,10 +90,29 @@
       "recurrence": 1,
       "harmful": 0,
       "evidence": [
-        "alocacreche-relatorios/src/main/java/org/alocacreche/relatorios/config/RabbitMqConfig.java:96 (messaging)"
+        "alocacreche-relatorios/src/main/java/org/alocacreche/relatorios/config/RabbitMqConfig.java:96 (messaging)",
+        "alocacreche-relatorios/src/main/java/org/alocacreche/relatorios/config/RabbitMqConfig.java:100 (messaging)"
       ],
       "created": "2026-09-13T16:44:19Z",
-      "last_seen": "2026-09-13T16:44:19Z"
+      "last_seen": "2026-09-13T17:20:28Z"
+    },
+    {
+      "id": "L-006",
+      "key": "surviving_mutant::when a fix adds a decisive test signal for one exception type in a shared retry classification map add the equivalent decisive signal for every other entry in that same map not just the one that was reported as broken since sibling entries carry the identical unproven risk",
+      "text": "When a fix adds a decisive test signal for one exception type in a shared retry-classification map, add the equivalent decisive signal for every other entry in that same map, not just the one that was reported as broken, since sibling entries carry the identical unproven risk.",
+      "signal": "surviving_mutant",
+      "scope": "messaging",
+      "status": "candidate",
+      "features": [
+        "relatorios-ocupacao-vaga-liberada"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "alocacreche-relatorios/src/main/java/org/alocacreche/relatorios/config/RabbitMqConfig.java:100 (messaging)"
+      ],
+      "created": "2026-09-13T17:20:39Z",
+      "last_seen": "2026-09-13T17:20:39Z"
     }
   ]
 }

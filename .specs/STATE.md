@@ -45,6 +45,19 @@
   expôs a diferença. Lição: para provar "0 retries" (não "0 efeitos colaterais"), o sinal certo é
   contagem de invocação do próprio componente que decide reentregar, não o efeito colateral que
   ele produziria de qualquer forma.
+- **TODO conhecido, adiado deliberadamente (achado na rodada 3, final, do Verificador independente)**:
+  a mesma lacuna corrigida acima para `EventoInvalidoException` **continua aberta** para
+  `MessageConversionException` (JSON malformado, sub-caso "não puder ser desserializado" de
+  OCUP-06) — `payloadMalformadoVaiDiretoParaDlqSemReentrega` só prova "mensagem acabou na DLQ", que
+  é verdade tanto com rejeição imediata quanto com 3 tentativas antes da DLQ. O
+  `@MockitoSpyBean` no `VagaLiberadaListener` não detecta isso porque `MessageConversionException`
+  acontece na conversão da mensagem, antes do listener ser invocado — mostra 0 chamadas nos dois
+  casos. Correção sugerida (não aplicada): `@MockitoSpyBean` no `MessageConverter` +
+  `verify(messageConverter, times(1)).fromMessage(...)`. Decisão do usuário: registrar como TODO em
+  T8 (`tasks.md`) e não estender o loop de fix→re-verify além das 3 rodadas já usadas. Qualquer
+  consumidor futuro que reusar este padrão de retry/DLQ deve tratar cada entrada não-retryable do
+  mapa como precisando do seu próprio sinal decisivo — não presumir que uma classificação vizinha
+  já corrigida cobre as demais.
 
 ### AD-003
 - **Decision**: Testes de integração neste projeto usam o sufixo `*IT.java` (não `*Test.java`) e todo módulo Maven que os tiver **precisa** declarar `maven-failsafe-plugin` com as execuções padrão (`integration-test` + `verify`) no seu `pom.xml`. O gate "Full"/"Build" de qualquer feature roda `mvn verify`, nunca `mvn test` sozinho.
@@ -71,10 +84,17 @@
 ## Handoff
 
 - **Feature**: relatorios-ocupacao-vaga-liberada
-- **Phase / Task**: Tasks aprovado pelo gate (0 erros) — Execute ainda não começou
-- **Completed**: none
-- **In-progress**: nenhum arquivo de código ainda — só `.specs/features/relatorios-ocupacao-vaga-liberada/{spec,context,design,tasks}.md`
-- **Next step**: Confirmar ferramentas por task (MCP/Skill) com o usuário, depois começar Execute por T1
+- **Phase / Task**: Execute concluído — T1-T8 implementadas, commitadas, e passadas por 3 rodadas de
+  Verificador independente (o máximo permitido pela skill). Encerrada por decisão do usuário com um
+  gap conhecido documentado como TODO (não corrigido).
+- **Completed**: T1-T8 (todas), `mvn -pl alocacreche-relatorios verify` verde (16/16 testes), 3
+  commits de feature (`469a88d`, `aee3b91`, `33aabc5`) + 2 commits de correção pós-Verificador
+  (`7ad51ef` rodada 1, `fa99510` rodada 2)
+- **In-progress**: nenhum — feature fechada com um TODO documentado (não bloqueante para uso, ver
+  AD-001 último gotcha e T8 em `tasks.md`)
+- **Next step**: nenhum próximo passo automático. Se o TODO de `MessageConversionException` for
+  retomado no futuro, é uma correção pequena e isolada (spy no `MessageConverter`) — não precisa
+  reabrir o loop de fix→re-verify formal, pode ser um commit direto com teste.
 - **Blockers**: none
-- **Uncommitted files**: none (specs ainda não commitados)
+- **Uncommitted files**: `.specs/STATE.md`, `.specs/features/relatorios-ocupacao-vaga-liberada/{spec,tasks}.md` (TODO recém-documentado, ainda não commitado nesta sessão)
 - **Branch**: main

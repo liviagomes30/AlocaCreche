@@ -129,13 +129,21 @@ que ela aparece na fila `relatorios.ocupacao.dlq` imediatamente, sem reentrega.
 | OCUP-03 | P1 | Tasks | Complete | T5 |
 | OCUP-04 | P1 | Tasks | Complete | T7 |
 | OCUP-05 | P1 | Tasks | Complete | T6, T8 |
-| OCUP-06 | P2 | Tasks | Complete | T2, T7, T8 |
+| OCUP-06 | P2 | Tasks | Complete (TODO parcial — ver nota abaixo) | T2, T7, T8 |
 | OCUP-07 | P2 | Tasks | Complete | T2, T7 |
 | OCUP-08 | P2 | Tasks | Complete | T6, T8 |
 | OCUP-09 | P2 | Tasks | Complete | T6, T8 |
 | OCUP-10 | P1 | Tasks | Complete | T4, T5 |
 
 **ID format:** `OCUP-NN` (Ocupação).
+
+**TODO (adiado estrategicamente, ver `.specs/STATE.md` AD-001 e T8 em `tasks.md`)**: o sub-caso de
+OCUP-06 "payload não puder ser desserializado" (JSON malformado, `MessageConversionException`) não tem
+um teste que prove "sem tentativa de reprocessamento" de forma decisiva — só prova "acabou na DLQ", o
+que é verdade tanto com rejeição imediata quanto com 3 tentativas antes da DLQ. O sub-caso irmão
+(`vagasDisponiveis` negativo, `EventoInvalidoException`, OCUP-07) já tem esse sinal decisivo
+(`@MockitoSpyBean` no listener). Achado pelo Verificador independente na rodada 3 (final) de
+verificação; decisão do usuário foi registrar como TODO e não estender o loop de fix→re-verify.
 
 **Status values:** Pending → In Design → In Tasks → Implementing → Verified
 

@@ -41,8 +41,14 @@ Seen once or not yet corroborated. Tracked, not trusted.
 ### L-005 - When proving a non-retryable exception classification end-to-end, assert on retry attempt count (a spy on the listener invocation count, or the broker's delivery/death header), not on downstream side-effect absence or final dead-letter-queue arrival, because both are identical whether the exception retries first or is rejected immediately.
 - signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `messaging` · harmful: 0
 - features: relatorios-ocupacao-vaga-liberada
-- evidence: alocacreche-relatorios/src/main/java/org/alocacreche/relatorios/config/RabbitMqConfig.java:96 (messaging)
-- last seen: 2026-09-13T16:44:19Z
+- evidence: alocacreche-relatorios/src/main/java/org/alocacreche/relatorios/config/RabbitMqConfig.java:96 (messaging) (+1 more)
+- last seen: 2026-09-13T17:20:28Z
+
+### L-006 - When a fix adds a decisive test signal for one exception type in a shared retry-classification map, add the equivalent decisive signal for every other entry in that same map, not just the one that was reported as broken, since sibling entries carry the identical unproven risk.
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `messaging` · harmful: 0
+- features: relatorios-ocupacao-vaga-liberada
+- evidence: alocacreche-relatorios/src/main/java/org/alocacreche/relatorios/config/RabbitMqConfig.java:100 (messaging)
+- last seen: 2026-09-13T17:20:39Z
 
 ## Quarantined (failed when applied - ignore)
 
