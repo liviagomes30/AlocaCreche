@@ -6,8 +6,11 @@ spring:
     # Banco proprio, separado do alocacreche-core (ADR 0001, decisao 2) — porta
     # 5433 no docker-compose.yml da raiz do repositorio.
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5433/alocacreche_relatorios}
-    username: ${SPRING_DATASOURCE_USERNAME:alocacreche}
-    password: ${SPRING_DATASOURCE_PASSWORD:alocacreche}
+    # NUNCA o usuario bootstrap do container (sempre superuser, ignora RLS
+    # incondicionalmente) - conecta como a role dedicada nao-superuser criada em
+    # docker/postgres-relatorios-init/01-app-role.sql. Ver .specs/STATE.md AD-002.
+    username: ${SPRING_DATASOURCE_USERNAME:alocacreche_app}
+    password: ${SPRING_DATASOURCE_PASSWORD:alocacreche_app}
 
   sql:
     init:

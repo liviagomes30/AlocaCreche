@@ -140,6 +140,13 @@ CREATE POLICY ocupacao_turma_tenant_isolation ON ocupacao_turma
     USING (municipio_id = current_setting('app.current_tenant')::bigint);
 ```
 
+**Pré-requisito crítico:** nada acima tem efeito se a aplicação conectar como o usuário bootstrap
+do container Postgres — esse usuário é sempre superuser, e superusers ignoram RLS
+incondicionalmente (`FORCE` não muda isso). A aplicação conecta como a role dedicada
+`alocacreche_app` (`NOSUPERUSER NOBYPASSRLS`), criada por script de init tanto no
+`docker-compose.yml` quanto no Testcontainers do teste de integração. Ver `.specs/STATE.md`
+AD-002, gotcha 3.
+
 ---
 
 ## Error Handling Strategy

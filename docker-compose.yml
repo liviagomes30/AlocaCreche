@@ -27,6 +27,9 @@ services:
       - "5433:5432"
     volumes:
       - postgres-relatorios-data:/var/lib/postgresql/data
+      # Cria a role nao-superuser alocacreche_app na primeira inicializacao do
+      # volume (RLS nao tem efeito sobre o usuario bootstrap - ver AD-002).
+      - ./docker/postgres-relatorios-init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U alocacreche -d alocacreche_relatorios"]
       interval: 5s

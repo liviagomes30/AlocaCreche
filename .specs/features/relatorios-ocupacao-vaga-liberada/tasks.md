@@ -154,14 +154,14 @@ Hibernate criar a tabela.
 **Done when**:
 - [x] `schema.sql` contém a policy exata do design.md (corrigido: `FORCE ROW LEVEL SECURITY` adicionado — ver AD-002)
 - [x] `application.yml` tem `spring.jpa.defer-datasource-initialization: true` e `spring.sql.init.mode: always` (o segundo não estava no design original — sem ele, `schema.sql` é ignorado silenciosamente contra Postgres real; ver AD-002)
-- [x] `mvn -pl alocacreche-relatorios test` sobe o contexto sem erro (reusa o smoke test) — e confirmado via `pg_class.relrowsecurity`/`relforcerowsecurity` e `pg_policies` que a policy está ativa de verdade no Postgres real, não só "contexto sobe"
+- [x] `mvn -pl alocacreche-relatorios test` sobe o contexto sem erro (reusa o smoke test) — schema/policy confirmados via `pg_class`/`pg_policies` nesta task. **Correção feita em T5**: essa verificação sozinha não provava que a RLS funcionava — a aplicação ainda conectava como o usuário bootstrap (superuser, ignora RLS incondicionalmente). Ver AD-002, gotcha 3, e a role dedicada `alocacreche_app` criada em T5.
 
 **Tests**: none
 **Gate**: build
 
 ---
 
-### T5: Implementar `OcupacaoTurmaRepository.upsert` + teste de integração
+### T5: Implementar `OcupacaoTurmaRepository.upsert` + teste de integração — ✅ Complete
 
 **What**: Método `@Modifying @Query(nativeQuery = true)` com o `INSERT ... ON CONFLICT ... WHERE`
 do design, e teste de integração (Testcontainers Postgres) cobrindo upsert idempotente, ordem/
@@ -177,15 +177,20 @@ duplicata, concorrência e isolamento por RLS.
 - Skill: `jpa-patterns`, `test-quality`, `concurrency-review` (para o teste de upsert concorrente)
 
 **Done when**:
-- [ ] Upsert cria linha nova quando `turmaId` não existe
-- [ ] Upsert atualiza quando `eventId` novo é maior que o aplicado
-- [ ] Upsert é no-op quando `eventId` recebido é menor ou igual ao aplicado (idempotência/ordem)
-- [ ] Teste de concorrência: duas chamadas simultâneas para o mesmo `turmaId` com sequências
+- [x] Upsert cria linha nova quando `turmaId` não existe
+- [x] Upsert atualiza quando `eventId` novo é maior que o aplicado
+- [x] Upsert é no-op quando `eventId` recebido é menor ou igual ao aplicado (idempotência/ordem)
+- [x] Teste de concorrência: duas chamadas simultâneas para o mesmo `turmaId` com sequências
       diferentes — a projeção final reflete só a maior sequência
-- [ ] Teste de RLS: gravar com `SET LOCAL app.current_tenant = X`, ler com `SET LOCAL` = Y — zero
-      linhas retornadas para o município errado
-- [ ] Gate check passa: `mvn -pl alocacreche-relatorios test -Dtest=OcupacaoTurmaRepositoryIT`
-- [ ] Contagem de testes: 5 testes passam
+- [x] Teste de RLS: gravar com `SET LOCAL app.current_tenant = X`, ler com `SET LOCAL` = Y — zero
+      linhas retornadas para o município errado. **Achado real durante a implementação**: a
+      primeira versão falhou porque a aplicação conectava como o usuário bootstrap do Postgres
+      (superuser, ignora RLS incondicionalmente mesmo com `FORCE`). Corrigido criando a role
+      dedicada `alocacreche_app` (`docker/postgres-relatorios-init/01-app-role.sql` +
+      `db/relatorios-app-role.sql` para o Testcontainers) — ver AD-002, gotcha 3. Reverificado
+      também contra o Postgres real do `docker-compose` (não só o Testcontainers efêmero).
+- [x] Gate check passa: `mvn -pl alocacreche-relatorios test -Dtest=OcupacaoTurmaRepositoryIT`
+- [x] Contagem de testes: 5 testes passam
 
 **Tests**: integration
 **Gate**: full
