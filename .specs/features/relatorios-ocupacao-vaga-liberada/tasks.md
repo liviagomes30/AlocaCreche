@@ -92,7 +92,7 @@ T8
 
 ---
 
-### T2: Criar `EventoInvalidoException`
+### T2: Criar `EventoInvalidoException` — ✅ Complete
 
 **What**: Exceção unchecked que sinaliza payload inválido (exclui da política de retry).
 **Where**: `alocacreche-relatorios/src/main/java/org/alocacreche/relatorios/ocupacao/EventoInvalidoException.java`
@@ -105,8 +105,8 @@ T8
 - Skill: NONE
 
 **Done when**:
-- [ ] Classe estende `RuntimeException`, construtor `(String message)`
-- [ ] Compila sem erro
+- [x] Classe estende `RuntimeException`, construtor `(String message)`
+- [x] Compila sem erro
 
 **Tests**: none
 **Gate**: build
