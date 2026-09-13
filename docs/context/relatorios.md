@@ -1,7 +1,7 @@
 # Contexto — MSRelatorios
 
-> Carregue este arquivo antes de implementar ou revisar código em `alocacreche-relatorios/`. Contexto
-> geral: `CLAUDE.md`. Decisões arquiteturais: `docs/adr/0001-fundacao-arquitetural.md`.
+> Leia este arquivo antes de implementar ou revisar código em `alocacreche-relatorios/`. Decisões
+> arquiteturais: `docs/adr/0001-fundacao-arquitetural.md`.
 
 ## Este é o único serviço realmente separado do grupo
 
@@ -25,7 +25,7 @@ deliberadamente restrita a este caso.
   at-least-once, então o mesmo evento pode chegar mais de uma vez. `UPDATE projecao SET
   vagas_disponiveis = :novoValor WHERE turma_id = :id` é seguro para reprocessar. `vagas_disponiveis =
   vagas_disponiveis - 1` não é — uma duplicata infla os números. Ver
-  `.claude/skills/java-development/spring-boot/sb-outbox-pattern.md`.
+  `docs/arquitetura/notas-tecnicas.md#transactional-outbox-pattern`.
 - **Ordenação de duplicatas/fora de ordem**: use o id auto-incremento da própria Outbox como sequência
   global no payload do evento; só aplique o upsert se a sequência recebida for maior que a última
   aplicada para aquela chave de negócio. Resolve duplicata e ordem sem uma tabela extra de deduplicação.

@@ -36,7 +36,7 @@ o diagrama de classes, diagrama de implantação e exemplo de fluxo completo.
 4. **Transactional Outbox restrito à borda de publicação (RabbitMQ).** A criação da `Matricula` grava o
    evento de domínio na mesma transação local que persiste a outbox; um publicador assíncrono entrega ao
    RabbitMQ com retry. Mecânica completa e gotchas em
-   `.claude/skills/java-development/spring-boot/sb-outbox-pattern.md`.
+   `docs/arquitetura/notas-tecnicas.md#transactional-outbox-pattern`.
 
 5. **Geocodificação via Nominatim (~1 req/s de uso justo) — mitigada por geocodificar uma única vez.**
    Cada endereço é geocodificado uma única vez (creche no cadastro, família na inscrição) e a
@@ -46,7 +46,8 @@ o diagrama de classes, diagrama de implantação e exemplo de fluxo completo.
 6. **Carga entre integrantes dividida por módulo (pacote), não por serviço novo.** Dois integrantes
    dividem o núcleo do domínio por pacote (Inscrição+Fila vs. Matrícula+Vagas/Creches), o terceiro
    assume Notificação e a plataforma compartilhada (Gateway, segurança, observabilidade), e o quarto é o
-   único com deploy e banco de fato próprios (MSRelatorios). Ver tabela de módulos em `CLAUDE.md`.
+   único com deploy e banco de fato próprios (MSRelatorios). Ver tabela de módulos e a divisão
+   completa em `docs/arquitetura/visao-geral.md`.
 
 7. **RabbitMQ com escopo restrito** — usado só para notificação e para alimentar o MSRelatorios, nunca no
    caminho que decide quem fica com a vaga. Kafka só se justificaria com requisito real de
@@ -83,7 +84,7 @@ o diagrama de classes, diagrama de implantação e exemplo de fluxo completo.
     município.** Com um número potencialmente grande de municípios de tamanho muito variável, banco ou
     schema por tenant multiplicaria migração, backup e connection pool por município. Mecânica completa
     (incluindo `SET LOCAL` vs `SET` e o cuidado com jobs agendados) em
-    `.claude/skills/java-development/spring-boot/sb-multi-tenancy-rls.md`.
+    `docs/arquitetura/notas-tecnicas.md#multi-tenancy-com-row-level-security-postgresql`.
 
 15. **Motor de priorização e prazo de confirmação configuráveis por município** — cada prefeitura define
     seus próprios pesos de priorização e prazo de confirmação de matrícula, conforme lei municipal local.
@@ -124,9 +125,8 @@ o diagrama de classes, diagrama de implantação e exemplo de fluxo completo.
 23. **Self-invocation quebra `@Transactional`/`@Retryable`/`@Scheduled` em três pontos críticos do
     domínio** (listener de liberação de vaga, job de reconciliação por município, e a combinação
     `@Transactional`+`@Retryable` no mesmo método) — cada um resolvido colocando a chamada em um bean
-    injetado separado, nunca `this`. Ver o gotcha de self-invocation em
-    `.claude/skills/java-development/spring-boot/sb-jpa-repository.md` e a aplicação específica a
-    multi-tenancy em `sb-multi-tenancy-rls.md`.
+    injetado separado, nunca `this`. Ver o gotcha de self-invocation e a aplicação a multi-tenancy em
+    `docs/arquitetura/notas-tecnicas.md`.
 
 ## Gatilhos de reavaliação de escala (registrados, não implementados agora)
 

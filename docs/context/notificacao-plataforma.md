@@ -1,8 +1,8 @@
 # Contexto — Módulo Notificação + Plataforma
 
-> Carregue este arquivo antes de implementar ou revisar código em `alocacreche-core/.../notificacao/`,
-> no Gateway, ou em segurança/observabilidade transversal. Contexto geral: `CLAUDE.md`. Decisões
-> arquiteturais: `docs/adr/0001-fundacao-arquitetural.md`.
+> Leia este arquivo antes de implementar ou revisar código em `alocacreche-core/.../notificacao/`,
+> no Gateway, ou em segurança/observabilidade transversal. Decisões arquiteturais:
+> `docs/adr/0001-fundacao-arquitetural.md`.
 
 ## Dono exclusivo do pacote
 
@@ -17,7 +17,7 @@
 
 - **Publicador da Outbox** (`publicarEventosPendentes`, `@Scheduled`): lê a tabela de outbox — que os
   módulos Inscrição/Matrícula gravam — e publica no RabbitMQ com retry. Ver
-  `.claude/skills/java-development/spring-boot/sb-outbox-pattern.md` para a mecânica completa
+  `docs/arquitetura/notas-tecnicas.md#transactional-outbox-pattern` para a mecânica completa
   (at-least-once, nunca marcar `PROCESSADO` antes de confirmar o publish).
 - **Purga da Outbox**: job diário separado remove linhas `PROCESSADO` com mais de 7 dias — janela
   suficiente para reprocessar em caso de incidente, sem deixar a tabela crescer sem limite.
@@ -27,7 +27,7 @@
 - **Autenticação/autorização**: Sa-Token em modo stateless + extensão `sa-token-jwt`. Um único mecanismo
   de autenticação — não trate "Sa-Token" e "JWT" como dois mecanismos complementares.
 - **Isolamento multi-tenant** (RLS + `@TenantId`): mesma responsabilidade transversal. Ver
-  `.claude/skills/java-development/spring-boot/sb-multi-tenancy-rls.md`.
+  `docs/arquitetura/notas-tecnicas.md#multi-tenancy-com-row-level-security-postgresql`.
 - **Observabilidade**: Micrometer Tracing/OpenTelemetry, escopo restrito à chamada externa de
   geocodificação (feita pelo módulo Matrícula) e ao fluxo assíncrono até o MSRelatorios — o núcleo
   transacional não precisa de correlação distribuída porque roda numa única transação.

@@ -74,5 +74,5 @@ Este scaffold foi compilado e testado de ponta a ponta antes de ser commitado: `
 compile` e `mvn test-compile` passam nos 3 módulos, e o teste de contexto
 (`contextLoads`) de cada módulo passou contra Postgres 16 e Redis reais (via
 `docker-compose up`) — incluindo a criação automática da tabela `outbox` pelo Hibernate e
-a inicialização do Sa-Token. Não é um scaffold "no papel": os comandos na seção
-"Comandos" do `CLAUDE.md` funcionam como descrito.
+a inicialização do Sa-Token. Não é um scaffold "no papel": `docker compose up -d` seguido de `mvn
+clean install` e `mvn test` (com a infra local no ar) funcionam como descrito.

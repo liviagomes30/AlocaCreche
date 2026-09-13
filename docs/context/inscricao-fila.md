@@ -1,8 +1,8 @@
 # Contexto — Módulo Inscrição & Fila
 
-> Carregue este arquivo antes de implementar ou revisar código em `alocacreche-core/.../inscricao/`.
-> Contexto geral do projeto: `CLAUDE.md`. Modelo de domínio completo e diagrama de classes:
-> `docs/arquitetura/visao-geral.md`. Decisões arquiteturais: `docs/adr/0001-fundacao-arquitetural.md`.
+> Leia este arquivo antes de implementar ou revisar código em `alocacreche-core/.../inscricao/`.
+> Modelo de domínio completo e diagrama de classes: `docs/arquitetura/visao-geral.md`. Decisões
+> arquiteturais: `docs/adr/0001-fundacao-arquitetural.md`.
 
 ## Dono exclusivo do pacote
 
@@ -33,8 +33,8 @@ diretamente.
   família se vincula ao município no momento da inscrição, antes de ser alocada a uma creche específica.
   Não remova essa referência direta ao refatorar.
 - Multi-tenancy: toda query nesta camada precisa respeitar RLS + `@TenantId` — ver
-  `.claude/skills/java-development/spring-boot/sb-multi-tenancy-rls.md` antes de escrever uma query
-  nativa.
+  `docs/arquitetura/notas-tecnicas.md#multi-tenancy-com-row-level-security-postgresql` antes de
+  escrever uma query nativa.
 
 ## Aspecto técnico de destaque
 

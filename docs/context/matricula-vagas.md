@@ -1,8 +1,8 @@
 # Contexto — Módulo Matrícula & Vagas/Creches
 
-> Carregue este arquivo antes de implementar ou revisar código em `alocacreche-core/.../matricula/`.
-> Contexto geral do projeto: `CLAUDE.md`. Fluxo completo "Alocar vaga automaticamente" (passo a passo):
-> `docs/arquitetura/visao-geral.md`. Decisões arquiteturais: `docs/adr/0001-fundacao-arquitetural.md`.
+> Leia este arquivo antes de implementar ou revisar código em `alocacreche-core/.../matricula/`.
+> Fluxo completo "Alocar vaga automaticamente" (passo a passo): `docs/arquitetura/visao-geral.md`.
+> Decisões arquiteturais: `docs/adr/0001-fundacao-arquitetural.md`.
 
 ## Dono exclusivo do pacote
 
@@ -36,7 +36,7 @@ substitui a necessidade de saga, outbox de compensação ou consumidor idempoten
   diferentes.** Se o listener chamar `alocarProximoElegivel` via `this`, a chamada não atravessa o proxy
   do Spring e tanto `@Transactional` quanto `@Retryable` deixam de valer — silenciosamente, sem exceção.
   Injete o serviço de domínio no bean do listener e chame por injeção, nunca `this`. Ver o gotcha de
-  self-invocation em `.claude/skills/java-development/spring-boot/sb-jpa-repository.md`.
+  self-invocation em `docs/arquitetura/notas-tecnicas.md#self-invocation-quebra-transactionalretryablescheduled`.
 - **`@Retryable` fica no listener (não-`@Transactional`), nunca no mesmo método que `@Transactional`.**
   Os dois são advice de AOP sem ordem explícita por padrão; se `@Transactional` acabar "por fora", cada
   tentativa de retry reaproveita a mesma transação e o mesmo contexto de persistência já abertos —
@@ -47,7 +47,7 @@ substitui a necessidade de saga, outbox de compensação ou consumidor idempoten
   precisam iterar por município abrindo uma transação com `SET LOCAL app.current_tenant` por vez — nunca
   um role com `BYPASSRLS`. Mesma regra de self-invocation acima: a lógica por município fica num bean
   separado, injetado no job, nunca chamada via `this`. Ver
-  `.claude/skills/java-development/spring-boot/sb-multi-tenancy-rls.md`.
+  `docs/arquitetura/notas-tecnicas.md#multi-tenancy-com-row-level-security-postgresql`.
 - **Circuit Breaker (Resilience4j) na chamada de geocodificação** — não deixe uma instabilidade externa
   travar o processo de alocação de vaga; a chamada de geocodificação é side-channel, não bloqueante para
   a garantia central acima.
@@ -57,7 +57,7 @@ substitui a necessidade de saga, outbox de compensação ou consumidor idempoten
   a turma com vaga livre e fila não vazia.
 - **Grava na Outbox na mesma transação que cria a `Matricula`** (evento `MatriculaCriada`) e na mesma
   transação que libera a vaga (evento `VagaLiberada`) — ver
-  `.claude/skills/java-development/spring-boot/sb-outbox-pattern.md`. Este módulo é o produtor da
+  `docs/arquitetura/notas-tecnicas.md#transactional-outbox-pattern`. Este módulo é o produtor da
   Outbox; o módulo Notificação + plataforma é quem opera o publicador.
 
 ## Aspecto técnico de destaque

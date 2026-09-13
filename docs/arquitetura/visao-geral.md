@@ -1,8 +1,8 @@
 # AlocaCreche — Visão geral de arquitetura
 
 > Material de apoio à `ADR 0001` (`docs/adr/0001-fundacao-arquitetural.md`). Descreve a arquitetura
-> ALVO combinada na proposta do Workshop de Práticas — nada aqui foi implementado ainda neste
-> repositório (ver seção "Status do projeto" em `CLAUDE.md`).
+> ALVO combinada na proposta do Workshop de Práticas — o scaffold Maven (`docs/adr/0002-...md`)
+> existe, mas nenhuma entidade de domínio ou regra de negócio foi implementada ainda.
 
 ## Diagrama de classes (domínio)
 
@@ -183,7 +183,7 @@ assíncronas com retry, onde atrasar é aceitável mas perder não é.
 **Isolamento multi-tenant:** o "banco único" acima é único por processo, não por município — cada linha
 das tabelas de domínio carrega `municipio_id`, e uma política de Row-Level Security no Postgres recusa
 qualquer leitura ou escrita fora do município da sessão autenticada. Mecânica completa em
-`.claude/skills/java-development/spring-boot/sb-multi-tenancy-rls.md`.
+`docs/arquitetura/notas-tecnicas.md#multi-tenancy-com-row-level-security-postgresql`.
 
 ## Sugestões de API
 
