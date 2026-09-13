@@ -1,0 +1,51 @@
+spring:
+  application:
+    name: alocacreche-core
+
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/alocacreche}
+    username: ${SPRING_DATASOURCE_USERNAME:alocacreche}
+    password: ${SPRING_DATASOURCE_PASSWORD:alocacreche}
+
+  jpa:
+    # Ver .claude/skills/java-development/spring-boot/sb-jpa-repository.md
+    open-in-view: false
+    hibernate:
+      # TODO: trocar para "validate" assim que Flyway/Liquibase gerenciar o
+      # schema (ver docs/adr/0002-versoes-stack-e-scaffold-inicial.md). Ate
+      # la, "update" evita falha de startup num banco ainda sem schema.
+      ddl-auto: update
+    properties:
+      hibernate:
+        format_sql: true
+
+  data:
+    redis:
+      host: ${SPRING_DATA_REDIS_HOST:localhost}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
+
+  rabbitmq:
+    host: ${SPRING_RABBITMQ_HOST:localhost}
+    port: ${SPRING_RABBITMQ_PORT:5672}
+    username: ${SPRING_RABBITMQ_USERNAME:guest}
+    password: ${SPRING_RABBITMQ_PASSWORD:guest}
+
+server:
+  port: ${SERVER_PORT:8081}
+
+sa-token:
+  token-name: satoken
+  timeout: 2592000
+  is-share: false
+  is-log: false
+  jwt-secret-key: ${SA_TOKEN_JWT_SECRET:troque-este-segredo-antes-de-qualquer-deploy}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+logging:
+  level:
+    org.alocacreche: INFO

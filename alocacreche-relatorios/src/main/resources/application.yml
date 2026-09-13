@@ -1,0 +1,44 @@
+spring:
+  application:
+    name: alocacreche-relatorios
+
+  datasource:
+    # Banco proprio, separado do alocacreche-core (ADR 0001, decisao 2) — porta
+    # 5433 no docker-compose.yml da raiz do repositorio.
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5433/alocacreche_relatorios}
+    username: ${SPRING_DATASOURCE_USERNAME:alocacreche}
+    password: ${SPRING_DATASOURCE_PASSWORD:alocacreche}
+
+  jpa:
+    open-in-view: false
+    hibernate:
+      # TODO: trocar para "validate" assim que Flyway/Liquibase gerenciar o
+      # schema das projecoes de leitura.
+      ddl-auto: update
+    properties:
+      hibernate:
+        format_sql: true
+
+  data:
+    redis:
+      host: ${SPRING_DATA_REDIS_HOST:localhost}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
+
+  rabbitmq:
+    host: ${SPRING_RABBITMQ_HOST:localhost}
+    port: ${SPRING_RABBITMQ_PORT:5672}
+    username: ${SPRING_RABBITMQ_USERNAME:guest}
+    password: ${SPRING_RABBITMQ_PASSWORD:guest}
+
+server:
+  port: ${SERVER_PORT:8082}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+logging:
+  level:
+    org.alocacreche: INFO

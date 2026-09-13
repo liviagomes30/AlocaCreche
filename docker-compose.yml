@@ -1,0 +1,59 @@
+services:
+  postgres-core:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: alocacreche
+      POSTGRES_USER: alocacreche
+      POSTGRES_PASSWORD: alocacreche
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-core-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U alocacreche -d alocacreche"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Banco separado do core por decisao de arquitetura (ADR 0001, decisao 2):
+  # MSRelatorios e o unico servico com deploy e banco realmente proprios.
+  postgres-relatorios:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: alocacreche_relatorios
+      POSTGRES_USER: alocacreche
+      POSTGRES_PASSWORD: alocacreche
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres-relatorios-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U alocacreche -d alocacreche_relatorios"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres-core-data:
+  postgres-relatorios-data:

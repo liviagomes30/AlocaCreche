@@ -1,0 +1,27 @@
+spring:
+  application:
+    name: alocacreche-gateway
+  cloud:
+    gateway:
+      # Prefixo de rota REST ainda a definir pelo time (ver CLAUDE.md,
+      # "Convencoes de codigo globais") — os predicates abaixo usam /api/v1
+      # como placeholder; ajuste quando a decisao for tomada e registrada em
+      # docs/adr/.
+      routes:
+        - id: alocacreche-core
+          uri: ${ALOCACRECHE_CORE_URL:http://localhost:8081}
+          predicates:
+            - Path=/api/v1/**
+        - id: alocacreche-relatorios
+          uri: ${ALOCACRECHE_RELATORIOS_URL:http://localhost:8082}
+          predicates:
+            - Path=/api/v1/relatorios/**
+
+server:
+  port: ${SERVER_PORT:8080}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

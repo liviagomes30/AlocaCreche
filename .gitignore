@@ -1,0 +1,40 @@
+# Harness de IA (Claude Code e mirrors) — local, nao faz parte do repositorio remoto
+CLAUDE.md
+SKILLS.md
+.claude/
+.cursor/
+.agents/
+.windsurf/
+.harness-eval/
+
+# Maven
+target/
+*.class
+
+# Python (scripts das skills do harness)
+__pycache__/
+*.pyc
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.settings/
+.project
+.classpath
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Segredos e configuracao local — nunca commitar
+.env
+.env.*
+!.env.example
+application-local.yml
+application-local.yaml
