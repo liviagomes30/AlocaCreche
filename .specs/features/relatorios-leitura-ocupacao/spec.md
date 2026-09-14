@@ -95,17 +95,17 @@ município e ver lista vazia.
 
 | Requirement ID | Story | Phase | Status |
 | --- | --- | --- | --- |
-| RELOC-01 | P1 | Design | Pending |
-| RELOC-02 | P1 | Design | Pending |
-| RELOC-03 | P1 | Design | Pending |
-| RELOC-04 | P1 | Design | Pending |
-| RELOC-05 | P1 | Design | Pending |
-| RELOC-06 | P1 | Design | Pending |
-| RELOC-07 | P1 | Design | Pending |
+| RELOC-01 | P1 | Tasks | Implementing (repositório coberto - T2; falta endpoint HTTP - T3) |
+| RELOC-02 | P1 | Tasks | Implementing (repositório coberto - T2; falta endpoint HTTP - T3) |
+| RELOC-03 | P1 | Tasks | Implementing (repositório coberto - T2; falta endpoint HTTP - T3) |
+| RELOC-04 | P1 | Tasks | Pending (depende só de T3) |
+| RELOC-05 | P1 | Tasks | Implementing (repositório coberto - T2; falta endpoint HTTP - T3) |
+| RELOC-06 | P1 | Tasks | Implementing (repositório coberto - T2; falta endpoint HTTP - T3) |
+| RELOC-07 | P1 | Tasks | Pending (depende só de T3) |
 
 **ID format:** `RELOC-NN` (REL­atório de OCupação).
 
-**Coverage:** 7 total, 0 mapped to tasks, 7 unmapped ⚠️ (esperado antes da fase Tasks/Execute).
+**Coverage:** 7 total, 4 tasks mapeadas (T1-T4), 0 unmapped.
 
 ---
 

@@ -1,5 +1,6 @@
 package org.alocacreche.relatorios.ocupacao;
 
+import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -36,4 +37,20 @@ public interface OcupacaoTurmaRepository extends JpaRepository<OcupacaoTurma, Lo
             @Param("crecheId") Long crecheId,
             @Param("vagasDisponiveis") Integer vagasDisponiveis,
             @Param("eventId") Long eventId);
+
+    /**
+     * Consulta com municipioId obrigatorio e crecheId/turmaId opcionais. Um unico metodo em vez de
+     * 4 metodos derivados (uma combinacao por filtro binario) - o volume de dados por municipio e
+     * pequeno, entao o padrao "IS NULL OR" nao e uma preocupacao de performance aqui. O filtro por
+     * municipioId no WHERE e redundante por design com a RLS (defesa em profundidade, ver AD-002) -
+     * mesmo que a RLS falhasse por algum motivo, este filtro explicito ainda restringe.
+     */
+    @Query(
+            "SELECT o FROM OcupacaoTurma o WHERE o.municipioId = :municipioId "
+                    + "AND (:crecheId IS NULL OR o.crecheId = :crecheId) "
+                    + "AND (:turmaId IS NULL OR o.turmaId = :turmaId)")
+    List<OcupacaoTurma> buscarPorFiltro(
+            @Param("municipioId") Long municipioId,
+            @Param("crecheId") Long crecheId,
+            @Param("turmaId") Long turmaId);
 }

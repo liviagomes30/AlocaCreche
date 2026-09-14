@@ -202,6 +202,54 @@ class OcupacaoTurmaRepositoryIT {
         assertThat(resultadoComoTenantErrado).isEmpty();
     }
 
+    @Test
+    void buscarPorFiltroRetornaTodasAsTurmasDoMunicipioQuandoSemFiltroAdicional() {
+        upsertComoTenant(1L, 900L, 90L, 5, 1L);
+        upsertComoTenant(1L, 901L, 91L, 6, 1L);
+
+        List<OcupacaoTurma> resultado = buscarPorFiltroComoTenant(1L, 1L, null, null);
+
+        assertThat(resultado).extracting(OcupacaoTurma::getTurmaId).containsExactlyInAnyOrder(900L, 901L);
+    }
+
+    @Test
+    void buscarPorFiltroComCrecheIdRetornaSoTurmasDaquelaCreche() {
+        upsertComoTenant(1L, 910L, 92L, 5, 1L);
+        upsertComoTenant(1L, 911L, 93L, 6, 1L);
+
+        List<OcupacaoTurma> resultado = buscarPorFiltroComoTenant(1L, 1L, 92L, null);
+
+        assertThat(resultado).extracting(OcupacaoTurma::getTurmaId).containsExactly(910L);
+    }
+
+    @Test
+    void buscarPorFiltroComTurmaIdRetornaSoAquelaTurma() {
+        upsertComoTenant(1L, 920L, 94L, 5, 1L);
+        upsertComoTenant(1L, 921L, 94L, 6, 1L);
+
+        List<OcupacaoTurma> resultado = buscarPorFiltroComoTenant(1L, 1L, null, 920L);
+
+        assertThat(resultado).extracting(OcupacaoTurma::getTurmaId).containsExactly(920L);
+    }
+
+    @Test
+    void buscarPorFiltroRetornaVazioQuandoMunicipioNuncaRecebeuEvento() {
+        List<OcupacaoTurma> resultado = buscarPorFiltroComoTenant(999L, 999L, null, null);
+
+        assertThat(resultado).isEmpty();
+    }
+
+    @Test
+    void buscarPorFiltroNaoRetornaLinhaDeOutroTenantMesmoComMunicipioIdCorretoNoFiltro() {
+        upsertComoTenant(1L, 930L, 95L, 5, 1L);
+
+        // Sessao com tenant 2 (errado), mas o filtro pede municipioId=1 (o correto) - a RLS deve
+        // barrar mesmo assim, provando que ela e a defesa de verdade, nao so o WHERE do metodo.
+        List<OcupacaoTurma> resultado = buscarPorFiltroComoTenant(2L, 1L, null, null);
+
+        assertThat(resultado).isEmpty();
+    }
+
     private void upsertComoTenant(
             Long municipioId, Long turmaId, Long crecheId, Integer vagas, Long eventId) {
         transactionTemplate.executeWithoutResult(status -> {
@@ -214,6 +262,14 @@ class OcupacaoTurmaRepositoryIT {
         return transactionTemplate.execute(status -> {
             TenantContext.aplicar(entityManager, municipioId);
             return entityManager.find(OcupacaoTurma.class, turmaId);
+        });
+    }
+
+    private List<OcupacaoTurma> buscarPorFiltroComoTenant(
+            Long tenantDaSessao, Long municipioIdFiltro, Long crecheIdFiltro, Long turmaIdFiltro) {
+        return transactionTemplate.execute(status -> {
+            TenantContext.aplicar(entityManager, tenantDaSessao);
+            return repository.buscarPorFiltro(municipioIdFiltro, crecheIdFiltro, turmaIdFiltro);
         });
     }
 

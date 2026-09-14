@@ -98,7 +98,7 @@ diretamente.
 
 ---
 
-### T2: Adicionar `buscarPorFiltro` ao `OcupacaoTurmaRepository`
+### T2: Adicionar `buscarPorFiltro` ao `OcupacaoTurmaRepository` — ✅ Complete
 
 **What**: Novo método JPQL com `municipioId` obrigatório e `crecheId`/`turmaId` opcionais
 (`(:param IS NULL OR campo = :param)`), cobrindo RELOC-01/02/03/05/06.
@@ -112,13 +112,13 @@ diretamente.
 - Skill: NONE
 
 **Done when**:
-- [ ] `buscarPorFiltro(municipioId, crecheId, turmaId)` retorna todas as turmas do município quando `crecheId`/`turmaId` são `null`
-- [ ] Retorna só as turmas da creche quando `crecheId` é informado
-- [ ] Retorna só a turma informada quando `turmaId` é informado
-- [ ] Retorna lista vazia quando `crecheId`/`turmaId` pertencem a outro município (RLS fail-closed)
-- [ ] Retorna lista vazia quando o município não tem nenhuma linha
-- [ ] Gate check passa: `mvn -pl alocacreche-relatorios verify -Dit.test=OcupacaoTurmaRepositoryIT`
-- [ ] Contagem de testes: 8 + N novos testes passam (N = testes desta task)
+- [x] `buscarPorFiltro(municipioId, crecheId, turmaId)` retorna todas as turmas do município quando `crecheId`/`turmaId` são `null`
+- [x] Retorna só as turmas da creche quando `crecheId` é informado
+- [x] Retorna só a turma informada quando `turmaId` é informado
+- [x] Retorna lista vazia quando a sessão está no tenant errado, mesmo com `municipioId` correto no filtro (RLS fail-closed)
+- [x] Retorna lista vazia quando o município não tem nenhuma linha
+- [x] Gate check passa: `mvn -pl alocacreche-relatorios verify -Dit.test=OcupacaoTurmaRepositoryIT`
+- [x] Contagem de testes: 13 testes passam (8 originais + 5 novos)
 
 **Tests**: integration
 **Gate**: full
