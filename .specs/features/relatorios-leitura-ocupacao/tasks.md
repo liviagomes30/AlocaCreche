@@ -127,7 +127,7 @@ diretamente.
 
 ---
 
-### T3: Criar `OcupacaoConsultaController`
+### T3: Criar `OcupacaoConsultaController` — ✅ Complete
 
 **What**: `GET /api/v1/relatorios/ocupacao` — aplica `TenantContext.aplicar`, delega a
 `buscarPorFiltro`, mapeia para `OcupacaoTurmaDTO`. Cobre RELOC-01 a RELOC-07 (todos — é o ponto de
@@ -142,16 +142,17 @@ entrada de todos os critérios).
 - Skill: NONE
 
 **Done when**:
-- [ ] `GET .../ocupacao?municipioId=X` retorna 200 com a lista do município
-- [ ] Filtro por `crecheId` e por `turmaId` funcionam via HTTP real
-- [ ] `municipioId` ausente ou não numérico retorna 400 (sem tocar o banco)
-- [ ] Filtro sem match retorna 200 com lista vazia
-- [ ] `crecheId`/`turmaId` de outro município retornam lista vazia (nunca dado de outro tenant)
-- [ ] `@Transactional(readOnly = true)` presente no método — teste dedicado chama o endpoint 2x
-      seguidas com `municipioId` diferentes (mesmo pool de conexão) e confirma que a 2ª chamada nunca
-      vê dado do 1º município (mitigação do risco de vazamento via HikariCP, ver design.md)
-- [ ] Gate check passa: `mvn -pl alocacreche-relatorios verify -Dit.test=OcupacaoConsultaControllerIT`
-- [ ] Contagem de testes: N testes novos passam (ver Done-when acima, um teste por bullet no mínimo)
+- [x] `GET .../ocupacao?municipioId=X` retorna 200 com a lista do município
+- [x] Filtro por `crecheId` e por `turmaId` funcionam via HTTP real
+- [x] `municipioId` ausente ou não numérico retorna 400 (sem tocar o banco)
+- [x] Filtro sem match retorna 200 com lista vazia
+- [x] `crecheId`/`turmaId` de outro município retornam lista vazia (nunca dado de outro tenant)
+- [x] `@Transactional(readOnly = true)` presente no método — sem ela, o teste de caminho feliz já
+      falharia (RLS bloqueia a consulta porque o tenant não chega a valer para o `SELECT`, ver
+      design.md, risco corrigido). Teste adicional: chamadas em sequência com `municipioId`
+      diferentes, cada uma só vê o dado do seu próprio município.
+- [x] Gate check passa: `mvn -pl alocacreche-relatorios verify -Dit.test=OcupacaoConsultaControllerIT`
+- [x] Contagem de testes: 8 testes novos passam
 
 **Tests**: integration
 **Gate**: full

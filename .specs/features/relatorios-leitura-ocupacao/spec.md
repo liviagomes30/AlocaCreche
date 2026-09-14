@@ -95,13 +95,13 @@ município e ver lista vazia.
 
 | Requirement ID | Story | Phase | Status |
 | --- | --- | --- | --- |
-| RELOC-01 | P1 | Tasks | Implementing (repositório coberto - T2; falta endpoint HTTP - T3) |
-| RELOC-02 | P1 | Tasks | Implementing (repositório coberto - T2; falta endpoint HTTP - T3) |
-| RELOC-03 | P1 | Tasks | Implementing (repositório coberto - T2; falta endpoint HTTP - T3) |
-| RELOC-04 | P1 | Tasks | Pending (depende só de T3) |
-| RELOC-05 | P1 | Tasks | Implementing (repositório coberto - T2; falta endpoint HTTP - T3) |
-| RELOC-06 | P1 | Tasks | Implementing (repositório coberto - T2; falta endpoint HTTP - T3) |
-| RELOC-07 | P1 | Tasks | Pending (depende só de T3) |
+| RELOC-01 | P1 | Tasks | Implementing (T1-T3 completas; aguarda Verificador) |
+| RELOC-02 | P1 | Tasks | Implementing (T1-T3 completas; aguarda Verificador) |
+| RELOC-03 | P1 | Tasks | Implementing (T1-T3 completas; aguarda Verificador) |
+| RELOC-04 | P1 | Tasks | Implementing (T1-T3 completas; aguarda Verificador) |
+| RELOC-05 | P1 | Tasks | Implementing (T1-T3 completas; aguarda Verificador) |
+| RELOC-06 | P1 | Tasks | Implementing (T1-T3 completas; aguarda Verificador) |
+| RELOC-07 | P1 | Tasks | Implementing (T1-T3 completas; aguarda Verificador) |
 
 **ID format:** `RELOC-NN` (REL­atório de OCupação).
 
