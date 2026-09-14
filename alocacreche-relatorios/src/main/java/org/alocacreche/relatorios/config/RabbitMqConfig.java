@@ -1,6 +1,5 @@
 package org.alocacreche.relatorios.config;
 
-import java.util.HashMap;
 import java.util.Map;
 import org.alocacreche.relatorios.evento.EventoDominioInvalidoException;
 import org.springframework.amqp.core.Binding;
@@ -95,18 +94,23 @@ public class RabbitMqConfig {
      * RabbitMqConfigRetryClassificationTest, sem precisar de broker/Testcontainers - ver AD-001.
      */
     static Map<Class<? extends Throwable>, Boolean> retryableExceptions() {
-        Map<Class<? extends Throwable>, Boolean> retryableExceptions = new HashMap<>();
+        // Map.of: tabela fixa de classificacao, nunca mutada apos construida (SimpleRetryPolicy
+        // copia para seu proprio ConcurrentHashMap internamente) - imutavel por natureza, nao so
+        // por convencao.
+        //
         // EventoDominioInvalidoException (classe-base, nao uma excecao concreta de um dominio
         // especifico) nunca tenta de novo - rejeicao imediata para a DLQ (OCUP-06/07). Qualquer
         // consumidor futuro (ex.: MatriculaCriada) so precisa lancar uma subclasse desta excecao
         // para herdar a mesma politica, sem editar esta classe - SubclassClassifier resolve pela
         // hierarquia, nao por igualdade exata de classe (confirmado via bytecode, ver AD-001).
-        retryableExceptions.put(EventoDominioInvalidoException.class, false);
-        // JSON malformado falha na conversao, antes do listener/validar() rodar - tambem precisa
-        // ser rejeicao imediata (OCUP-06 cobre "nao puder ser desserializado", nao so campo
-        // faltando), senao cairia na politica de retry generica abaixo.
-        retryableExceptions.put(MessageConversionException.class, false);
-        return retryableExceptions;
+        //
+        // MessageConversionException: JSON malformado falha na conversao, antes do
+        // listener/validar() rodar - tambem precisa ser rejeicao imediata (OCUP-06 cobre "nao
+        // puder ser desserializado", nao so campo faltando), senao cairia na politica de retry
+        // generica abaixo.
+        return Map.of(
+                EventoDominioInvalidoException.class, false,
+                MessageConversionException.class, false);
     }
 
     private RetryOperationsInterceptor retryInterceptor() {

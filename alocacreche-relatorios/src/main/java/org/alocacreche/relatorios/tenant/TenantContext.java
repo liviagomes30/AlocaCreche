@@ -1,6 +1,7 @@
 package org.alocacreche.relatorios.tenant;
 
 import jakarta.persistence.EntityManager;
+import java.util.Objects;
 
 /**
  * Aplica o municipio corrente na sessao Postgres para a Row-Level Security (ver AD-002), escopado a
@@ -15,6 +16,7 @@ public final class TenantContext {
     }
 
     public static void aplicar(EntityManager entityManager, Long municipioId) {
+        Objects.requireNonNull(municipioId, "municipioId nao pode ser nulo");
         entityManager
                 .createNativeQuery(QUERY)
                 .setParameter(1, municipioId.toString())

@@ -46,27 +46,33 @@ public class VagaLiberadaListener {
 
     private void validar(VagaLiberadaEvent evento) {
         if (evento.eventId() == null) {
-            rejeitar(evento, "eventId ausente");
+            throw rejeitar(evento, "eventId ausente");
         }
         if (evento.municipioId() == null) {
-            rejeitar(evento, "municipioId ausente");
+            throw rejeitar(evento, "municipioId ausente");
         }
         if (evento.turmaId() == null) {
-            rejeitar(evento, "turmaId ausente");
+            throw rejeitar(evento, "turmaId ausente");
         }
         if (evento.crecheId() == null) {
-            rejeitar(evento, "crecheId ausente");
+            throw rejeitar(evento, "crecheId ausente");
         }
         if (evento.vagasDisponiveis() == null) {
-            rejeitar(evento, "vagasDisponiveis ausente");
+            throw rejeitar(evento, "vagasDisponiveis ausente");
         }
         if (evento.vagasDisponiveis() < 0) {
-            rejeitar(evento, "vagasDisponiveis negativo: " + evento.vagasDisponiveis());
+            throw rejeitar(evento, "vagasDisponiveis negativo: " + evento.vagasDisponiveis());
         }
     }
 
-    private void rejeitar(VagaLiberadaEvent evento, String motivo) {
+    /**
+     * Retorna a excecao em vez de lanca-la diretamente para que cada chamada em validar() use
+     * "throw rejeitar(...)" - auto-documentado como divergente para quem le (e para o compilador,
+     * que exige o throw explicito), ao contrario de um metodo void que so lanca por efeito
+     * colateral.
+     */
+    private EventoInvalidoException rejeitar(VagaLiberadaEvent evento, String motivo) {
         log.warn("Evento VagaLiberada rejeitado (turmaId={}): {}", evento.turmaId(), motivo);
-        throw new EventoInvalidoException(motivo);
+        return new EventoInvalidoException(motivo);
     }
 }
