@@ -1,7 +1,7 @@
 # Leitura do relatório de ocupação (MSRelatorios) Design
 
 **Spec**: `.specs/features/relatorios-leitura-ocupacao/spec.md`
-**Status**: Draft
+**Status**: Approved
 
 ---
 

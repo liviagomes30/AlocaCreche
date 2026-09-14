@@ -12,7 +12,7 @@ sensor).
 ---
 
 **Design**: `.specs/features/relatorios-leitura-ocupacao/design.md`
-**Status**: Draft
+**Status**: Done (T1-T4 completas, aguardando Verificador independente)
 
 ---
 
@@ -161,7 +161,7 @@ entrada de todos os critérios).
 
 ---
 
-### T4: Registrar ADR do prefixo de rota REST
+### T4: Registrar ADR do prefixo de rota REST — ✅ Complete
 
 **What**: `docs/adr/0003-prefixo-rest-api.md` documentando `/api/v1` como prefixo padrão do projeto —
 primeira decisão desse tipo, tomada implicitamente por esta feature (ver spec.md, Assumptions).
@@ -175,10 +175,10 @@ primeira decisão desse tipo, tomada implicitamente por esta feature (ver spec.m
 - Skill: NONE
 
 **Done when**:
-- [ ] ADR registra a decisão, o porquê (primeiro Controller do projeto, sem prefixo definido antes),
+- [x] ADR registra a decisão, o porquê (primeiro Controller do projeto, sem prefixo definido antes),
       e o escopo (vale para todo módulo futuro que expuser Controller)
-- [ ] Gate check passa: `mvn -pl alocacreche-relatorios verify` (build completo, garante que nada
-      quebrou)
+- [x] Gate check passa: `mvn -pl alocacreche-relatorios verify` (build completo, garante que nada
+      quebrou) — 25 testes de integração + 7 unitários, `BUILD SUCCESS`
 
 **Tests**: none
 **Gate**: build
