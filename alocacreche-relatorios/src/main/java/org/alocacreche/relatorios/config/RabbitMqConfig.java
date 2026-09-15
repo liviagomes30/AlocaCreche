@@ -36,6 +36,10 @@ public class RabbitMqConfig {
     public static final String OCUPACAO_DLQ = "relatorios.ocupacao.dlq";
     public static final String VAGA_LIBERADA_ROUTING_KEY = "vaga.liberada";
     public static final String OCUPACAO_DLQ_ROUTING_KEY = "vaga.liberada.dlq";
+    public static final String FILA_ESPERA_QUEUE = "relatorios.filaespera";
+    public static final String FILA_ESPERA_DLQ = "relatorios.filaespera.dlq";
+    public static final String FILA_ATUALIZADA_ROUTING_KEY = "fila.atualizada";
+    public static final String FILA_ESPERA_DLQ_ROUTING_KEY = "fila.atualizada.dlq";
 
     @Bean
     public TopicExchange dominioExchange() {
@@ -72,6 +76,33 @@ public class RabbitMqConfig {
         return BindingBuilder.bind(ocupacaoDlq())
                 .to(dominioDlx())
                 .with(OCUPACAO_DLQ_ROUTING_KEY);
+    }
+
+    @Bean
+    public Queue filaEsperaQueue() {
+        return QueueBuilder.durable(FILA_ESPERA_QUEUE)
+                .withArgument("x-dead-letter-exchange", DOMINIO_DLX)
+                .withArgument("x-dead-letter-routing-key", FILA_ESPERA_DLQ_ROUTING_KEY)
+                .build();
+    }
+
+    @Bean
+    public Queue filaEsperaDlq() {
+        return QueueBuilder.durable(FILA_ESPERA_DLQ).build();
+    }
+
+    @Bean
+    public Binding filaEsperaBinding() {
+        return BindingBuilder.bind(filaEsperaQueue())
+                .to(dominioExchange())
+                .with(FILA_ATUALIZADA_ROUTING_KEY);
+    }
+
+    @Bean
+    public Binding filaEsperaDlqBinding() {
+        return BindingBuilder.bind(filaEsperaDlq())
+                .to(dominioDlx())
+                .with(FILA_ESPERA_DLQ_ROUTING_KEY);
     }
 
     @Bean

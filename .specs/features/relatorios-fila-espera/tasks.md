@@ -237,10 +237,10 @@ alteração.
 - Skill: `spring-boot-patterns`
 
 **Done when**:
-- [ ] Novos beans do design declarados (2 filas, 2 bindings) — exchange/DLX/converter/container
+- [x] Novos beans do design declarados (2 filas, 2 bindings) — exchange/DLX/converter/container
       factory reaproveitados, não duplicados
-- [ ] `mvn -pl alocacreche-relatorios test` sobe o contexto sem erro (reusa o smoke test)
-- [ ] Confirmar (lendo o código, não assumindo) que `retryableExceptions()` já cobre
+- [x] `mvn -pl alocacreche-relatorios test` sobe o contexto sem erro (reusa o smoke test)
+- [x] Confirmar (lendo o código, não assumindo) que `retryableExceptions()` já cobre
       `FilaEsperaEventoInvalidoException` pela classe-base — nenhuma edição necessária nesse método
 
 **Tests**: none
