@@ -68,6 +68,18 @@ Seen once or not yet corroborated. Tracked, not trusted.
 - evidence: RELOC-06 - OcupacaoConsultaControllerIT.java:127-137 (multi-tenancy)
 - last seen: 2026-09-15T00:08:06Z
 
+### L-010 - When a spec requires an error path to skip a downstream call (DB/cache), assert that no call happened (spy/verify), not just the resulting HTTP status.
+- signal: `spec_precision_gap` · recurrence: 1 feature(s) · scope: `relatorios` · harmful: 0
+- features: relatorios-painel-publico
+- evidence: PAINEL-02 / alocacreche-relatorios/src/test/java/org/alocacreche/relatorios/ocupacao/PainelPublicoControllerIT.java:69-84 (relatorios)
+- last seen: 2026-09-15T14:57:34Z
+
+### L-011 - Before writing a design.md rationale about a framework's internal error-handling behavior (e.g. Spring @Cacheable sync=true), verify it empirically against the actual pinned framework version's bytecode/source, not general web-search knowledge that may target an older version.
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `design-docs` · harmful: 0
+- features: relatorios-painel-publico
+- evidence: mutation 3 (sync=true on @Cacheable) / .specs/features/relatorios-painel-publico/design.md:124 (design-docs)
+- last seen: 2026-09-15T14:57:34Z
+
 ## Quarantined (failed when applied - ignore)
 
 A confirmed lesson that recurred alongside failure. Kept for the maintainer to review.

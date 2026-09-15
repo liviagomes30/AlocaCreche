@@ -92,24 +92,36 @@
 
 ## Handoff
 
-- **Feature**: relatorios-leitura-ocupacao
-- **Phase / Task**: Execute concluído — T1-T4 implementadas, commitadas, Verificador independente
+- **Feature**: relatorios-painel-publico
+- **Phase / Task**: Execute concluído — T1-T5 implementadas, commitadas, Verificador independente
   rodou 1 vez e retornou PASS (sem precisar de fix→re-verify).
-- **Completed**: T1 (DTO `OcupacaoTurmaDTO`), T2 (`OcupacaoTurmaRepository.buscarPorFiltro`), T3
-  (`OcupacaoConsultaController` — `GET /api/v1/relatorios/ocupacao`, primeiro endpoint REST do
-  projeto), T4 (`docs/adr/0003-prefixo-rest-api.md`). Commits: `27b0ddd`, `a8e6268`, `a13d4f9`,
-  `c1c9681`. Gate final: `mvn -pl alocacreche-relatorios verify` → 32 testes (7 unitários + 25
-  integração), `BUILD SUCCESS`. Verificador: PASS, 7/7 requisitos (RELOC-01 a 07) verificados, sensor
-  de discriminação 3/3 mutantes mortos, 3 gaps de precisão de spec não-bloqueantes (RELOC-03/04/06 -
-  registrados como lições L-007/008/009 candidatas, não corrigidos por não serem bloqueantes).
-  Autenticação (`@SaCheckPermission`) deliberadamente fora de escopo - TODO documentado em spec.md
-  (não existe modelo de usuário/permissão em nenhum módulo do projeto ainda).
-- **In-progress**: nenhum — feature fechada, PASS na primeira rodada de verificação.
+- **Completed**: T1 (deps Redis: `spring-boot-starter-cache` + `com.redis:testcontainers-redis`), T2
+  (`PainelPublicoDTO`), T3 (`CacheConfig`), T4 (`PainelPublicoService` — cache + fail-open), T5
+  (`PainelPublicoController` — `GET /api/v1/relatorios/painel-publico`). Commits: `bad6928`,
+  `fbb8be7`, `683e4e8`, `df9dbb4`, `20799b5`. Gate final: `mvn -pl alocacreche-relatorios verify` → 43
+  testes (7 unitários + 36 integração), `BUILD SUCCESS`. Verificador: PASS, 6/6 requisitos
+  (PAINEL-01 a 06) verificados, sensor de discriminação 4/4 mutantes mortos (incluindo reverter
+  `CacheConfig` para a versão sem `CachingConfigurer` que realmente falhou durante T4 — sensor
+  confirmou que a correção é causal, não coincidência), 2 gaps não-bloqueantes: (1) `design.md:124`
+  tem uma afirmação tecnicamente incorreta sobre `sync=true`/`CacheErrorHandler` para o Spring
+  Framework 6.2.19 pinado neste projeto (decompilado e confirmado errado pelo Verificador — a decisão
+  de não usar `sync=true` continua certa pelo motivo de thundering herd, só a justificativa técnica
+  citada está errada); (2) PAINEL-02 (HTTP 400) não tem spy provando "sem consultar banco/cache".
+  Lições L-010/011 registradas como candidatas.
+- **Achado real de implementação**: a primeira versão de `CacheConfig` (um `@Bean CacheErrorHandler`
+  solto, sem `CachingConfigurer`) compilava mas nunca conectava o handler ao `CacheInterceptor` de
+  verdade — só um teste real derrubando o container Redis (`PainelPublicoFailOpenIT`) expôs isso.
+  Corrigido implementando `CachingConfigurer`. Ver AD-001-style gotcha, mas ainda não promovido a uma
+  entrada `AD-NNN` formal (só 1 cache no projeto até agora — revisitar se um segundo endpoint
+  cacheado aparecer, conforme já anotado em design.md).
+- **In-progress**: nenhum — feature fechada, PASS na primeira rodada de verificação. 2 gaps
+  não-bloqueantes ainda não corrigidos (aguardando decisão do usuário, mesmo padrão da feature
+  anterior).
 - **Next step**: nenhum próximo passo automático desta feature. Pendências do roadmap maior
-  (Epic 2 - painel público cacheado; Epic 3 - novos consumidores de evento, bloqueado por
-  `alocacreche-core` ainda não ter `Matricula`/`Inscricao`) seguem como próximas features candidatas.
+  (Epic 3 - novos consumidores de evento, bloqueado por `alocacreche-core` ainda não ter
+  `Matricula`/`Inscricao`) seguem como próxima feature candidata.
 - **Blockers**: none
-- **Uncommitted files**: `.specs/LESSONS.md`, `.specs/lessons.json` (lições L-007/008/009 do
-  Verificador), `.specs/features/relatorios-leitura-ocupacao/validation.md`, `docs/mock-data/`
+- **Uncommitted files**: `.specs/LESSONS.md`, `.specs/lessons.json` (lições L-010/011 do
+  Verificador), `.specs/features/relatorios-painel-publico/validation.md`, `docs/mock-data/`
   (mocks gerados em conversa anterior, ainda sem commit)
 - **Branch**: main

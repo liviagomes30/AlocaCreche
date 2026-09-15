@@ -87,12 +87,12 @@ endpoint continua respondendo (fail-open).
 
 | Requirement ID | Story | Phase | Status |
 | --- | --- | --- | --- |
-| PAINEL-01 | P1 | Tasks | Implementing (T1-T5 completas; aguarda Verificador) |
-| PAINEL-02 | P1 | Tasks | Implementing (T1-T5 completas; aguarda Verificador) |
-| PAINEL-03 | P1 | Tasks | Implementing (T1-T5 completas; aguarda Verificador) |
-| PAINEL-04 | P1 | Tasks | Implementing (T1-T5 completas; aguarda Verificador) |
-| PAINEL-05 | P1 | Tasks | Implementing (T1-T5 completas; aguarda Verificador) |
-| PAINEL-06 | P1 | Tasks | Implementing (T1-T5 completas; aguarda Verificador) |
+| PAINEL-01 | P1 | Verified | ✅ Verified (validation.md) |
+| PAINEL-02 | P1 | Verified | ✅ Verified - spec-precision gap não-bloqueante registrado (validation.md) |
+| PAINEL-03 | P1 | Verified | ✅ Verified (validation.md) |
+| PAINEL-04 | P1 | Verified | ✅ Verified (validation.md) |
+| PAINEL-05 | P1 | Verified | ✅ Verified - sensor de discriminação confirmou causalidade (validation.md) |
+| PAINEL-06 | P1 | Verified | ✅ Verified - sensor de discriminação confirmou causalidade (validation.md) |
 
 **ID format:** `PAINEL-NN`.
 
