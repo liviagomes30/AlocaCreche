@@ -265,14 +265,14 @@ validação.
 - Skill: `test-quality`
 
 **Done when**:
-- [ ] Payload válido (com e sem `dataSaida`): chama `SET LOCAL` com o `municipioId` correto e
+- [x] Payload válido (com e sem `dataSaida`): chama `SET LOCAL` com o `municipioId` correto e
       delega ao repositório
-- [ ] Cada campo obrigatório faltando (`eventId`, `municipioId`, `turmaId`, `crecheId`,
+- [x] Cada campo obrigatório faltando (`eventId`, `municipioId`, `turmaId`, `crecheId`,
       `inscricaoId`, `dataEntrada`) — um teste por campo, lança `FilaEsperaEventoInvalidoException`,
       repositório NUNCA é chamado
-- [ ] `dataSaida` anterior a `dataEntrada`: lança `FilaEsperaEventoInvalidoException`, repositório
+- [x] `dataSaida` anterior a `dataEntrada`: lança `FilaEsperaEventoInvalidoException`, repositório
       NUNCA é chamado
-- [ ] Gate check passa: `mvn -pl alocacreche-relatorios test -Dtest=FilaEsperaAtualizadaListenerTest`
+- [x] Gate check passa: `mvn -pl alocacreche-relatorios test -Dtest=FilaEsperaAtualizadaListenerTest`
 
 **Tests**: unit
 **Gate**: quick
