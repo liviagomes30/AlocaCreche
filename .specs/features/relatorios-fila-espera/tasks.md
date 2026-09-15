@@ -198,19 +198,19 @@ nativa de `OcupacaoTurmaRepository`
 - Skill: `jpa-patterns`, `test-quality`, `concurrency-review` (para o teste de upsert concorrente)
 
 **Done when**:
-- [ ] Upsert cria linha nova quando `inscricaoId` não existe
-- [ ] Upsert atualiza quando `eventId` novo é maior que o aplicado
-- [ ] Upsert é no-op quando `eventId` recebido é igual ou menor ao aplicado (idempotência/ordem —
+- [x] Upsert cria linha nova quando `inscricaoId` não existe
+- [x] Upsert atualiza quando `eventId` novo é maior que o aplicado
+- [x] Upsert é no-op quando `eventId` recebido é igual ou menor ao aplicado (idempotência/ordem —
       testar explicitamente a igualdade, não só o menor, ver lição candidata L-001)
-- [ ] Teste de concorrência: duas chamadas simultâneas para a mesma `inscricaoId` com sequências
+- [x] Teste de concorrência: duas chamadas simultâneas para a mesma `inscricaoId` com sequências
       diferentes — a projeção final reflete só a maior sequência
-- [ ] Teste de RLS: gravar com `SET LOCAL app.current_tenant = X`, ler com `SET LOCAL` = Y — zero
+- [x] Teste de RLS: gravar com `SET LOCAL app.current_tenant = X`, ler com `SET LOCAL` = Y — zero
       linhas retornadas para o município errado
-- [ ] `buscarRelatorio`: turma com 1 inscrição aguardando (`dataSaida` nula) retorna
+- [x] `buscarRelatorio`: turma com 1 inscrição aguardando (`dataSaida` nula) retorna
       `quantidadeAguardando=1` e `tempoMedioEsperaDias` maior que zero
-- [ ] `buscarRelatorio`: turma sem nenhuma linha não aparece no resultado (FILA-15)
-- [ ] `buscarRelatorio`: filtro por `crecheId`/`turmaId` opcional restringe corretamente
-- [ ] Gate check passa: `mvn -pl alocacreche-relatorios verify -Dit.test=FilaEsperaInscricaoRepositoryIT`
+- [x] `buscarRelatorio`: turma sem nenhuma linha não aparece no resultado (FILA-15)
+- [x] `buscarRelatorio`: filtro por `crecheId`/`turmaId` opcional restringe corretamente
+- [x] Gate check passa: `mvn -pl alocacreche-relatorios verify -Dit.test=FilaEsperaInscricaoRepositoryIT`
 
 **Tests**: integration
 **Gate**: full
