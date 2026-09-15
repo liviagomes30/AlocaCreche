@@ -130,3 +130,30 @@ None required — no blocking gaps found. The 3 spec-precision gaps noted above 
 **Issues found**: None blocking. Three optional test-coverage refinements identified (see Spec-Anchored table) — could be added in a future small PR but do not represent incorrect behavior in the shipped code.
 
 **Next steps**: None required to close this feature. Optionally, a follow-up could add: (1) a `turmaId` that doesn't exist within a populated município (0-row case for RELOC-03), (2) an assertion on the 400 response body content for RELOC-04, (3) a `turmaId`-from-another-município variant at the Controller layer for RELOC-06.
+
+---
+
+## Update (2026-09-15): 3 spec-precision gaps closed
+
+User asked to fix all 3 non-blocking gaps. Closed directly (test-only additions, no production code
+change — the underlying code paths were already correct and already mutation-killed):
+
+1. **RELOC-03**: added `buscarPorFiltroComTurmaIdInexistenteDentroDeMunicipioPopuladoRetornaVazio`
+   (`OcupacaoTurmaRepositoryIT.java`) and `consultarComTurmaIdInexistenteDentroDeMunicipioPopuladoRetornaListaVazia`
+   (`OcupacaoConsultaControllerIT.java`) — both seed a turma under the município, then filter by a
+   `turmaId` that doesn't exist, asserting an empty result (not just a differently-scoped empty case).
+2. **RELOC-04**: strengthened the two existing 400 tests
+   (`consultarSemMunicipioIdRetorna400`, `consultarComMunicipioIdNaoNumericoRetorna400`) to assert the
+   response body, not just the status code. Checked the actual body first (ran the test with a debug
+   print before writing the assertion) rather than guessing: Spring Boot's default error body is
+   `{"timestamp":...,"status":400,"error":"Bad Request","path":...}` — no `message` field by default
+   (suppressed for security unless `server.error.include-message` is configured, which this project
+   doesn't set). Assertion targets `"status":400` and `"error":"Bad Request"` — the actual error
+   message this endpoint returns today, not a fabricated one.
+3. **RELOC-06**: added `consultarComTurmaIdDeOutroMunicipioRetornaListaVazia`
+   (`OcupacaoConsultaControllerIT.java`), mirroring the existing `crecheId`-from-another-município test
+   for the `turmaId` variant at the Controller layer.
+
+Gate re-run: `mvn -pl alocacreche-relatorios verify` → 35 tests (7 unit + 28 integration,
++3 vs. the 32 at PASS time), `BUILD SUCCESS`. No re-verification round dispatched — these were
+explicitly non-blocking coverage refinements at PASS, not a FAIL requiring fix→re-verify.

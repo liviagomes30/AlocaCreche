@@ -99,11 +99,24 @@ class OcupacaoConsultaControllerIT {
     }
 
     @Test
+    void consultarComTurmaIdInexistenteDentroDeMunicipioPopuladoRetornaListaVazia() {
+        seedTurma(1L, 1025L, 105L, 5, 1L);
+
+        ResponseEntity<OcupacaoTurmaDTO[]> resposta =
+                restTemplate.getForEntity(
+                        "/api/v1/relatorios/ocupacao?municipioId=1&turmaId=9999999", OcupacaoTurmaDTO[].class);
+
+        assertThat(resposta.getStatusCode().value()).isEqualTo(200);
+        assertThat(resposta.getBody()).isEmpty();
+    }
+
+    @Test
     void consultarSemMunicipioIdRetorna400() {
         ResponseEntity<String> resposta =
                 restTemplate.getForEntity("/api/v1/relatorios/ocupacao", String.class);
 
         assertThat(resposta.getStatusCode().value()).isEqualTo(400);
+        assertThat(resposta.getBody()).contains("\"status\":400").contains("\"error\":\"Bad Request\"");
     }
 
     @Test
@@ -113,6 +126,7 @@ class OcupacaoConsultaControllerIT {
                         "/api/v1/relatorios/ocupacao?municipioId=abc", String.class);
 
         assertThat(resposta.getStatusCode().value()).isEqualTo(400);
+        assertThat(resposta.getBody()).contains("\"status\":400").contains("\"error\":\"Bad Request\"");
     }
 
     @Test
@@ -131,6 +145,18 @@ class OcupacaoConsultaControllerIT {
         ResponseEntity<OcupacaoTurmaDTO[]> resposta =
                 restTemplate.getForEntity(
                         "/api/v1/relatorios/ocupacao?municipioId=1&crecheId=200", OcupacaoTurmaDTO[].class);
+
+        assertThat(resposta.getStatusCode().value()).isEqualTo(200);
+        assertThat(resposta.getBody()).isEmpty();
+    }
+
+    @Test
+    void consultarComTurmaIdDeOutroMunicipioRetornaListaVazia() {
+        seedTurma(2L, 1031L, 201L, 5, 1L);
+
+        ResponseEntity<OcupacaoTurmaDTO[]> resposta =
+                restTemplate.getForEntity(
+                        "/api/v1/relatorios/ocupacao?municipioId=1&turmaId=1031", OcupacaoTurmaDTO[].class);
 
         assertThat(resposta.getStatusCode().value()).isEqualTo(200);
         assertThat(resposta.getBody()).isEmpty();

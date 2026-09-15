@@ -233,6 +233,15 @@ class OcupacaoTurmaRepositoryIT {
     }
 
     @Test
+    void buscarPorFiltroComTurmaIdInexistenteDentroDeMunicipioPopuladoRetornaVazio() {
+        upsertComoTenant(1L, 925L, 94L, 5, 1L);
+
+        List<OcupacaoTurma> resultado = buscarPorFiltroComoTenant(1L, 1L, null, 9999999L);
+
+        assertThat(resultado).isEmpty();
+    }
+
+    @Test
     void buscarPorFiltroRetornaVazioQuandoMunicipioNuncaRecebeuEvento() {
         List<OcupacaoTurma> resultado = buscarPorFiltroComoTenant(999L, 999L, null, null);
 

@@ -97,10 +97,10 @@ município e ver lista vazia.
 | --- | --- | --- | --- |
 | RELOC-01 | P1 | Tasks | ✅ Verified |
 | RELOC-02 | P1 | Tasks | ✅ Verified |
-| RELOC-03 | P1 | Tasks | ✅ Verified (spec-precision gap noted in validation.md, não bloqueante) |
-| RELOC-04 | P1 | Tasks | ✅ Verified (spec-precision gap noted in validation.md, não bloqueante) |
+| RELOC-03 | P1 | Tasks | ✅ Verified (gap de precisão da rodada 1 fechado - ver validation.md) |
+| RELOC-04 | P1 | Tasks | ✅ Verified (gap de precisão da rodada 1 fechado - ver validation.md) |
 | RELOC-05 | P1 | Tasks | ✅ Verified |
-| RELOC-06 | P1 | Tasks | ✅ Verified (spec-precision gap noted in validation.md, não bloqueante) |
+| RELOC-06 | P1 | Tasks | ✅ Verified (gap de precisão da rodada 1 fechado - ver validation.md) |
 | RELOC-07 | P1 | Tasks | ✅ Verified |
 
 **ID format:** `RELOC-NN` (REL­atório de OCupação).
