@@ -92,36 +92,55 @@
 
 ## Handoff
 
-- **Feature**: relatorios-painel-publico
-- **Phase / Task**: Execute concluído — T1-T5 implementadas, commitadas, Verificador independente
-  rodou 1 vez e retornou PASS (sem precisar de fix→re-verify).
-- **Completed**: T1 (deps Redis: `spring-boot-starter-cache` + `com.redis:testcontainers-redis`), T2
-  (`PainelPublicoDTO`), T3 (`CacheConfig`), T4 (`PainelPublicoService` — cache + fail-open), T5
-  (`PainelPublicoController` — `GET /api/v1/relatorios/painel-publico`). Commits: `bad6928`,
-  `fbb8be7`, `683e4e8`, `df9dbb4`, `20799b5`. Gate final: `mvn -pl alocacreche-relatorios verify` → 43
-  testes (7 unitários + 36 integração), `BUILD SUCCESS`. Verificador: PASS, 6/6 requisitos
-  (PAINEL-01 a 06) verificados, sensor de discriminação 4/4 mutantes mortos (incluindo reverter
-  `CacheConfig` para a versão sem `CachingConfigurer` que realmente falhou durante T4 — sensor
-  confirmou que a correção é causal, não coincidência), 2 gaps não-bloqueantes: (1) `design.md:124`
-  tem uma afirmação tecnicamente incorreta sobre `sync=true`/`CacheErrorHandler` para o Spring
-  Framework 6.2.19 pinado neste projeto (decompilado e confirmado errado pelo Verificador — a decisão
-  de não usar `sync=true` continua certa pelo motivo de thundering herd, só a justificativa técnica
-  citada está errada); (2) PAINEL-02 (HTTP 400) não tem spy provando "sem consultar banco/cache".
-  Lições L-010/011 registradas como candidatas.
-- **Achado real de implementação**: a primeira versão de `CacheConfig` (um `@Bean CacheErrorHandler`
-  solto, sem `CachingConfigurer`) compilava mas nunca conectava o handler ao `CacheInterceptor` de
-  verdade — só um teste real derrubando o container Redis (`PainelPublicoFailOpenIT`) expôs isso.
-  Corrigido implementando `CachingConfigurer`. Ver AD-001-style gotcha, mas ainda não promovido a uma
-  entrada `AD-NNN` formal (só 1 cache no projeto até agora — revisitar se um segundo endpoint
-  cacheado aparecer, conforme já anotado em design.md).
-- **In-progress**: nenhum — feature fechada, PASS na primeira rodada de verificação. 2 gaps
-  não-bloqueantes ainda não corrigidos (aguardando decisão do usuário, mesmo padrão da feature
-  anterior).
-- **Next step**: nenhum próximo passo automático desta feature. Pendências do roadmap maior
-  (Epic 3 - novos consumidores de evento, bloqueado por `alocacreche-core` ainda não ter
-  `Matricula`/`Inscricao`) seguem como próxima feature candidata.
-- **Blockers**: none
-- **Uncommitted files**: `.specs/LESSONS.md`, `.specs/lessons.json` (lições L-010/011 do
-  Verificador), `.specs/features/relatorios-painel-publico/validation.md`, `docs/mock-data/`
-  (mocks gerados em conversa anterior, ainda sem commit)
+- **Feature**: relatorios-fila-espera
+- **Phase / Task**: Execute em andamento — Specify/Design/Tasks completos e commitados
+  (spec.md, design.md, tasks.md — 9 tarefas T1-T9, `validate_spec.py`/`validate_tasks.py` ambos 0
+  erros). T1-T8 implementadas, testadas e commitadas via 2 sub-agentes em batch (batch 1: Phases
+  1-3/T1-T7; batch 2: Phase 4/T8). T9 (Phase 5, endpoint de leitura) está **bloqueada** — ver
+  Blockers abaixo.
+- **Completed**: T1 `FilaEsperaAtualizadaEvent` (`7c117ab`), T2
+  `FilaEsperaEventoInvalidoException` (`9e9ce14`), T3 `FilaEsperaInscricao` (`f76ce09`), T4 RLS via
+  `schema.sql` (`5c18586`), T5 `FilaEsperaInscricaoRepository` upsert+agregação + IT (`f9cd783`), T6
+  `RabbitMqConfig` topologia (`71d3bd7`), T7 `FilaEsperaAtualizadaListener` + teste unitário
+  (`e1c4d30`), T8 teste ponta a ponta do consumidor (`f0cf879`). 22+4 testes verdes nos gates
+  correspondentes (ver commits individuais para contagem exata por tarefa).
+- **In-progress**: T9 (`RelatorioFilaEsperaController` + `RelatorioFilaEsperaDTO` +
+  `RelatorioFilaEsperaControllerIT`) — implementação completa nos 3 arquivos listados em
+  "Uncommitted files" abaixo, espelhando `OcupacaoConsultaController`/`OcupacaoConsultaControllerIT`
+  (inclui o spy de repositório para FILA-11 e a checagem de duas chamadas consecutivas para
+  FILA-14), mas **não commitada** — o gate (`mvn -pl alocacreche-relatorios verify
+  -Dit.test=RelatorioFilaEsperaControllerIT`) nunca rodou verde neste ambiente, e a regra do skill
+  é que o gate precisa passar antes do commit (nunca pular essa etapa).
+- **Next step**: rodar `mvn -pl alocacreche-relatorios verify -Dit.test=RelatorioFilaEsperaControllerIT`
+  num ambiente sem a restrição de sandbox descrita no Blocker (máquina real do usuário ou CI). Se
+  passar, seguir o ciclo normal de T9 (Test Adequacy Review, marcar `[x]` em `tasks.md`, um commit
+  atômico `feat(relatorios): endpoint GET /api/v1/relatorios/fila-espera`). Depois disso, T9 é a
+  última tarefa da feature — despachar o Verificador independente (author ≠ verifier) antes de
+  declarar a feature concluída; nunca pular essa etapa.
+- **Blockers**: **Bloqueio de ambiente, não defeito de código** — todo teste
+  `@SpringBootTest(webEnvironment = RANDOM_PORT)` (que usa `TestRestTemplate`) falha neste sandbox
+  Windows específico ao criar o bean `TestRestTemplate`:
+  `java.io.IOException: Unable to establish loopback connection` →
+  `SocketException: Invalid argument: connect` em `sun.nio.ch.UnixDomainSockets.connect0` — o
+  `Selector` interno do JDK 21 usa um pipe de wakeup via socket de domínio Unix
+  (`WEPollSelectorImpl`/`PipeImpl`) que este sandbox rejeita. **Confirmado não ser causado por
+  código desta feature**: reproduzido de forma idêntica rodando
+  `OcupacaoConsultaControllerIT` (já commitado, já passava antes) isoladamente — `mvn -pl
+  alocacreche-relatorios verify -Dit.test=OcupacaoConsultaControllerIT` também falha com a mesma
+  stack trace, 10/10 testes com erro de bootstrap de contexto. Tentado e descartado:
+  `-Dspring.http.client.factory=simple`, `-Djava.net.preferIPv4Stack=true`, forçar
+  `WindowsSelectorProvider` legado, rodar via PowerShell em vez de Bash,
+  `dangerouslyDisableSandbox=true`. Usuário optou por pausar aqui (não trocar
+  `RANDOM_PORT`+`TestRestTemplate` por `MOCK`+`MockMvc` só no teste novo, para não divergir do
+  padrão já usado em `OcupacaoConsultaControllerIT`) e confirmar o gate numa máquina/CI sem essa
+  restrição de sandbox antes de commitar T9. **Se este bloqueio se repetir em outra feature futura
+  com testes `@SpringBootTest` de controller, considerar promover a uma decisão formal (`AD-NNN`)
+  sobre qual padrão de teste de controller usar neste projeto** — ainda não promovido porque é uma
+  limitação deste ambiente de sandbox específico, não necessariamente do ambiente real do usuário.
+- **Uncommitted files**:
+  `alocacreche-relatorios/src/main/java/org/alocacreche/relatorios/filaespera/RelatorioFilaEsperaController.java`,
+  `alocacreche-relatorios/src/main/java/org/alocacreche/relatorios/filaespera/RelatorioFilaEsperaDTO.java`,
+  `alocacreche-relatorios/src/test/java/org/alocacreche/relatorios/filaespera/RelatorioFilaEsperaControllerIT.java`
+  (T9, aguardando gate verde — ver Blockers), `docs/mock-data/` (mocks de conversa anterior, ainda
+  sem relação com esta feature, seguem sem commit)
 - **Branch**: main
