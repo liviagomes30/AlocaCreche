@@ -12,7 +12,7 @@ sensor).
 ---
 
 **Design**: `.specs/features/relatorios-painel-publico/design.md`
-**Status**: Draft
+**Status**: Done (T1-T5 completas, aguardando Verificador independente)
 
 ---
 
@@ -203,7 +203,7 @@ de turmas, máximo de `atualizadoEm`).
 
 ---
 
-### T5: Criar `PainelPublicoController`
+### T5: Criar `PainelPublicoController` — ✅ Complete
 
 **What**: `GET /api/v1/relatorios/painel-publico?municipioId=X` — delega a `PainelPublicoService`,
 sem lógica própria. Cobre PAINEL-02 (validação HTTP de `municipioId`).
@@ -217,11 +217,11 @@ sem lógica própria. Cobre PAINEL-02 (validação HTTP de `municipioId`).
 - Skill: `spring-boot-patterns`, `test-quality`
 
 **Done when**:
-- [ ] `GET .../painel-publico?municipioId=X` retorna 200 com o painel correto via HTTP real
-- [ ] `municipioId` ausente ou não numérico retorna 400
-- [ ] Município sem dado retorna 200 com totais zerados
-- [ ] Gate check passa: `mvn -pl alocacreche-relatorios verify -Dit.test=PainelPublicoControllerIT`
-- [ ] Contagem de testes: N testes novos passam
+- [x] `GET .../painel-publico?municipioId=X` retorna 200 com o painel correto via HTTP real
+- [x] `municipioId` ausente ou não numérico retorna 400
+- [x] Município sem dado retorna 200 com totais zerados
+- [x] Gate check passa: `mvn -pl alocacreche-relatorios verify -Dit.test=PainelPublicoControllerIT`
+- [x] Contagem de testes: 4 testes novos passam
 
 **Tests**: integration
 **Gate**: full

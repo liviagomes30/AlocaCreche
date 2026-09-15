@@ -87,12 +87,12 @@ endpoint continua respondendo (fail-open).
 
 | Requirement ID | Story | Phase | Status |
 | --- | --- | --- | --- |
-| PAINEL-01 | P1 | Design | Pending |
-| PAINEL-02 | P1 | Design | Pending |
-| PAINEL-03 | P1 | Design | Pending |
-| PAINEL-04 | P1 | Design | Pending |
-| PAINEL-05 | P1 | Design | Pending |
-| PAINEL-06 | P1 | Design | Pending |
+| PAINEL-01 | P1 | Tasks | Implementing (T1-T5 completas; aguarda Verificador) |
+| PAINEL-02 | P1 | Tasks | Implementing (T1-T5 completas; aguarda Verificador) |
+| PAINEL-03 | P1 | Tasks | Implementing (T1-T5 completas; aguarda Verificador) |
+| PAINEL-04 | P1 | Tasks | Implementing (T1-T5 completas; aguarda Verificador) |
+| PAINEL-05 | P1 | Tasks | Implementing (T1-T5 completas; aguarda Verificador) |
+| PAINEL-06 | P1 | Tasks | Implementing (T1-T5 completas; aguarda Verificador) |
 
 **ID format:** `PAINEL-NN`.
 

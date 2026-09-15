@@ -1,7 +1,7 @@
 # Painel público de ocupação (MSRelatorios) Design
 
 **Spec**: `.specs/features/relatorios-painel-publico/spec.md`
-**Status**: Draft
+**Status**: Approved
 
 ---
 
