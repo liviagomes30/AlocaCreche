@@ -127,7 +127,7 @@ design.md, Risks & Concerns — sem isso o `RedisCacheManager` padrão falha ao 
 
 ---
 
-### T3: Criar `CacheConfig`
+### T3: Criar `CacheConfig` — ✅ Complete
 
 **What**: `@EnableCaching` + `CacheErrorHandler` que engole erros de Redis (fail-open) em vez de
 propagar — implementação dos 4 métodos da interface (`handleCacheGetError`,
@@ -142,9 +142,9 @@ propagar — implementação dos 4 métodos da interface (`handleCacheGetError`,
 - Skill: NONE
 
 **Done when**:
-- [ ] `@EnableCaching` presente
-- [ ] `CacheErrorHandler` implementado, não relança nenhuma das 4 exceções
-- [ ] Gate check passa: `mvn -pl alocacreche-relatorios compile`
+- [x] `@EnableCaching` presente
+- [x] `CacheErrorHandler` implementado, não relança nenhuma das 4 exceções
+- [x] Gate check passa: `mvn -pl alocacreche-relatorios compile`
 
 **Tests**: none (comportamento real provado pelos testes de `PainelPublicoService` em T4 — não é
 testável de forma decisiva isoladamente sem um `CacheManager` real já wireado)
