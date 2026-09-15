@@ -139,8 +139,8 @@ como `LocalDate`.
 - Skill: `jpa-patterns`
 
 **Done when**:
-- [ ] Entidade mapeada para tabela `fila_espera_inscricao` com todos os campos do design
-- [ ] `mvn -pl alocacreche-relatorios test` sobe o contexto e cria a tabela via `ddl-auto=update`
+- [x] Entidade mapeada para tabela `fila_espera_inscricao` com todos os campos do design
+- [x] `mvn -pl alocacreche-relatorios test` sobe o contexto e cria a tabela via `ddl-auto=update`
       (reusa o smoke test já existente) — confirmar via `\d fila_espera_inscricao` no Postgres real
 
 **Tests**: none
