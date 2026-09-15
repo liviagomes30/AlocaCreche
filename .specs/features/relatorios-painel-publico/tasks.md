@@ -102,7 +102,7 @@ T4 ------→ T5
 
 ---
 
-### T2: Criar `PainelPublicoDTO`
+### T2: Criar `PainelPublicoDTO` — ✅ Complete
 
 **What**: Record de resposta/valor de cache — `municipioId`, `totalVagasDisponiveis`,
 `totalCrechesComVaga`, `totalTurmas`, `atualizadoEm`. **Precisa `implements Serializable`** (ver
@@ -117,8 +117,8 @@ design.md, Risks & Concerns — sem isso o `RedisCacheManager` padrão falha ao 
 - Skill: NONE
 
 **Done when**:
-- [ ] Record com os 5 campos, `implements Serializable`
-- [ ] Gate check passa: `mvn -pl alocacreche-relatorios compile`
+- [x] Record com os 5 campos, `implements Serializable`
+- [x] Gate check passa: `mvn -pl alocacreche-relatorios compile`
 
 **Tests**: none
 **Gate**: build
