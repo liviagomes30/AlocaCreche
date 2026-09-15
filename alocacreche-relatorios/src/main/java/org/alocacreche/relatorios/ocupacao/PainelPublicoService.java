@@ -23,8 +23,9 @@ public class PainelPublicoService {
     private final EntityManager entityManager;
 
     /**
-     * NUNCA usar sync=true aqui - falhas de conexão do Redis em modo síncrono pulam o
-     * CacheErrorHandler (ver CacheConfig), quebrando o comportamento fail-open.
+     * Sem sync=true de propósito - não é por causa do fail-open (sync=true não afeta o
+     * CacheErrorHandler, ver CacheConfig), e sim para não serializar chamadas simultâneas em cache
+     * miss (aceitando um thundering herd pequeno em vez de travar requisições concorrentes).
      */
     @Cacheable(cacheNames = "painel-publico", key = "#municipioId")
     @Transactional(readOnly = true)

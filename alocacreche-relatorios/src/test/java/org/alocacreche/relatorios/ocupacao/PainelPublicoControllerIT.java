@@ -1,6 +1,9 @@
 package org.alocacreche.relatorios.ocupacao;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 
 import com.redis.testcontainers.RedisContainer;
 import jakarta.persistence.EntityManager;
@@ -13,6 +16,7 @@ import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.testcontainers.containers.PostgreSQLContainer;
@@ -47,7 +51,7 @@ class PainelPublicoControllerIT {
     }
 
     @Autowired private TestRestTemplate restTemplate;
-    @Autowired private OcupacaoTurmaRepository repository;
+    @MockitoSpyBean private OcupacaoTurmaRepository repository;
     @Autowired private PlatformTransactionManager transactionManager;
     @PersistenceContext private EntityManager entityManager;
 
@@ -72,6 +76,9 @@ class PainelPublicoControllerIT {
                 restTemplate.getForEntity("/api/v1/relatorios/painel-publico", String.class);
 
         assertThat(resposta.getStatusCode().value()).isEqualTo(400);
+        // Sinal decisivo: nao so o status - prova que a requisicao nunca chegou a tocar o
+        // repositorio (nem banco, nem a consulta que alimentaria o cache).
+        verify(repository, never()).buscarPorFiltro(any(), any(), any());
     }
 
     @Test
@@ -81,6 +88,7 @@ class PainelPublicoControllerIT {
                         "/api/v1/relatorios/painel-publico?municipioId=abc", String.class);
 
         assertThat(resposta.getStatusCode().value()).isEqualTo(400);
+        verify(repository, never()).buscarPorFiltro(any(), any(), any());
     }
 
     @Test

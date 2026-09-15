@@ -20,8 +20,11 @@ import org.springframework.context.annotation.Configuration;
  * errorHandler atraves de um bean CachingConfigurer, nao por tipo direto - sem essa interface, o
  * interceptor sempre usa o SimpleCacheErrorHandler padrao (relanca), nunca o bean customizado.
  *
- * <p>NAO usar sync=true em nenhum @Cacheable que dependa deste fail-open - falhas de conexao em modo
- * sincrono pulam o CacheErrorHandler mesmo com CachingConfigurer.
+ * <p>sync=true NAO afeta este fail-open (confirmado via bytecode de CacheAspectSupport na versao
+ * 6.2.19 do Spring Framework usada por este projeto - executeSynchronized chama o mesmo doGet que
+ * aciona o CacheErrorHandler). O motivo real para nao usar sync=true em PainelPublicoService e
+ * outro: sem sync, chamadas simultaneas em cache miss podem golpear o banco em paralelo
+ * (thundering herd) - ver design.md, relatorios-painel-publico.
  */
 @Slf4j
 @Configuration

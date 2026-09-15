@@ -138,3 +138,27 @@ Nenhum fix bloqueante. Dois itens não-bloqueantes registrados como lições (ve
 2. design.md contém uma afirmação tecnicamente incorreta sobre `sync=true` para a versão real do Spring Framework do projeto (6.2.19) - a decisão em si (não usar `sync=true`) continua correta por outro motivo (thundering herd), mas a citação de risco deveria ser corrigida.
 
 **Next steps**: Nenhum bloqueante. Sugestão opcional (não obrigatória): corrigir a linha de design.md sobre `sync=true` para citar o motivo real (thundering herd) em vez do motivo empiricamente incorreto (pular o `CacheErrorHandler`).
+
+---
+
+## Update (2026-09-15): 2 gaps não-bloqueantes fechados
+
+User pediu para corrigir os 2 gaps. Fechados:
+
+1. **`sync=true` — correção de documentação**: `design.md:124`, javadoc de `CacheConfig.java` e
+   comentário de `PainelPublicoService.java` corrigidos para citar o motivo real (thundering herd),
+   removendo a afirmação empiricamente incorreta sobre `sync=true` pular o `CacheErrorHandler` nesta
+   versão do Spring (6.2.19). Nenhuma mudança de comportamento — a decisão em si (não usar
+   `sync=true`) já estava correta, só a justificativa citada mudou.
+2. **PAINEL-02 — sinal decisivo de "zero chamadas ao banco/cache"**: `OcupacaoTurmaRepository` virou
+   `@MockitoSpyBean` em `PainelPublicoControllerIT.java`; os dois testes de 400 agora chamam
+   `verify(repository, never()).buscarPorFiltro(any(), any(), any())`. Diferente do gap similar já
+   corrigido na feature `relatorios-ocupacao-vaga-liberada`, aqui `never()` é um sinal genuinamente
+   decisivo (não ambíguo) — não há lógica de retry no caminho 400: o binding do Spring MVC falha
+   *antes* do método do Controller ser invocado, então não existe um cenário "tentou e falhou depois"
+   que `never()` deixaria de distinguir.
+
+Gate re-run: `mvn -pl alocacreche-relatorios verify` → 43 testes (sem novos testes — as duas mudanças
+foram doc-only e uma asserção adicionada em testes já existentes), `BUILD SUCCESS`. Nenhuma rodada de
+verificação nova disparada — gaps não-bloqueantes fechados diretamente, mesmo padrão da feature
+anterior.
