@@ -35,6 +35,12 @@ spring:
       host: ${SPRING_DATA_REDIS_HOST:localhost}
       port: ${SPRING_DATA_REDIS_PORT:6379}
 
+  cache:
+    redis:
+      # So existe 1 cache (painel-publico) por enquanto - propriedade global em vez de
+      # RedisCacheManagerBuilderCustomizer por-cache (ver design.md, relatorios-painel-publico).
+      time-to-live: 60000
+
   rabbitmq:
     host: ${SPRING_RABBITMQ_HOST:localhost}
     port: ${SPRING_RABBITMQ_PORT:5672}
