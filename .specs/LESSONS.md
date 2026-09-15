@@ -50,6 +50,24 @@ Seen once or not yet corroborated. Tracked, not trusted.
 - evidence: alocacreche-relatorios/src/main/java/org/alocacreche/relatorios/config/RabbitMqConfig.java:100 (messaging)
 - last seen: 2026-09-13T17:20:39Z
 
+### L-007 - When an AC names both a match and a no-match branch for the same optional filter, add a dedicated test for the no-match branch instead of relying on a differently-scoped empty-list test to imply it.
+- signal: `spec_precision_gap` · recurrence: 1 feature(s) · scope: `read-endpoints` · harmful: 0
+- features: relatorios-leitura-ocupacao
+- evidence: RELOC-03 - OcupacaoTurmaRepositoryIT.java:225-233, OcupacaoConsultaControllerIT.java:89-99 (read-endpoints)
+- last seen: 2026-09-15T00:08:06Z
+
+### L-008 - When a spec requires an error response to include an error message, assert on the response body content, not only the HTTP status code.
+- signal: `spec_precision_gap` · recurrence: 1 feature(s) · scope: `read-endpoints` · harmful: 0
+- features: relatorios-leitura-ocupacao
+- evidence: RELOC-04 - OcupacaoConsultaControllerIT.java:101-116 (read-endpoints)
+- last seen: 2026-09-15T00:08:06Z
+
+### L-009 - When an AC lists multiple independent filter parameters as cross-tenant risks, add one cross-tenant test per parameter instead of testing only one and generalizing to the rest.
+- signal: `spec_precision_gap` · recurrence: 1 feature(s) · scope: `multi-tenancy` · harmful: 0
+- features: relatorios-leitura-ocupacao
+- evidence: RELOC-06 - OcupacaoConsultaControllerIT.java:127-137 (multi-tenancy)
+- last seen: 2026-09-15T00:08:06Z
+
 ## Quarantined (failed when applied - ignore)
 
 A confirmed lesson that recurred alongside failure. Kept for the maintainer to review.

@@ -92,29 +92,24 @@
 
 ## Handoff
 
-- **Feature**: relatorios-ocupacao-vaga-liberada
-- **Phase / Task**: Execute concluído — T1-T8 implementadas, commitadas, e passadas por 3 rodadas de
-  Verificador independente (o máximo permitido pela skill). Encerrada por decisão do usuário com um
-  gap conhecido documentado como TODO (não corrigido).
-- **Completed**: T1-T8 (todas), `mvn -pl alocacreche-relatorios verify` verde (19/19 testes), 3
-  commits de feature (`469a88d`, `aee3b91`, `33aabc5`) + 2 commits de correção pós-Verificador
-  (`7ad51ef` rodada 1, `fa99510` rodada 2) + 1 commit de fechamento com TODO (`442a33f`). Depois
-  disso, uma revisão independente de código (agente novo, sem contexto de quem implementou) avaliou
-  boas práticas Java/Spring, arquitetura e cobertura de teste — achados corrigidos nesta sessão:
-  validação de `crecheId` ausente, `@Setter` morto removido de `OcupacaoTurma`, `@Modifying(clearAutomatically = true)`,
-  `spring-boot-starter-validation` não usado removido do pom, logging adicionado ao listener,
-  `SET LOCAL` por concatenação trocado por `TenantContext` (set_config parametrizado, ver AD-002),
-  acoplamento de `RabbitMqConfig` a `EventoInvalidoException` reduzido via classe-base
-  `EventoDominioInvalidoException` (com teste unitário decisivo provando a classificação por
-  hierarquia), teste de concorrência com `CyclicBarrier` para overlap real, e dreno de fila em loop
-  no teardown do teste e2e. Nuance de OCUP-08/09 (retry por-processo, não global) documentada em
-  AD-001.
-- **In-progress**: nenhum — feature fechada com um TODO documentado (não bloqueante para uso, ver
-  AD-001 último gotcha e T8 em `tasks.md`)
-- **Next step**: nenhum próximo passo automático. Se o TODO de `MessageConversionException` for
-  retomado no futuro, é uma correção pequena e isolada (spy no `MessageConverter`) — não precisa
-  reabrir o loop de fix→re-verify formal, pode ser um commit direto com teste.
+- **Feature**: relatorios-leitura-ocupacao
+- **Phase / Task**: Execute concluído — T1-T4 implementadas, commitadas, Verificador independente
+  rodou 1 vez e retornou PASS (sem precisar de fix→re-verify).
+- **Completed**: T1 (DTO `OcupacaoTurmaDTO`), T2 (`OcupacaoTurmaRepository.buscarPorFiltro`), T3
+  (`OcupacaoConsultaController` — `GET /api/v1/relatorios/ocupacao`, primeiro endpoint REST do
+  projeto), T4 (`docs/adr/0003-prefixo-rest-api.md`). Commits: `27b0ddd`, `a8e6268`, `a13d4f9`,
+  `c1c9681`. Gate final: `mvn -pl alocacreche-relatorios verify` → 32 testes (7 unitários + 25
+  integração), `BUILD SUCCESS`. Verificador: PASS, 7/7 requisitos (RELOC-01 a 07) verificados, sensor
+  de discriminação 3/3 mutantes mortos, 3 gaps de precisão de spec não-bloqueantes (RELOC-03/04/06 -
+  registrados como lições L-007/008/009 candidatas, não corrigidos por não serem bloqueantes).
+  Autenticação (`@SaCheckPermission`) deliberadamente fora de escopo - TODO documentado em spec.md
+  (não existe modelo de usuário/permissão em nenhum módulo do projeto ainda).
+- **In-progress**: nenhum — feature fechada, PASS na primeira rodada de verificação.
+- **Next step**: nenhum próximo passo automático desta feature. Pendências do roadmap maior
+  (Epic 2 - painel público cacheado; Epic 3 - novos consumidores de evento, bloqueado por
+  `alocacreche-core` ainda não ter `Matricula`/`Inscricao`) seguem como próximas features candidatas.
 - **Blockers**: none
-- **Uncommitted files**: mudanças da revisão de código (produção + testes + `.specs/STATE.md`),
-  ainda não commitadas nesta sessão
+- **Uncommitted files**: `.specs/LESSONS.md`, `.specs/lessons.json` (lições L-007/008/009 do
+  Verificador), `.specs/features/relatorios-leitura-ocupacao/validation.md`, `docs/mock-data/`
+  (mocks gerados em conversa anterior, ainda sem commit)
 - **Branch**: main

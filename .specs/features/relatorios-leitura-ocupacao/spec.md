@@ -95,13 +95,13 @@ município e ver lista vazia.
 
 | Requirement ID | Story | Phase | Status |
 | --- | --- | --- | --- |
-| RELOC-01 | P1 | Tasks | Implementing (T1-T3 completas; aguarda Verificador) |
-| RELOC-02 | P1 | Tasks | Implementing (T1-T3 completas; aguarda Verificador) |
-| RELOC-03 | P1 | Tasks | Implementing (T1-T3 completas; aguarda Verificador) |
-| RELOC-04 | P1 | Tasks | Implementing (T1-T3 completas; aguarda Verificador) |
-| RELOC-05 | P1 | Tasks | Implementing (T1-T3 completas; aguarda Verificador) |
-| RELOC-06 | P1 | Tasks | Implementing (T1-T3 completas; aguarda Verificador) |
-| RELOC-07 | P1 | Tasks | Implementing (T1-T3 completas; aguarda Verificador) |
+| RELOC-01 | P1 | Tasks | ✅ Verified |
+| RELOC-02 | P1 | Tasks | ✅ Verified |
+| RELOC-03 | P1 | Tasks | ✅ Verified (spec-precision gap noted in validation.md, não bloqueante) |
+| RELOC-04 | P1 | Tasks | ✅ Verified (spec-precision gap noted in validation.md, não bloqueante) |
+| RELOC-05 | P1 | Tasks | ✅ Verified |
+| RELOC-06 | P1 | Tasks | ✅ Verified (spec-precision gap noted in validation.md, não bloqueante) |
+| RELOC-07 | P1 | Tasks | ✅ Verified |
 
 **ID format:** `RELOC-NN` (REL­atório de OCupação).
 

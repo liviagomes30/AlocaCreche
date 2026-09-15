@@ -3,7 +3,7 @@
   "promote_threshold": 2,
   "window_days": 45,
   "quarantine_threshold": 2,
-  "next_id": 7,
+  "next_id": 10,
   "lessons": [
     {
       "id": "L-001",
@@ -113,6 +113,60 @@
       ],
       "created": "2026-09-13T17:20:39Z",
       "last_seen": "2026-09-13T17:20:39Z"
+    },
+    {
+      "id": "L-007",
+      "key": "spec_precision_gap::when an ac names both a match and a no match branch for the same optional filter add a dedicated test for the no match branch instead of relying on a differently scoped empty list test to imply it",
+      "text": "When an AC names both a match and a no-match branch for the same optional filter, add a dedicated test for the no-match branch instead of relying on a differently-scoped empty-list test to imply it.",
+      "signal": "spec_precision_gap",
+      "scope": "read-endpoints",
+      "status": "candidate",
+      "features": [
+        "relatorios-leitura-ocupacao"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "RELOC-03 - OcupacaoTurmaRepositoryIT.java:225-233, OcupacaoConsultaControllerIT.java:89-99 (read-endpoints)"
+      ],
+      "created": "2026-09-15T00:08:06Z",
+      "last_seen": "2026-09-15T00:08:06Z"
+    },
+    {
+      "id": "L-008",
+      "key": "spec_precision_gap::when a spec requires an error response to include an error message assert on the response body content not only the http status code",
+      "text": "When a spec requires an error response to include an error message, assert on the response body content, not only the HTTP status code.",
+      "signal": "spec_precision_gap",
+      "scope": "read-endpoints",
+      "status": "candidate",
+      "features": [
+        "relatorios-leitura-ocupacao"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "RELOC-04 - OcupacaoConsultaControllerIT.java:101-116 (read-endpoints)"
+      ],
+      "created": "2026-09-15T00:08:06Z",
+      "last_seen": "2026-09-15T00:08:06Z"
+    },
+    {
+      "id": "L-009",
+      "key": "spec_precision_gap::when an ac lists multiple independent filter parameters as cross tenant risks add one cross tenant test per parameter instead of testing only one and generalizing to the rest",
+      "text": "When an AC lists multiple independent filter parameters as cross-tenant risks, add one cross-tenant test per parameter instead of testing only one and generalizing to the rest.",
+      "signal": "spec_precision_gap",
+      "scope": "multi-tenancy",
+      "status": "candidate",
+      "features": [
+        "relatorios-leitura-ocupacao"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "RELOC-06 - OcupacaoConsultaControllerIT.java:127-137 (multi-tenancy)"
+      ],
+      "created": "2026-09-15T00:08:06Z",
+      "last_seen": "2026-09-15T00:08:06Z"
     }
   ]
 }
