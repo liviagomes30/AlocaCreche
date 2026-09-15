@@ -186,15 +186,15 @@ chamadas.
 
 | Requirement ID | Story | Phase | Status |
 | --- | --- | --- | --- |
-| FILA-01 | P1 | Tasks | Pending |
-| FILA-02 | P1 | Tasks | Pending |
-| FILA-03 | P1 | Tasks | Pending |
-| FILA-04 | P1 | Tasks | Pending |
-| FILA-05 | P1 | Tasks | Pending |
-| FILA-06 | P1 | Tasks | Pending |
-| FILA-07 | P2 | Tasks | Pending |
-| FILA-08 | P2 | Tasks | Pending |
-| FILA-09 | P2 | Tasks | Pending |
+| FILA-01 | P1 | Tasks | Implementing |
+| FILA-02 | P1 | Tasks | Implementing |
+| FILA-03 | P1 | Tasks | Implementing |
+| FILA-04 | P1 | Tasks | Implementing |
+| FILA-05 | P1 | Tasks | Implementing |
+| FILA-06 | P1 | Tasks | Implementing |
+| FILA-07 | P2 | Tasks | Implementing |
+| FILA-08 | P2 | Tasks | Implementing |
+| FILA-09 | P2 | Tasks | Implementing |
 | FILA-10 | P3 | Tasks | Pending |
 | FILA-11 | P3 | Tasks | Pending |
 | FILA-12 | P3 | Tasks | Pending |

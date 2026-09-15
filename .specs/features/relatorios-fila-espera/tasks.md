@@ -299,20 +299,20 @@ teste do módulo), padrão `@MockitoSpyBean` no listener já usado em `VagaLiber
 - Skill: `test-quality`
 
 **Done when**:
-- [ ] Publicar `FilaEsperaAtualizada` válido → linha aparece na projeção (verificado via repositório)
-- [ ] Publicar payload malformado (JSON inválido ou campo faltando) → mensagem aparece em
+- [x] Publicar `FilaEsperaAtualizada` válido → linha aparece na projeção (verificado via repositório)
+- [x] Publicar payload malformado (JSON inválido ou campo faltando) → mensagem aparece em
       `relatorios.filaespera.dlq` imediatamente, sem reentrega — confirmado via
       `@MockitoSpyBean` no listener, `verify(times(0))` ou equivalente que distingue rejeição
       imediata de retry (ver lições candidatas L-002/L-005; para JSON malformado, a exceção
       acontece na conversão antes do listener ser invocado — 0 invocações é o sinal correto aqui)
-- [ ] Publicar payload com `dataSaida` anterior a `dataEntrada` → mensagem aparece em
+- [x] Publicar payload com `dataSaida` anterior a `dataEntrada` → mensagem aparece em
       `relatorios.filaespera.dlq` imediatamente, sem reentrega — mesma verificação de invocação
       única do listener, mas neste caso a exceção acontece DENTRO do `receber()`, então o sinal
       correto é `verify(times(1))`, não `times(0))` (distinguir os dois casos explicitamente)
-- [ ] Simular falha transitória (repositório lança exceção não-`FilaEsperaEventoInvalidoException`
+- [x] Simular falha transitória (repositório lança exceção não-`FilaEsperaEventoInvalidoException`
       nas 3 primeiras tentativas) → mensagem aparece em `relatorios.filaespera.dlq` só após a 3ª
       tentativa — confirmado via `@MockitoSpyBean` + `verify(repository, times(3))`
-- [ ] Gate check passa: `mvn -pl alocacreche-relatorios verify -Dit.test=FilaEsperaAtualizadaConsumerIT`
+- [x] Gate check passa: `mvn -pl alocacreche-relatorios verify -Dit.test=FilaEsperaAtualizadaConsumerIT`
 
 **Tests**: integration
 **Gate**: full
