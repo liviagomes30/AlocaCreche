@@ -92,8 +92,8 @@ como `LocalDate`.
 - Skill: `java-development` (baseline Java/records)
 
 **Done when**:
-- [ ] Record com todos os campos do contrato definido no spec/design
-- [ ] Compila sem erro (`mvn -pl alocacreche-relatorios compile`)
+- [x] Record com todos os campos do contrato definido no spec/design
+- [x] Compila sem erro (`mvn -pl alocacreche-relatorios compile`)
 
 **Tests**: none
 **Gate**: build
