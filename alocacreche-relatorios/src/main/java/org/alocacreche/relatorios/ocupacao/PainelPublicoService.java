@@ -1,0 +1,54 @@
+package org.alocacreche.relatorios.ocupacao;
+
+import jakarta.persistence.EntityManager;
+import java.util.Comparator;
+import java.util.List;
+import lombok.RequiredArgsConstructor;
+import org.alocacreche.relatorios.tenant.TenantContext;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+/**
+ * Painel público agregado (ver docs/arquitetura/visao-geral.md, consultarPainelPublico). Reusa
+ * OcupacaoTurmaRepository.buscarPorFiltro (mesma consulta do relatório detalhado) e agrega em
+ * memória - volume de dados por município é pequeno o suficiente para não precisar de uma query SQL
+ * agregada dedicada (ver design.md, relatorios-painel-publico).
+ */
+@Service
+@RequiredArgsConstructor
+public class PainelPublicoService {
+
+    private final OcupacaoTurmaRepository repository;
+    private final EntityManager entityManager;
+
+    /**
+     * NUNCA usar sync=true aqui - falhas de conexão do Redis em modo síncrono pulam o
+     * CacheErrorHandler (ver CacheConfig), quebrando o comportamento fail-open.
+     */
+    @Cacheable(cacheNames = "painel-publico", key = "#municipioId")
+    @Transactional(readOnly = true)
+    public PainelPublicoDTO obterPainel(Long municipioId) {
+        TenantContext.aplicar(entityManager, municipioId);
+
+        List<OcupacaoTurma> turmas = repository.buscarPorFiltro(municipioId, null, null);
+
+        long totalVagasDisponiveis =
+                turmas.stream().mapToLong(OcupacaoTurma::getVagasDisponiveis).sum();
+        long totalCrechesComVaga =
+                turmas.stream()
+                        .filter(turma -> turma.getVagasDisponiveis() > 0)
+                        .map(OcupacaoTurma::getCrecheId)
+                        .distinct()
+                        .count();
+        long totalTurmas = turmas.size();
+        var atualizadoEm =
+                turmas.stream()
+                        .map(OcupacaoTurma::getAtualizadoEm)
+                        .max(Comparator.naturalOrder())
+                        .orElse(null);
+
+        return new PainelPublicoDTO(
+                municipioId, totalVagasDisponiveis, totalCrechesComVaga, totalTurmas, atualizadoEm);
+    }
+}

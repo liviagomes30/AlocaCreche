@@ -145,6 +145,13 @@ propagar — implementação dos 4 métodos da interface (`handleCacheGetError`,
 - [x] `@EnableCaching` presente
 - [x] `CacheErrorHandler` implementado, não relança nenhuma das 4 exceções
 - [x] Gate check passa: `mvn -pl alocacreche-relatorios compile`
+- [x] **Correção pós-T4**: a versão original (`@Bean CacheErrorHandler` solto, sem `CachingConfigurer`)
+      compilava e passava no gate de build, mas o teste de fail-open de T4
+      (`PainelPublicoFailOpenIT`) provou em runtime que o bean nunca era conectado ao
+      `CacheInterceptor` — `ProxyCachingConfiguration` só busca o `errorHandler` através de um bean
+      `CachingConfigurer`. Corrigido implementando essa interface em `CacheConfig`. Gate de compilação
+      sozinho não detecta esse tipo de erro de wiring — só um teste de integração real com Redis
+      derrubado de fato prova.
 
 **Tests**: none (comportamento real provado pelos testes de `PainelPublicoService` em T4 — não é
 testável de forma decisiva isoladamente sem um `CacheManager` real já wireado)
@@ -154,14 +161,14 @@ testável de forma decisiva isoladamente sem um `CacheManager` real já wireado)
 
 ---
 
-### T4: Criar `PainelPublicoService`
+### T4: Criar `PainelPublicoService` — ✅ Complete
 
 **What**: `obterPainel(Long municipioId)` — `@Cacheable(cacheNames = "painel-publico", key =
 "#municipioId")` (sem `sync=true`, ver design.md) + `@Transactional(readOnly = true)`. Aplica
 `TenantContext.aplicar`, chama `repository.buscarPorFiltro(municipioId, null, null)` (reusa Epic 1),
 agrega em memória (soma de `vagasDisponiveis`, contagem de `crecheId` distintos com vaga > 0, contagem
 de turmas, máximo de `atualizadoEm`).
-**Where**: `alocacreche-relatorios/src/main/java/org/alocacreche/relatorios/ocupacao/PainelPublicoService.java` (new), `alocacreche-relatorios/src/test/java/org/alocacreche/relatorios/ocupacao/PainelPublicoServiceIT.java` (new)
+**Where**: `alocacreche-relatorios/src/main/java/org/alocacreche/relatorios/ocupacao/PainelPublicoService.java` (new), `alocacreche-relatorios/src/test/java/org/alocacreche/relatorios/ocupacao/PainelPublicoServiceIT.java` (new), `alocacreche-relatorios/src/test/java/org/alocacreche/relatorios/ocupacao/PainelPublicoFailOpenIT.java` (new — **desvio do plano original**: o teste de fail-open precisa derrubar o container Redis, o que contaminaria os outros testes se compartilhassem o mesmo container; isolado numa classe própria com seu próprio container)
 **Depends on**: T2, T3
 **Reuses**: `OcupacaoTurmaRepository.buscarPorFiltro`, `TenantContext.aplicar`
 **Requirement**: PAINEL-01, PAINEL-03, PAINEL-04, PAINEL-05, PAINEL-06
@@ -171,18 +178,23 @@ de turmas, máximo de `atualizadoEm`).
 - Skill: `spring-boot-patterns`, `test-quality`
 
 **Done when**:
-- [ ] Agregação correta: soma de vagas, contagem de creches com vaga > 0, contagem de turmas, máximo
+- [x] Agregação correta: soma de vagas, contagem de creches com vaga > 0, contagem de turmas, máximo
       de `atualizadoEm`, comparado com cálculo manual do teste
-- [ ] Município sem nenhuma linha retorna totais zerados e `atualizadoEm=null`
-- [ ] **Cache hit real**: 2ª chamada com o mesmo `municipioId` dentro do TTL não chama o repositório de
+- [x] Município sem nenhuma linha retorna totais zerados e `atualizadoEm=null`
+- [x] **Cache hit real**: 2ª chamada com o mesmo `municipioId` dentro do TTL não chama o repositório de
       novo — `@MockitoSpyBean` em `OcupacaoTurmaRepository`, `verify(repository, times(1))`, não
       `times(2)`, provando que o valor voltou do Redis e não foi recalculado
-- [ ] **Fail-open real**: container Redis do Testcontainers parado (`redis.stop()`) no meio do teste —
-      chamada seguinte ainda retorna o painel correto (200, dado certo), não erro
-- [ ] `PainelPublicoDTO` de fato serializa/deserializa via Redis sem perda de campo (verificado pelo
-      próprio teste de cache hit — o valor lido de volta precisa bater com o original)
-- [ ] Gate check passa: `mvn -pl alocacreche-relatorios verify -Dit.test=PainelPublicoServiceIT`
-- [ ] Contagem de testes: N testes novos passam (um por bullet acima, no mínimo)
+- [x] **Fail-open real**: container Redis do Testcontainers parado (`redis.stop()`) no meio do teste —
+      chamada seguinte ainda retorna o painel correto (200, dado certo), não erro. **Achado real
+      durante a implementação**: a primeira versão de `CacheConfig` (um `@Bean CacheErrorHandler`
+      solto) NÃO funcionava — o teste falhou de verdade com `RedisConnectionFailureException`
+      propagada, provando que `ProxyCachingConfiguration` só conecta o `errorHandler` através de um
+      bean `CachingConfigurer`, não por tipo direto. Corrigido implementando `CachingConfigurer` em
+      `CacheConfig` (ver T3, atualizado retroativamente).
+- [x] `PainelPublicoDTO` de fato serializa/deserializa via Redis sem perda de campo (verificado pelo
+      próprio teste de cache hit — o valor lido de volta bate com o original)
+- [x] Gate check passa: `mvn -pl alocacreche-relatorios verify -Dit.test=PainelPublicoServiceIT,PainelPublicoFailOpenIT`
+- [x] Contagem de testes: 4 testes novos passam (3 em `PainelPublicoServiceIT` + 1 em `PainelPublicoFailOpenIT`)
 
 **Tests**: integration
 **Gate**: full
