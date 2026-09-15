@@ -114,9 +114,9 @@ como `LocalDate`.
 - Skill: NONE
 
 **Done when**:
-- [ ] Classe estende `EventoDominioInvalidoException`, construtor `(String message)`
-- [ ] Compila sem erro
-- [ ] Nenhuma edição em `RabbitMqConfig.retryableExceptions()` necessária — herda a classificação
+- [x] Classe estende `EventoDominioInvalidoException`, construtor `(String message)`
+- [x] Compila sem erro
+- [x] Nenhuma edição em `RabbitMqConfig.retryableExceptions()` necessária — herda a classificação
       não-retryable pela classe-base (confirmar lendo o código, não assumir)
 
 **Tests**: none
