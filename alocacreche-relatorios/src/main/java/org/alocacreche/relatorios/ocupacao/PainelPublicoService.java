@@ -1,8 +1,10 @@
 package org.alocacreche.relatorios.ocupacao;
 
 import jakarta.persistence.EntityManager;
-import java.util.Comparator;
+import java.time.LocalDateTime;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.alocacreche.relatorios.tenant.TenantContext;
 import org.springframework.cache.annotation.Cacheable;
@@ -34,22 +36,20 @@ public class PainelPublicoService {
 
         List<OcupacaoTurma> turmas = repository.buscarPorFiltro(municipioId, null, null);
 
-        long totalVagasDisponiveis =
-                turmas.stream().mapToLong(OcupacaoTurma::getVagasDisponiveis).sum();
-        long totalCrechesComVaga =
-                turmas.stream()
-                        .filter(turma -> turma.getVagasDisponiveis() > 0)
-                        .map(OcupacaoTurma::getCrecheId)
-                        .distinct()
-                        .count();
-        long totalTurmas = turmas.size();
-        var atualizadoEm =
-                turmas.stream()
-                        .map(OcupacaoTurma::getAtualizadoEm)
-                        .max(Comparator.naturalOrder())
-                        .orElse(null);
+        long totalVagasDisponiveis = 0;
+        Set<Long> crechesComVaga = new HashSet<>();
+        LocalDateTime atualizadoEm = null;
+        for (OcupacaoTurma turma : turmas) {
+            totalVagasDisponiveis += turma.getVagasDisponiveis();
+            if (turma.getVagasDisponiveis() > 0) {
+                crechesComVaga.add(turma.getCrecheId());
+            }
+            if (atualizadoEm == null || turma.getAtualizadoEm().isAfter(atualizadoEm)) {
+                atualizadoEm = turma.getAtualizadoEm();
+            }
+        }
 
         return new PainelPublicoDTO(
-                municipioId, totalVagasDisponiveis, totalCrechesComVaga, totalTurmas, atualizadoEm);
+                municipioId, totalVagasDisponiveis, (long) crechesComVaga.size(), (long) turmas.size(), atualizadoEm);
     }
 }

@@ -15,4 +15,6 @@ public record PainelPublicoDTO(
         Long totalTurmas,
         LocalDateTime atualizadoEm)
         implements Serializable {
+
+    private static final long serialVersionUID = 1L;
 }
