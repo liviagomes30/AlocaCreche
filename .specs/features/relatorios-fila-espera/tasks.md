@@ -165,11 +165,11 @@ em `application.yml` — nenhuma mudança de configuração necessária, só o S
 - Skill: NONE
 
 **Done when**:
-- [ ] `schema.sql` contém a policy exata do `design.md` para `fila_espera_inscricao`, adicionada ao
+- [x] `schema.sql` contém a policy exata do `design.md` para `fila_espera_inscricao`, adicionada ao
       final do arquivo existente (bloco de `ocupacao_turma` intacto)
-- [ ] `mvn -pl alocacreche-relatorios test` sobe o contexto sem erro — schema/policy confirmados via
+- [x] `mvn -pl alocacreche-relatorios test` sobe o contexto sem erro — schema/policy confirmados via
       `pg_class`/`pg_policies`
-- [ ] Confirmar que a aplicação já conecta como a role dedicada `alocacreche_app` (criada em
+- [x] Confirmar que a aplicação já conecta como a role dedicada `alocacreche_app` (criada em
       `relatorios-ocupacao-vaga-liberada`, T5) — nenhuma role nova necessária, mas a policy só tem
       efeito se essa role já estiver em uso (AD-002, gotcha 3)
 

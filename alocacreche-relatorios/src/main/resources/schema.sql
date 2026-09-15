@@ -13,3 +13,13 @@ DROP POLICY IF EXISTS ocupacao_turma_tenant_isolation ON ocupacao_turma;
 
 CREATE POLICY ocupacao_turma_tenant_isolation ON ocupacao_turma
     USING (municipio_id = current_setting('app.current_tenant')::bigint);
+
+-- Row-Level Security da projecao de fila de espera (mesmo padrao de ocupacao_turma acima).
+ALTER TABLE fila_espera_inscricao ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE fila_espera_inscricao FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS fila_espera_inscricao_tenant_isolation ON fila_espera_inscricao;
+
+CREATE POLICY fila_espera_inscricao_tenant_isolation ON fila_espera_inscricao
+    USING (municipio_id = current_setting('app.current_tenant')::bigint);
