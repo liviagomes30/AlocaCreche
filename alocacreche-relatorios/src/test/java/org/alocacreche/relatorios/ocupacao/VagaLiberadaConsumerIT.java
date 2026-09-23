@@ -120,6 +120,12 @@ class VagaLiberadaConsumerIT {
 
         Message naFilaPrincipal = rabbitTemplate.receive(RabbitMqConfig.OCUPACAO_QUEUE, 500);
         assertThat(naFilaPrincipal).isNull();
+        // Sinal decisivo (TODO fechado - ver .specs/STATE.md AD-001, gotcha da rodada 3 do
+        // Verificador): "foi pra DLQ" sozinho e verdade tanto com rejeicao imediata quanto com 3
+        // tentativas antes da DLQ. A excecao de conversao acontece antes do metodo do listener ser
+        // chamado - 0 invocacoes e o sinal que realmente prova "sem reentrega" (mesma tecnica de
+        // FilaEsperaAtualizadaConsumerIT.payloadMalformadoVaiDiretoParaDlqSemInvocarOListener).
+        verify(listener, never()).receber(any());
     }
 
     @Test
