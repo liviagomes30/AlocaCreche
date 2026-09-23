@@ -92,55 +92,96 @@
 
 ## Handoff
 
+- **Feature**: relatorios-matricula (distancia media de alocacao + taxa de confirmacao de matricula)
+- **Status**: **CONCLUIDA E COMMITADA** (2026-09-23). Blocker de Docker Desktop resolvido -
+  Docker Desktop foi iniciado neste ambiente, `mvn -pl alocacreche-relatorios verify` (Testcontainers
+  Postgres/RabbitMQ/Redis) rodou de verdade: **BUILD SUCCESS, 74 testes de integracao, 0 falhas**
+  (~3min37s). Revisao independente (author != verifier, skill `/code-review --level high` sobre
+  `d095c30..HEAD`, 3 passes convergentes) **nao encontrou nenhum achado** - ver secao de commits
+  abaixo.
+- **Commits** (ordem): `1ff8f80` contrato do evento MatriculaAtualizada, `c5a6a6e` entidade JPA + RLS
+  de `MatriculaRelatorio`, `80fdeb4` repositorio (upsert + agregacoes) + IT, `1b2fe1e` topologia
+  RabbitMQ da fila de matricula, `a11ba82` listener + teste unitario, `6f78321` endpoints
+  `GET /api/v1/relatorios/matricula/distancia-media` e `GET
+  /api/v1/relatorios/matricula/taxa-confirmacao` + IT.
+- **Phase / Task**: Execute, implementado diretamente sem passar pelas 4 fases do skill
+  `tlc-spec-driven` (escopo pedido pelo usuario como "basico, sem exagerar" - ver justificativa
+  abaixo).
+- **Decisao de escopo tomada com o usuario (AskUserQuestion) antes de implementar**: (1) implementar
+  os dois relatorios que ainda faltam da lista de responsabilidades de `docs/context/relatorios.md`
+  (distancia media de alocacao, taxa de confirmacao de matricula); (2) definir agora um contrato de
+  evento provisorio, antecipando o que o dono do modulo Matricula (`alocacreche-core`, ainda so
+  `package-info.java`, nenhuma entidade implementada) vai publicar depois - mesmo padrao ja usado
+  para `VagaLiberada`/`FilaEsperaAtualizada`.
+- **Decisao de design**: um unico evento `MatriculaAtualizada` (granularidade por matricula, estado
+  completo, nao delta - mesmo raciocinio de `FilaEsperaAtualizada`) alimenta uma unica projecao
+  `MatriculaRelatorio`, da qual os dois relatorios leem via 2 queries agregadas diferentes -
+  deliberadamente mais enxuto que duplicar o par evento/projecao/fila do zero para cada relatorio,
+  para nao "fazer muito" (pedido explicito do usuario, lembrando que outras integrantes tambem
+  precisam trabalhar no mesmo modulo).
+- **Contrato provisorio, a alinhar com o dono de Matricula antes de considerar definitivo**: o campo
+  `distanciaKm` do evento nao tem correspondencia no diagrama de classes atual (`Matricula` so tem
+  id/dataConvocacao/prazoConfirmacao/status) - e a distancia calculada em `alocarProximoElegivel`
+  (usada no score via `pesoDistancia`), que precisa estar no payload para este relatorio existir sem
+  recalcular geocodificacao aqui. Ver javadoc de `MatriculaAtualizadaEvent`.
+- **Completed (implementado, testado e commitado)**: pacote
+  `org.alocacreche.relatorios.matricula` completo - `StatusMatricula`, `MatriculaAtualizadaEvent`,
+  `MatriculaEventoInvalidoException` (subclasse de `EventoDominioInvalidoException`, herda a politica
+  de retry do AD-001 sem editar `RabbitMqConfig`), `MatriculaRelatorio` (entidade/projecao),
+  `MatriculaRelatorioRepository` (upsert idempotente + `calcularDistanciaMedia` +
+  `calcularTaxaConfirmacao`), `MatriculaAtualizadaListener`, `RelatorioConfirmacaoProjection`,
+  `DistanciaMediaAlocacaoDTO`, `RelatorioConfirmacaoMatriculaDTO`, `RelatorioMatriculaController`
+  (`GET /api/v1/relatorios/matricula/distancia-media`, `GET
+  /api/v1/relatorios/matricula/taxa-confirmacao`, ambos sem `@SaCheckPermission` - mesmo TODO
+  documentado de `OcupacaoConsultaController`/`RelatorioFilaEsperaController`). `RabbitMqConfig`
+  ganhou a fila/DLQ/binding de `MATRICULA_QUEUE` (mesma topologia das outras duas filas). `schema.sql`
+  ganhou RLS de `matricula_relatorio` (mesmo padrao AD-002). `MatriculaAtualizadaListenerTest` (10
+  testes), `MatriculaRelatorioRepositoryIT` e `RelatorioMatriculaControllerIT` todos verdes no gate
+  completo (Testcontainers, mesmo padrao de
+  `FilaEsperaInscricaoRepositoryIT`/`RelatorioFilaEsperaControllerIT`/`OcupacaoConsultaControllerIT`).
+- **Deliberadamente fora do escopo desta rodada (TODO, nao esquecido)**: nenhum teste ponta a ponta
+  via RabbitMQ real (`*ConsumerIT`, ao contrario de `FilaEsperaAtualizadaConsumerIT`) foi escrito para
+  `MatriculaAtualizadaListener` - a topologia reusa o mesmo padrao ja provado por
+  `VagaLiberadaConsumerIT`/`FilaEsperaAtualizadaConsumerIT` (fila+DLQ+binding via `RabbitMqConfig`,
+  classificacao de retry pela classe-base `EventoDominioInvalidoException`), e o pedido explicito do
+  usuario foi nao fazer mais do que o basico. Se este consumidor virar caminho critico (nao so
+  leitura), escrever esse teste antes.
+- **Next step (fora do escopo desta feature, registrado para retomar depois)**: alinhar o contrato
+  provisorio de `MatriculaAtualizadaEvent` com quem for implementar o modulo Matricula antes de o
+  considerar definitivo (nao e so um detalhe de implementacao - o dono real do evento pode querer
+  campos diferentes); escrever o `*ConsumerIT` ponta a ponta deliberadamente adiado (ver acima) se
+  este consumidor virar caminho critico; adicionar `sa-token-spring-boot3-starter`/`sa-token-jwt` ao
+  `pom.xml` de `alocacreche-relatorios` (hoje so estao no `pom.xml` de `alocacreche-core`) antes de
+  qualquer `@SaCheckPermission` real poder ser adicionado aos controllers deste modulo.
+- **Blocker (RESOLVIDO em 2026-09-23)**: Docker Desktop nao estava rodando neste ambiente
+  (`docker ps` falhava com `failed to connect to the docker API at
+  npipe:////./pipe/dockerDesktopLinuxEngine`). Iniciado via `Start-Process 'Docker Desktop.exe'` e
+  aguardado ficar pronto (~20s) - depois disso `mvn -pl alocacreche-relatorios verify` rodou
+  normalmente, confirmando que o codigo em si nunca teve problema, so a infra local estava parada.
+- **Branch**: main
+
+---
+
 - **Feature**: relatorios-fila-espera
-- **Phase / Task**: Execute em andamento — Specify/Design/Tasks completos e commitados
-  (spec.md, design.md, tasks.md — 9 tarefas T1-T9, `validate_spec.py`/`validate_tasks.py` ambos 0
-  erros). T1-T8 implementadas, testadas e commitadas via 2 sub-agentes em batch (batch 1: Phases
-  1-3/T1-T7; batch 2: Phase 4/T8). T9 (Phase 5, endpoint de leitura) está **bloqueada** — ver
-  Blockers abaixo.
+- **Status**: **CONCLUIDA E COMMITADA** (2026-09-23) — Specify/Design/Tasks completos, 9 tarefas
+  T1-T9 todas implementadas, testadas e commitadas.
 - **Completed**: T1 `FilaEsperaAtualizadaEvent` (`7c117ab`), T2
   `FilaEsperaEventoInvalidoException` (`9e9ce14`), T3 `FilaEsperaInscricao` (`f76ce09`), T4 RLS via
   `schema.sql` (`5c18586`), T5 `FilaEsperaInscricaoRepository` upsert+agregação + IT (`f9cd783`), T6
   `RabbitMqConfig` topologia (`71d3bd7`), T7 `FilaEsperaAtualizadaListener` + teste unitário
-  (`e1c4d30`), T8 teste ponta a ponta do consumidor (`f0cf879`). 22+4 testes verdes nos gates
-  correspondentes (ver commits individuais para contagem exata por tarefa).
-- **In-progress**: T9 (`RelatorioFilaEsperaController` + `RelatorioFilaEsperaDTO` +
-  `RelatorioFilaEsperaControllerIT`) — implementação completa nos 3 arquivos listados em
-  "Uncommitted files" abaixo, espelhando `OcupacaoConsultaController`/`OcupacaoConsultaControllerIT`
-  (inclui o spy de repositório para FILA-11 e a checagem de duas chamadas consecutivas para
-  FILA-14), mas **não commitada** — o gate (`mvn -pl alocacreche-relatorios verify
-  -Dit.test=RelatorioFilaEsperaControllerIT`) nunca rodou verde neste ambiente, e a regra do skill
-  é que o gate precisa passar antes do commit (nunca pular essa etapa).
-- **Next step**: rodar `mvn -pl alocacreche-relatorios verify -Dit.test=RelatorioFilaEsperaControllerIT`
-  num ambiente sem a restrição de sandbox descrita no Blocker (máquina real do usuário ou CI). Se
-  passar, seguir o ciclo normal de T9 (Test Adequacy Review, marcar `[x]` em `tasks.md`, um commit
-  atômico `feat(relatorios): endpoint GET /api/v1/relatorios/fila-espera`). Depois disso, T9 é a
-  última tarefa da feature — despachar o Verificador independente (author ≠ verifier) antes de
-  declarar a feature concluída; nunca pular essa etapa.
-- **Blockers**: **Bloqueio de ambiente, não defeito de código** — todo teste
-  `@SpringBootTest(webEnvironment = RANDOM_PORT)` (que usa `TestRestTemplate`) falha neste sandbox
-  Windows específico ao criar o bean `TestRestTemplate`:
-  `java.io.IOException: Unable to establish loopback connection` →
-  `SocketException: Invalid argument: connect` em `sun.nio.ch.UnixDomainSockets.connect0` — o
-  `Selector` interno do JDK 21 usa um pipe de wakeup via socket de domínio Unix
-  (`WEPollSelectorImpl`/`PipeImpl`) que este sandbox rejeita. **Confirmado não ser causado por
-  código desta feature**: reproduzido de forma idêntica rodando
-  `OcupacaoConsultaControllerIT` (já commitado, já passava antes) isoladamente — `mvn -pl
-  alocacreche-relatorios verify -Dit.test=OcupacaoConsultaControllerIT` também falha com a mesma
-  stack trace, 10/10 testes com erro de bootstrap de contexto. Tentado e descartado:
-  `-Dspring.http.client.factory=simple`, `-Djava.net.preferIPv4Stack=true`, forçar
-  `WindowsSelectorProvider` legado, rodar via PowerShell em vez de Bash,
-  `dangerouslyDisableSandbox=true`. Usuário optou por pausar aqui (não trocar
-  `RANDOM_PORT`+`TestRestTemplate` por `MOCK`+`MockMvc` só no teste novo, para não divergir do
-  padrão já usado em `OcupacaoConsultaControllerIT`) e confirmar o gate numa máquina/CI sem essa
-  restrição de sandbox antes de commitar T9. **Se este bloqueio se repetir em outra feature futura
-  com testes `@SpringBootTest` de controller, considerar promover a uma decisão formal (`AD-NNN`)
-  sobre qual padrão de teste de controller usar neste projeto** — ainda não promovido porque é uma
-  limitação deste ambiente de sandbox específico, não necessariamente do ambiente real do usuário.
-- **Uncommitted files**:
-  `alocacreche-relatorios/src/main/java/org/alocacreche/relatorios/filaespera/RelatorioFilaEsperaController.java`,
-  `alocacreche-relatorios/src/main/java/org/alocacreche/relatorios/filaespera/RelatorioFilaEsperaDTO.java`,
-  `alocacreche-relatorios/src/test/java/org/alocacreche/relatorios/filaespera/RelatorioFilaEsperaControllerIT.java`
-  (T9, aguardando gate verde — ver Blockers), `docs/mock-data/` (mocks de conversa anterior, ainda
-  sem relação com esta feature, seguem sem commit)
+  (`e1c4d30`), T8 teste ponta a ponta do consumidor (`f0cf879`), T9 endpoint
+  `GET /api/v1/relatorios/fila-espera` (`007014d`) — bloqueada desde 15/09 por sandbox, destravada
+  em 2026-09-23 (ver Blocker abaixo).
+- **Blocker (RESOLVIDO em 2026-09-23)**: o sintoma original registrado aqui (`TestRestTemplate`
+  falhando com `Unable to establish loopback connection` num sandbox Windows anterior) não se
+  repetiu nesta sessão/ambiente — `RelatorioFilaEsperaControllerIT` (`@SpringBootTest
+  webEnvironment=RANDOM_PORT` + `TestRestTemplate`) rodou normalmente como parte do gate completo
+  (`mvn -pl alocacreche-relatorios verify`: BUILD SUCCESS, 74 testes de integração, 0 falhas). O
+  bloqueio real que impedia rodar qualquer coisa nesta sessão era o Docker Desktop parado (ver
+  blocker equivalente na feature `relatorios-matricula` acima) — depois de iniciado, o gate passou
+  sem precisar de nenhuma mudança de código. Fica registrado que o sintoma específico de loopback
+  socket documentado em 15/09 pode ter sido específico daquele sandbox pontual, não uma limitação
+  permanente deste ambiente.
+- **Verificação independente**: `/code-review --level high` sobre `d095c30..HEAD` (T9 + toda a
+  feature relatorios-matricula), 3 passes convergentes, nenhum achado.
 - **Branch**: main
