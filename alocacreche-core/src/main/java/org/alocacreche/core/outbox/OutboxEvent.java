@@ -17,6 +17,11 @@ import lombok.Setter;
  * payload} (JSON serializado). O {@code id} auto-incremento tambem serve como sequencia
  * global de entrega para consumidores que precisam detectar entregas fora de ordem
  * (ver {@code sb-outbox-pattern.md}).
+ *
+ * <p>{@code status} tem 3 valores possiveis: {@code PENDENTE} (aguardando publicacao),
+ * {@code PROCESSADO} (publicado com sucesso) e {@code ERRO} (tipoEvento sem routing key
+ * reconhecida pelo Publicador — erro permanente, nao tentado de novo, ver
+ * OutboxPublicadorService).
  */
 @Entity
 @Table(name = "outbox")
@@ -48,5 +53,9 @@ public class OutboxEvent {
 
     public void marcarProcessado() {
         this.status = "PROCESSADO";
+    }
+
+    public void marcarErro() {
+        this.status = "ERRO";
     }
 }
