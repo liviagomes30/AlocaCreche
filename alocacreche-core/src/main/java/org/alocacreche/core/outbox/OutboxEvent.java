@@ -10,6 +10,8 @@ import java.time.LocalDateTime;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 /**
  * Schema generico e estavel (ver ADR 0001, decisao 10) — nao adicione colunas
@@ -37,6 +39,13 @@ public class OutboxEvent {
     @Column(name = "tipo_evento", nullable = false, length = 100)
     private String tipoEvento;
 
+    /**
+     * {@code @JdbcTypeCode(SqlTypes.JSON)} - sem isso, Hibernate faz bind como varchar e o insert
+     * falha ("column payload is of type jsonb but expression is of type character varying"), ja
+     * que {@code columnDefinition} sozinho so afeta a DDL gerada, nao o tipo usado no bind em
+     * tempo de execucao.
+     */
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "payload", nullable = false, columnDefinition = "jsonb")
     private String payload;
 
