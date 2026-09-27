@@ -30,7 +30,7 @@ public class OutboxPublicadorService {
     private final RabbitTemplate rabbitTemplate;
 
     public List<OutboxEvent> buscarPendentes() {
-        return repository.findByStatusOrderByIdAsc("PENDENTE");
+        return repository.findByStatusOrderByIdAsc(OutboxEvent.STATUS_PENDENTE);
     }
 
     /**

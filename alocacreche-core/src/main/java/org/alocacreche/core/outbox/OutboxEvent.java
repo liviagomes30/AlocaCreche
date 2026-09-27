@@ -32,6 +32,10 @@ import org.hibernate.type.SqlTypes;
 @NoArgsConstructor
 public class OutboxEvent {
 
+    public static final String STATUS_PENDENTE = "PENDENTE";
+    public static final String STATUS_PROCESSADO = "PROCESSADO";
+    public static final String STATUS_ERRO = "ERRO";
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -50,7 +54,7 @@ public class OutboxEvent {
     private String payload;
 
     @Column(name = "status", nullable = false, length = 20)
-    private String status = "PENDENTE";
+    private String status = STATUS_PENDENTE;
 
     @Column(name = "criado_em", nullable = false)
     private LocalDateTime criadoEm = LocalDateTime.now();
@@ -61,10 +65,10 @@ public class OutboxEvent {
     }
 
     public void marcarProcessado() {
-        this.status = "PROCESSADO";
+        this.status = STATUS_PROCESSADO;
     }
 
     public void marcarErro() {
-        this.status = "ERRO";
+        this.status = STATUS_ERRO;
     }
 }
