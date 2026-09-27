@@ -1,0 +1,802 @@
+[
+  {
+    "id": 1,
+    "municipioId": 1,
+    "nome": "CMEI Jardim Paraiso",
+    "capacidadeTotal": 70,
+    "endereco": {
+      "rua": "Rua Ceara",
+      "numero": 824,
+      "bairro": "Jardim Paraiso",
+      "cep": "13000-733",
+      "cidade": "Campinas",
+      "estado": "SP",
+      "latitude": -22.891914,
+      "longitude": -47.057207
+    }
+  },
+  {
+    "id": 2,
+    "municipioId": 2,
+    "nome": "Creche Municipal Vila Nova",
+    "capacidadeTotal": 60,
+    "endereco": {
+      "rua": "Rua Sao Jose",
+      "numero": 2423,
+      "bairro": "Vila Nova",
+      "cep": "18000-284",
+      "cidade": "Sorocaba",
+      "estado": "SP",
+      "latitude": -23.464368,
+      "longitude": -47.51182
+    }
+  },
+  {
+    "id": 3,
+    "municipioId": 3,
+    "nome": "EMEI Jardim Aeroporto",
+    "capacidadeTotal": 90,
+    "endereco": {
+      "rua": "Avenida Paulista Nova",
+      "numero": 1403,
+      "bairro": "Jardim Aeroporto",
+      "cep": "13200-284",
+      "cidade": "Jundiai",
+      "estado": "SP",
+      "latitude": -23.227042,
+      "longitude": -46.842934
+    }
+  },
+  {
+    "id": 4,
+    "municipioId": 1,
+    "nome": "Centro de Educacao Infantil Parque das Nacoes",
+    "capacidadeTotal": 80,
+    "endereco": {
+      "rua": "Rua Sete de Setembro",
+      "numero": 389,
+      "bairro": "Parque das Nacoes",
+      "cep": "13000-389",
+      "cidade": "Campinas",
+      "estado": "SP",
+      "latitude": -22.958294,
+      "longitude": -47.020901
+    }
+  },
+  {
+    "id": 5,
+    "municipioId": 2,
+    "nome": "CMEI Jardim Santa Rosa",
+    "capacidadeTotal": 50,
+    "endereco": {
+      "rua": "Rua dos Ipês",
+      "numero": 1891,
+      "bairro": "Jardim Santa Rosa",
+      "cep": "18000-549",
+      "cidade": "Sorocaba",
+      "estado": "SP",
+      "latitude": -23.546521,
+      "longitude": -47.401925
+    }
+  },
+  {
+    "id": 6,
+    "municipioId": 3,
+    "nome": "Creche Municipal Cidade Nova",
+    "capacidadeTotal": 90,
+    "endereco": {
+      "rua": "Rua Ceara",
+      "numero": 1210,
+      "bairro": "Cidade Nova",
+      "cep": "13200-849",
+      "cidade": "Jundiai",
+      "estado": "SP",
+      "latitude": -23.170263,
+      "longitude": -46.851546
+    }
+  },
+  {
+    "id": 7,
+    "municipioId": 1,
+    "nome": "EMEI Vila Progresso",
+    "capacidadeTotal": 80,
+    "endereco": {
+      "rua": "Rua Bahia",
+      "numero": 797,
+      "bairro": "Vila Progresso",
+      "cep": "13000-721",
+      "cidade": "Campinas",
+      "estado": "SP",
+      "latitude": -22.961553,
+      "longitude": -47.043248
+    }
+  },
+  {
+    "id": 8,
+    "municipioId": 2,
+    "nome": "Centro de Educacao Infantil Vila Esperanca",
+    "capacidadeTotal": 90,
+    "endereco": {
+      "rua": "Avenida Brasil",
+      "numero": 963,
+      "bairro": "Vila Esperanca",
+      "cep": "18000-887",
+      "cidade": "Sorocaba",
+      "estado": "SP",
+      "latitude": -23.54938,
+      "longitude": -47.479243
+    }
+  },
+  {
+    "id": 9,
+    "municipioId": 3,
+    "nome": "CMEI Jardim Europa",
+    "capacidadeTotal": 50,
+    "endereco": {
+      "rua": "Avenida Independencia",
+      "numero": 1526,
+      "bairro": "Jardim Europa",
+      "cep": "13200-363",
+      "cidade": "Jundiai",
+      "estado": "SP",
+      "latitude": -23.220559,
+      "longitude": -46.925763
+    }
+  },
+  {
+    "id": 10,
+    "municipioId": 1,
+    "nome": "Creche Municipal Jardim Primavera",
+    "capacidadeTotal": 100,
+    "endereco": {
+      "rua": "Avenida das Nacoes",
+      "numero": 710,
+      "bairro": "Jardim Primavera",
+      "cep": "13000-546",
+      "cidade": "Campinas",
+      "estado": "SP",
+      "latitude": -22.882405,
+      "longitude": -47.102992
+    }
+  },
+  {
+    "id": 11,
+    "municipioId": 2,
+    "nome": "EMEI Parque Verde",
+    "capacidadeTotal": 40,
+    "endereco": {
+      "rua": "Rua Marechal Deodoro",
+      "numero": 2291,
+      "bairro": "Parque Verde",
+      "cep": "18000-224",
+      "cidade": "Sorocaba",
+      "estado": "SP",
+      "latitude": -23.479346,
+      "longitude": -47.411458
+    }
+  },
+  {
+    "id": 12,
+    "municipioId": 3,
+    "nome": "Centro de Educacao Infantil Parque Residencial",
+    "capacidadeTotal": 70,
+    "endereco": {
+      "rua": "Rua Barao do Rio Branco",
+      "numero": 141,
+      "bairro": "Parque Residencial",
+      "cep": "13200-824",
+      "cidade": "Jundiai",
+      "estado": "SP",
+      "latitude": -23.207846,
+      "longitude": -46.925671
+    }
+  },
+  {
+    "id": 13,
+    "municipioId": 1,
+    "nome": "CMEI Centro",
+    "capacidadeTotal": 120,
+    "endereco": {
+      "rua": "Rua Bahia",
+      "numero": 1298,
+      "bairro": "Centro",
+      "cep": "13000-217",
+      "cidade": "Campinas",
+      "estado": "SP",
+      "latitude": -22.891247,
+      "longitude": -47.075124
+    }
+  },
+  {
+    "id": 14,
+    "municipioId": 2,
+    "nome": "Creche Municipal Vila Rica",
+    "capacidadeTotal": 80,
+    "endereco": {
+      "rua": "Rua das Palmeiras",
+      "numero": 1094,
+      "bairro": "Vila Rica",
+      "cep": "18000-142",
+      "cidade": "Sorocaba",
+      "estado": "SP",
+      "latitude": -23.531905,
+      "longitude": -47.445236
+    }
+  },
+  {
+    "id": 15,
+    "municipioId": 3,
+    "nome": "EMEI Vila Industrial",
+    "capacidadeTotal": 60,
+    "endereco": {
+      "rua": "Rua Bahia",
+      "numero": 1764,
+      "bairro": "Vila Industrial",
+      "cep": "13200-919",
+      "cidade": "Jundiai",
+      "estado": "SP",
+      "latitude": -23.175676,
+      "longitude": -46.91436
+    }
+  },
+  {
+    "id": 16,
+    "municipioId": 1,
+    "nome": "Centro de Educacao Infantil Jardim Bela Vista",
+    "capacidadeTotal": 60,
+    "endereco": {
+      "rua": "Rua Duque de Caxias",
+      "numero": 2031,
+      "bairro": "Jardim Bela Vista",
+      "cep": "13000-093",
+      "cidade": "Campinas",
+      "estado": "SP",
+      "latitude": -22.879206,
+      "longitude": -47.019268
+    }
+  },
+  {
+    "id": 17,
+    "municipioId": 2,
+    "nome": "CMEI Jardim America",
+    "capacidadeTotal": 120,
+    "endereco": {
+      "rua": "Avenida Independencia",
+      "numero": 1739,
+      "bairro": "Jardim America",
+      "cep": "18000-610",
+      "cidade": "Sorocaba",
+      "estado": "SP",
+      "latitude": -23.553877,
+      "longitude": -47.466806
+    }
+  },
+  {
+    "id": 18,
+    "municipioId": 3,
+    "nome": "Creche Municipal Vila Sao Jose",
+    "capacidadeTotal": 50,
+    "endereco": {
+      "rua": "Rua Duque de Caxias",
+      "numero": 1039,
+      "bairro": "Vila Sao Jose",
+      "cep": "13200-994",
+      "cidade": "Jundiai",
+      "estado": "SP",
+      "latitude": -23.179313,
+      "longitude": -46.844708
+    }
+  },
+  {
+    "id": 19,
+    "municipioId": 1,
+    "nome": "EMEI Jardim das Flores",
+    "capacidadeTotal": 100,
+    "endereco": {
+      "rua": "Rua Ceara",
+      "numero": 1102,
+      "bairro": "Jardim das Flores",
+      "cep": "13000-787",
+      "cidade": "Campinas",
+      "estado": "SP",
+      "latitude": -22.892985,
+      "longitude": -47.109214
+    }
+  },
+  {
+    "id": 20,
+    "municipioId": 2,
+    "nome": "Centro de Educacao Infantil Jardim Sao Paulo",
+    "capacidadeTotal": 80,
+    "endereco": {
+      "rua": "Avenida Independencia",
+      "numero": 1868,
+      "bairro": "Jardim Sao Paulo",
+      "cep": "18000-003",
+      "cidade": "Sorocaba",
+      "estado": "SP",
+      "latitude": -23.447042,
+      "longitude": -47.407498
+    }
+  },
+  {
+    "id": 21,
+    "municipioId": 3,
+    "nome": "CMEI Jardim Paraiso",
+    "capacidadeTotal": 80,
+    "endereco": {
+      "rua": "Rua Duque de Caxias",
+      "numero": 741,
+      "bairro": "Jardim Paraiso",
+      "cep": "13200-519",
+      "cidade": "Jundiai",
+      "estado": "SP",
+      "latitude": -23.136185,
+      "longitude": -46.853338
+    }
+  },
+  {
+    "id": 22,
+    "municipioId": 1,
+    "nome": "Creche Municipal Vila Nova",
+    "capacidadeTotal": 150,
+    "endereco": {
+      "rua": "Rua Duque de Caxias",
+      "numero": 824,
+      "bairro": "Vila Nova",
+      "cep": "13000-156",
+      "cidade": "Campinas",
+      "estado": "SP",
+      "latitude": -22.92503,
+      "longitude": -47.103214
+    }
+  },
+  {
+    "id": 23,
+    "municipioId": 2,
+    "nome": "EMEI Jardim Aeroporto",
+    "capacidadeTotal": 90,
+    "endereco": {
+      "rua": "Rua das Acacias",
+      "numero": 2463,
+      "bairro": "Jardim Aeroporto",
+      "cep": "18000-331",
+      "cidade": "Sorocaba",
+      "estado": "SP",
+      "latitude": -23.502867,
+      "longitude": -47.499176
+    }
+  },
+  {
+    "id": 24,
+    "municipioId": 3,
+    "nome": "Centro de Educacao Infantil Parque das Nacoes",
+    "capacidadeTotal": 50,
+    "endereco": {
+      "rua": "Avenida Presidente Vargas",
+      "numero": 990,
+      "bairro": "Parque das Nacoes",
+      "cep": "13200-059",
+      "cidade": "Jundiai",
+      "estado": "SP",
+      "latitude": -23.216795,
+      "longitude": -46.889717
+    }
+  },
+  {
+    "id": 25,
+    "municipioId": 1,
+    "nome": "CMEI Jardim Santa Rosa",
+    "capacidadeTotal": 60,
+    "endereco": {
+      "rua": "Avenida Brasil",
+      "numero": 2000,
+      "bairro": "Jardim Santa Rosa",
+      "cep": "13000-835",
+      "cidade": "Campinas",
+      "estado": "SP",
+      "latitude": -22.961594,
+      "longitude": -47.031328
+    }
+  },
+  {
+    "id": 26,
+    "municipioId": 2,
+    "nome": "Creche Municipal Cidade Nova",
+    "capacidadeTotal": 100,
+    "endereco": {
+      "rua": "Rua das Palmeiras",
+      "numero": 1956,
+      "bairro": "Cidade Nova",
+      "cep": "18000-969",
+      "cidade": "Sorocaba",
+      "estado": "SP",
+      "latitude": -23.495524,
+      "longitude": -47.480793
+    }
+  },
+  {
+    "id": 27,
+    "municipioId": 3,
+    "nome": "EMEI Vila Progresso",
+    "capacidadeTotal": 80,
+    "endereco": {
+      "rua": "Rua XV de Novembro",
+      "numero": 2218,
+      "bairro": "Vila Progresso",
+      "cep": "13200-773",
+      "cidade": "Jundiai",
+      "estado": "SP",
+      "latitude": -23.158108,
+      "longitude": -46.933662
+    }
+  },
+  {
+    "id": 28,
+    "municipioId": 1,
+    "nome": "Centro de Educacao Infantil Vila Esperanca",
+    "capacidadeTotal": 70,
+    "endereco": {
+      "rua": "Rua Tiradentes",
+      "numero": 1539,
+      "bairro": "Vila Esperanca",
+      "cep": "13000-448",
+      "cidade": "Campinas",
+      "estado": "SP",
+      "latitude": -22.861946,
+      "longitude": -47.068422
+    }
+  },
+  {
+    "id": 29,
+    "municipioId": 2,
+    "nome": "CMEI Jardim Europa",
+    "capacidadeTotal": 70,
+    "endereco": {
+      "rua": "Rua Barao do Rio Branco",
+      "numero": 272,
+      "bairro": "Jardim Europa",
+      "cep": "18000-346",
+      "cidade": "Sorocaba",
+      "estado": "SP",
+      "latitude": -23.558976,
+      "longitude": -47.446129
+    }
+  },
+  {
+    "id": 30,
+    "municipioId": 3,
+    "nome": "Creche Municipal Jardim Primavera",
+    "capacidadeTotal": 40,
+    "endereco": {
+      "rua": "Rua das Acacias",
+      "numero": 300,
+      "bairro": "Jardim Primavera",
+      "cep": "13200-724",
+      "cidade": "Jundiai",
+      "estado": "SP",
+      "latitude": -23.169968,
+      "longitude": -46.930327
+    }
+  },
+  {
+    "id": 31,
+    "municipioId": 1,
+    "nome": "EMEI Parque Verde",
+    "capacidadeTotal": 70,
+    "endereco": {
+      "rua": "Rua das Flores",
+      "numero": 300,
+      "bairro": "Parque Verde",
+      "cep": "13000-526",
+      "cidade": "Campinas",
+      "estado": "SP",
+      "latitude": -22.941339,
+      "longitude": -47.042323
+    }
+  },
+  {
+    "id": 32,
+    "municipioId": 2,
+    "nome": "Centro de Educacao Infantil Parque Residencial",
+    "capacidadeTotal": 120,
+    "endereco": {
+      "rua": "Rua Ceara",
+      "numero": 551,
+      "bairro": "Parque Residencial",
+      "cep": "18000-740",
+      "cidade": "Sorocaba",
+      "estado": "SP",
+      "latitude": -23.449238,
+      "longitude": -47.444075
+    }
+  },
+  {
+    "id": 33,
+    "municipioId": 3,
+    "nome": "CMEI Centro",
+    "capacidadeTotal": 100,
+    "endereco": {
+      "rua": "Rua Barao do Rio Branco",
+      "numero": 1947,
+      "bairro": "Centro",
+      "cep": "13200-826",
+      "cidade": "Jundiai",
+      "estado": "SP",
+      "latitude": -23.196853,
+      "longitude": -46.946481
+    }
+  },
+  {
+    "id": 34,
+    "municipioId": 1,
+    "nome": "Creche Municipal Vila Rica",
+    "capacidadeTotal": 50,
+    "endereco": {
+      "rua": "Rua Getulio Vargas",
+      "numero": 1744,
+      "bairro": "Vila Rica",
+      "cep": "13000-420",
+      "cidade": "Campinas",
+      "estado": "SP",
+      "latitude": -22.913857,
+      "longitude": -47.035111
+    }
+  },
+  {
+    "id": 35,
+    "municipioId": 2,
+    "nome": "EMEI Vila Industrial",
+    "capacidadeTotal": 70,
+    "endereco": {
+      "rua": "Rua dos Ipês",
+      "numero": 1659,
+      "bairro": "Vila Industrial",
+      "cep": "18000-745",
+      "cidade": "Sorocaba",
+      "estado": "SP",
+      "latitude": -23.520784,
+      "longitude": -47.409199
+    }
+  },
+  {
+    "id": 36,
+    "municipioId": 3,
+    "nome": "Centro de Educacao Infantil Jardim Bela Vista",
+    "capacidadeTotal": 80,
+    "endereco": {
+      "rua": "Rua XV de Novembro",
+      "numero": 789,
+      "bairro": "Jardim Bela Vista",
+      "cep": "13200-549",
+      "cidade": "Jundiai",
+      "estado": "SP",
+      "latitude": -23.191866,
+      "longitude": -46.907174
+    }
+  },
+  {
+    "id": 37,
+    "municipioId": 1,
+    "nome": "CMEI Jardim America",
+    "capacidadeTotal": 150,
+    "endereco": {
+      "rua": "Rua Sao Jose",
+      "numero": 1033,
+      "bairro": "Jardim America",
+      "cep": "13000-895",
+      "cidade": "Campinas",
+      "estado": "SP",
+      "latitude": -22.859108,
+      "longitude": -47.069424
+    }
+  },
+  {
+    "id": 38,
+    "municipioId": 2,
+    "nome": "Creche Municipal Vila Sao Jose",
+    "capacidadeTotal": 50,
+    "endereco": {
+      "rua": "Rua Sete de Setembro",
+      "numero": 217,
+      "bairro": "Vila Sao Jose",
+      "cep": "18000-667",
+      "cidade": "Sorocaba",
+      "estado": "SP",
+      "latitude": -23.441586,
+      "longitude": -47.412277
+    }
+  },
+  {
+    "id": 39,
+    "municipioId": 3,
+    "nome": "EMEI Jardim das Flores",
+    "capacidadeTotal": 100,
+    "endereco": {
+      "rua": "Rua Barao do Rio Branco",
+      "numero": 691,
+      "bairro": "Jardim das Flores",
+      "cep": "13200-416",
+      "cidade": "Jundiai",
+      "estado": "SP",
+      "latitude": -23.187423,
+      "longitude": -46.93215
+    }
+  },
+  {
+    "id": 40,
+    "municipioId": 1,
+    "nome": "Centro de Educacao Infantil Jardim Sao Paulo",
+    "capacidadeTotal": 120,
+    "endereco": {
+      "rua": "Rua dos Ipês",
+      "numero": 684,
+      "bairro": "Jardim Sao Paulo",
+      "cep": "13000-388",
+      "cidade": "Campinas",
+      "estado": "SP",
+      "latitude": -22.969641,
+      "longitude": -47.075749
+    }
+  },
+  {
+    "id": 41,
+    "municipioId": 2,
+    "nome": "CMEI Jardim Paraiso",
+    "capacidadeTotal": 150,
+    "endereco": {
+      "rua": "Avenida Presidente Vargas",
+      "numero": 1742,
+      "bairro": "Jardim Paraiso",
+      "cep": "18000-713",
+      "cidade": "Sorocaba",
+      "estado": "SP",
+      "latitude": -23.446622,
+      "longitude": -47.393149
+    }
+  },
+  {
+    "id": 42,
+    "municipioId": 3,
+    "nome": "Creche Municipal Vila Nova",
+    "capacidadeTotal": 150,
+    "endereco": {
+      "rua": "Rua Santo Antonio",
+      "numero": 644,
+      "bairro": "Vila Nova",
+      "cep": "13200-194",
+      "cidade": "Jundiai",
+      "estado": "SP",
+      "latitude": -23.210095,
+      "longitude": -46.841555
+    }
+  },
+  {
+    "id": 43,
+    "municipioId": 1,
+    "nome": "EMEI Jardim Aeroporto",
+    "capacidadeTotal": 150,
+    "endereco": {
+      "rua": "Rua dos Ipês",
+      "numero": 1294,
+      "bairro": "Jardim Aeroporto",
+      "cep": "13000-058",
+      "cidade": "Campinas",
+      "estado": "SP",
+      "latitude": -22.963883,
+      "longitude": -47.065385
+    }
+  },
+  {
+    "id": 44,
+    "municipioId": 2,
+    "nome": "Centro de Educacao Infantil Parque das Nacoes",
+    "capacidadeTotal": 50,
+    "endereco": {
+      "rua": "Avenida Independencia",
+      "numero": 242,
+      "bairro": "Parque das Nacoes",
+      "cep": "18000-983",
+      "cidade": "Sorocaba",
+      "estado": "SP",
+      "latitude": -23.500561,
+      "longitude": -47.410439
+    }
+  },
+  {
+    "id": 45,
+    "municipioId": 3,
+    "nome": "CMEI Jardim Santa Rosa",
+    "capacidadeTotal": 70,
+    "endereco": {
+      "rua": "Avenida das Nacoes",
+      "numero": 288,
+      "bairro": "Jardim Santa Rosa",
+      "cep": "13200-691",
+      "cidade": "Jundiai",
+      "estado": "SP",
+      "latitude": -23.142282,
+      "longitude": -46.909347
+    }
+  },
+  {
+    "id": 46,
+    "municipioId": 1,
+    "nome": "Creche Municipal Cidade Nova",
+    "capacidadeTotal": 150,
+    "endereco": {
+      "rua": "Rua Bahia",
+      "numero": 2445,
+      "bairro": "Cidade Nova",
+      "cep": "13000-040",
+      "cidade": "Campinas",
+      "estado": "SP",
+      "latitude": -22.895574,
+      "longitude": -47.072293
+    }
+  },
+  {
+    "id": 47,
+    "municipioId": 2,
+    "nome": "EMEI Vila Progresso",
+    "capacidadeTotal": 80,
+    "endereco": {
+      "rua": "Rua das Flores",
+      "numero": 1078,
+      "bairro": "Vila Progresso",
+      "cep": "18000-209",
+      "cidade": "Sorocaba",
+      "estado": "SP",
+      "latitude": -23.481133,
+      "longitude": -47.474898
+    }
+  },
+  {
+    "id": 48,
+    "municipioId": 3,
+    "nome": "Centro de Educacao Infantil Vila Esperanca",
+    "capacidadeTotal": 50,
+    "endereco": {
+      "rua": "Rua Tiradentes",
+      "numero": 546,
+      "bairro": "Vila Esperanca",
+      "cep": "13200-687",
+      "cidade": "Jundiai",
+      "estado": "SP",
+      "latitude": -23.16824,
+      "longitude": -46.902933
+    }
+  },
+  {
+    "id": 49,
+    "municipioId": 1,
+    "nome": "CMEI Jardim Europa",
+    "capacidadeTotal": 50,
+    "endereco": {
+      "rua": "Rua das Acacias",
+      "numero": 1887,
+      "bairro": "Jardim Europa",
+      "cep": "13000-636",
+      "cidade": "Campinas",
+      "estado": "SP",
+      "latitude": -22.850085,
+      "longitude": -47.003068
+    }
+  },
+  {
+    "id": 50,
+    "municipioId": 2,
+    "nome": "Creche Municipal Jardim Primavera",
+    "capacidadeTotal": 50,
+    "endereco": {
+      "rua": "Rua Ceara",
+      "numero": 883,
+      "bairro": "Jardim Primavera",
+      "cep": "18000-518",
+      "cidade": "Sorocaba",
+      "estado": "SP",
+      "latitude": -23.529676,
+      "longitude": -47.400609
+    }
+  }
+]

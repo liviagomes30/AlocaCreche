@@ -4,6 +4,10 @@
 > Modelo de domínio completo e diagrama de classes: `docs/arquitetura/visao-geral.md`. Decisões
 > arquiteturais: `docs/adr/0001-fundacao-arquitetural.md`.
 
+> **Enquanto a equipe for de 3 integrantes** (`docs/adr/0004-divisao-equipe-tres-integrantes.md`): esta
+> integrante também acumula o domínio `Notificacao`/`Municipio` (`docs/context/notificacao-plataforma.md`,
+> só a parte de domínio — Gateway/Outbox Publisher/segurança ficam com quem faz MSRelatorios).
+
 ## Dono exclusivo do pacote
 
 `Inscricao`, `FilaEspera`, `Responsavel`, `Crianca`. Nenhum outro módulo edita estas entidades

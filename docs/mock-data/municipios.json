@@ -1,0 +1,38 @@
+[
+  {
+    "id": 1,
+    "nome": "Campinas",
+    "uf": "SP",
+    "prazoConfirmacaoDias": 5,
+    "configuracaoPriorizacao": {
+      "pesoRenda": 0.4,
+      "pesoVulnerabilidade": 0.3,
+      "pesoDistancia": 0.2,
+      "pesoIrmaoMatriculado": 0.1
+    }
+  },
+  {
+    "id": 2,
+    "nome": "Sorocaba",
+    "uf": "SP",
+    "prazoConfirmacaoDias": 7,
+    "configuracaoPriorizacao": {
+      "pesoRenda": 0.35,
+      "pesoVulnerabilidade": 0.35,
+      "pesoDistancia": 0.15,
+      "pesoIrmaoMatriculado": 0.15
+    }
+  },
+  {
+    "id": 3,
+    "nome": "Jundiai",
+    "uf": "SP",
+    "prazoConfirmacaoDias": 10,
+    "configuracaoPriorizacao": {
+      "pesoRenda": 0.3,
+      "pesoVulnerabilidade": 0.4,
+      "pesoDistancia": 0.2,
+      "pesoIrmaoMatriculado": 0.1
+    }
+  }
+]

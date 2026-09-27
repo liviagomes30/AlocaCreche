@@ -9,6 +9,9 @@ services:
       - "5432:5432"
     volumes:
       - postgres-core-data:/var/lib/postgresql/data
+      # Cria a role nao-superuser alocacreche_app na primeira inicializacao do
+      # volume (RLS nao tem efeito sobre o usuario bootstrap - ver AD-002).
+      - ./docker/postgres-core-init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U alocacreche -d alocacreche"]
       interval: 5s

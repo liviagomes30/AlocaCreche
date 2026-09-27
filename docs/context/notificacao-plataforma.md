@@ -4,6 +4,12 @@
 > no Gateway, ou em segurança/observabilidade transversal. Decisões arquiteturais:
 > `docs/adr/0001-fundacao-arquitetural.md`.
 
+> **Enquanto a equipe for de 3 integrantes** (`docs/adr/0004-divisao-equipe-tres-integrantes.md`): a
+> mecânica abaixo continua valendo, mas o **Publicador da Outbox, o Gateway, a autenticação básica e o
+> pacote de geolocalização são operados por quem é dono de MSRelatorios**, não por quem faz Notificação
+> — leia a ADR 0004 antes de assumir dono a partir só deste arquivo. O domínio `Notificacao`/`Municipio`
+> em si continua descrito aqui e é acumulado por quem faz Inscrição & Fila.
+
 ## Dono exclusivo do pacote
 
 `Notificacao`, `Municipio`.

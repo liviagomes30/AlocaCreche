@@ -1,0 +1,1352 @@
+[
+  {
+    "id": 1,
+    "crecheId": 1,
+    "municipioId": 1,
+    "faixaEtaria": "BERCARIO",
+    "vagasTotais": 30,
+    "vagasDisponiveis": 3,
+    "version": 0
+  },
+  {
+    "id": 2,
+    "crecheId": 1,
+    "municipioId": 1,
+    "faixaEtaria": "MATERNAL",
+    "vagasTotais": 15,
+    "vagasDisponiveis": 8,
+    "version": 0
+  },
+  {
+    "id": 3,
+    "crecheId": 1,
+    "municipioId": 1,
+    "faixaEtaria": "PRE_ESCOLA",
+    "vagasTotais": 18,
+    "vagasDisponiveis": 7,
+    "version": 0
+  },
+  {
+    "id": 4,
+    "crecheId": 2,
+    "municipioId": 2,
+    "faixaEtaria": "BERCARIO",
+    "vagasTotais": 18,
+    "vagasDisponiveis": 3,
+    "version": 0
+  },
+  {
+    "id": 5,
+    "crecheId": 2,
+    "municipioId": 2,
+    "faixaEtaria": "MATERNAL",
+    "vagasTotais": 30,
+    "vagasDisponiveis": 23,
+    "version": 0
+  },
+  {
+    "id": 6,
+    "crecheId": 2,
+    "municipioId": 2,
+    "faixaEtaria": "PRE_ESCOLA",
+    "vagasTotais": 25,
+    "vagasDisponiveis": 2,
+    "version": 0
+  },
+  {
+    "id": 7,
+    "crecheId": 3,
+    "municipioId": 3,
+    "faixaEtaria": "BERCARIO",
+    "vagasTotais": 25,
+    "vagasDisponiveis": 13,
+    "version": 0
+  },
+  {
+    "id": 8,
+    "crecheId": 3,
+    "municipioId": 3,
+    "faixaEtaria": "MATERNAL",
+    "vagasTotais": 15,
+    "vagasDisponiveis": 0,
+    "version": 0
+  },
+  {
+    "id": 9,
+    "crecheId": 3,
+    "municipioId": 3,
+    "faixaEtaria": "PRE_ESCOLA",
+    "vagasTotais": 15,
+    "vagasDisponiveis": 6,
+    "version": 0
+  },
+  {
+    "id": 10,
+    "crecheId": 4,
+    "municipioId": 1,
+    "faixaEtaria": "BERCARIO",
+    "vagasTotais": 18,
+    "vagasDisponiveis": 16,
+    "version": 0
+  },
+  {
+    "id": 11,
+    "crecheId": 4,
+    "municipioId": 1,
+    "faixaEtaria": "MATERNAL",
+    "vagasTotais": 25,
+    "vagasDisponiveis": 0,
+    "version": 0
+  },
+  {
+    "id": 12,
+    "crecheId": 4,
+    "municipioId": 1,
+    "faixaEtaria": "PRE_ESCOLA",
+    "vagasTotais": 25,
+    "vagasDisponiveis": 6,
+    "version": 0
+  },
+  {
+    "id": 13,
+    "crecheId": 5,
+    "municipioId": 2,
+    "faixaEtaria": "BERCARIO",
+    "vagasTotais": 30,
+    "vagasDisponiveis": 20,
+    "version": 0
+  },
+  {
+    "id": 14,
+    "crecheId": 5,
+    "municipioId": 2,
+    "faixaEtaria": "MATERNAL",
+    "vagasTotais": 30,
+    "vagasDisponiveis": 17,
+    "version": 0
+  },
+  {
+    "id": 15,
+    "crecheId": 5,
+    "municipioId": 2,
+    "faixaEtaria": "PRE_ESCOLA",
+    "vagasTotais": 24,
+    "vagasDisponiveis": 7,
+    "version": 0
+  },
+  {
+    "id": 16,
+    "crecheId": 6,
+    "municipioId": 3,
+    "faixaEtaria": "BERCARIO",
+    "vagasTotais": 24,
+    "vagasDisponiveis": 18,
+    "version": 0
+  },
+  {
+    "id": 17,
+    "crecheId": 6,
+    "municipioId": 3,
+    "faixaEtaria": "MATERNAL",
+    "vagasTotais": 20,
+    "vagasDisponiveis": 0,
+    "version": 0
+  },
+  {
+    "id": 18,
+    "crecheId": 6,
+    "municipioId": 3,
+    "faixaEtaria": "PRE_ESCOLA",
+    "vagasTotais": 18,
+    "vagasDisponiveis": 13,
+    "version": 0
+  },
+  {
+    "id": 19,
+    "crecheId": 7,
+    "municipioId": 1,
+    "faixaEtaria": "BERCARIO",
+    "vagasTotais": 20,
+    "vagasDisponiveis": 8,
+    "version": 0
+  },
+  {
+    "id": 20,
+    "crecheId": 7,
+    "municipioId": 1,
+    "faixaEtaria": "MATERNAL",
+    "vagasTotais": 18,
+    "vagasDisponiveis": 6,
+    "version": 0
+  },
+  {
+    "id": 21,
+    "crecheId": 7,
+    "municipioId": 1,
+    "faixaEtaria": "PRE_ESCOLA",
+    "vagasTotais": 20,
+    "vagasDisponiveis": 3,
+    "version": 0
+  },
+  {
+    "id": 22,
+    "crecheId": 8,
+    "municipioId": 2,
+    "faixaEtaria": "BERCARIO",
+    "vagasTotais": 15,
+    "vagasDisponiveis": 12,
+    "version": 0
+  },
+  {
+    "id": 23,
+    "crecheId": 8,
+    "municipioId": 2,
+    "faixaEtaria": "MATERNAL",
+    "vagasTotais": 15,
+    "vagasDisponiveis": 11,
+    "version": 0
+  },
+  {
+    "id": 24,
+    "crecheId": 8,
+    "municipioId": 2,
+    "faixaEtaria": "PRE_ESCOLA",
+    "vagasTotais": 20,
+    "vagasDisponiveis": 19,
+    "version": 0
+  },
+  {
+    "id": 25,
+    "crecheId": 9,
+    "municipioId": 3,
+    "faixaEtaria": "BERCARIO",
+    "vagasTotais": 20,
+    "vagasDisponiveis": 1,
+    "version": 0
+  },
+  {
+    "id": 26,
+    "crecheId": 9,
+    "municipioId": 3,
+    "faixaEtaria": "MATERNAL",
+    "vagasTotais": 30,
+    "vagasDisponiveis": 14,
+    "version": 0
+  },
+  {
+    "id": 27,
+    "crecheId": 9,
+    "municipioId": 3,
+    "faixaEtaria": "PRE_ESCOLA",
+    "vagasTotais": 25,
+    "vagasDisponiveis": 3,
+    "version": 0
+  },
+  {
+    "id": 28,
+    "crecheId": 10,
+    "municipioId": 1,
+    "faixaEtaria": "BERCARIO",
+    "vagasTotais": 24,
+    "vagasDisponiveis": 2,
+    "version": 0
+  },
+  {
+    "id": 29,
+    "crecheId": 10,
+    "municipioId": 1,
+    "faixaEtaria": "MATERNAL",
+    "vagasTotais": 25,
+    "vagasDisponiveis": 9,
+    "version": 0
+  },
+  {
+    "id": 30,
+    "crecheId": 10,
+    "municipioId": 1,
+    "faixaEtaria": "PRE_ESCOLA",
+    "vagasTotais": 30,
+    "vagasDisponiveis": 19,
+    "version": 0
+  },
+  {
+    "id": 31,
+    "crecheId": 11,
+    "municipioId": 2,
+    "faixaEtaria": "BERCARIO",
+    "vagasTotais": 20,
+    "vagasDisponiveis": 18,
+    "version": 0
+  },
+  {
+    "id": 32,
+    "crecheId": 11,
+    "municipioId": 2,
+    "faixaEtaria": "MATERNAL",
+    "vagasTotais": 18,
+    "vagasDisponiveis": 2,
+    "version": 0
+  },
+  {
+    "id": 33,
+    "crecheId": 11,
+    "municipioId": 2,
+    "faixaEtaria": "PRE_ESCOLA",
+    "vagasTotais": 15,
+    "vagasDisponiveis": 7,
+    "version": 0
+  },
+  {
+    "id": 34,
+    "crecheId": 12,
+    "municipioId": 3,
+    "faixaEtaria": "BERCARIO",
+    "vagasTotais": 20,
+    "vagasDisponiveis": 2,
+    "version": 0
+  },
+  {
+    "id": 35,
+    "crecheId": 12,
+    "municipioId": 3,
+    "faixaEtaria": "MATERNAL",
+    "vagasTotais": 18,
+    "vagasDisponiveis": 3,
+    "version": 0
+  },
+  {
+    "id": 36,
+    "crecheId": 12,
+    "municipioId": 3,
+    "faixaEtaria": "PRE_ESCOLA",
+    "vagasTotais": 24,
+    "vagasDisponiveis": 8,
+    "version": 0
+  },
+  {
+    "id": 37,
+    "crecheId": 13,
+    "municipioId": 1,
+    "faixaEtaria": "BERCARIO",
+    "vagasTotais": 24,
+    "vagasDisponiveis": 20,
+    "version": 0
+  },
+  {
+    "id": 38,
+    "crecheId": 13,
+    "municipioId": 1,
+    "faixaEtaria": "MATERNAL",
+    "vagasTotais": 20,
+    "vagasDisponiveis": 5,
+    "version": 0
+  },
+  {
+    "id": 39,
+    "crecheId": 13,
+    "municipioId": 1,
+    "faixaEtaria": "PRE_ESCOLA",
+    "vagasTotais": 20,
+    "vagasDisponiveis": 11,
+    "version": 0
+  },
+  {
+    "id": 40,
+    "crecheId": 14,
+    "municipioId": 2,
+    "faixaEtaria": "BERCARIO",
+    "vagasTotais": 18,
+    "vagasDisponiveis": 8,
+    "version": 0
+  },
+  {
+    "id": 41,
+    "crecheId": 14,
+    "municipioId": 2,
+    "faixaEtaria": "MATERNAL",
+    "vagasTotais": 30,
+    "vagasDisponiveis": 29,
+    "version": 0
+  },
+  {
+    "id": 42,
+    "crecheId": 14,
+    "municipioId": 2,
+    "faixaEtaria": "PRE_ESCOLA",
+    "vagasTotais": 30,
+    "vagasDisponiveis": 20,
+    "version": 0
+  },
+  {
+    "id": 43,
+    "crecheId": 15,
+    "municipioId": 3,
+    "faixaEtaria": "BERCARIO",
+    "vagasTotais": 15,
+    "vagasDisponiveis": 5,
+    "version": 0
+  },
+  {
+    "id": 44,
+    "crecheId": 15,
+    "municipioId": 3,
+    "faixaEtaria": "MATERNAL",
+    "vagasTotais": 25,
+    "vagasDisponiveis": 23,
+    "version": 0
+  },
+  {
+    "id": 45,
+    "crecheId": 15,
+    "municipioId": 3,
+    "faixaEtaria": "PRE_ESCOLA",
+    "vagasTotais": 18,
+    "vagasDisponiveis": 5,
+    "version": 0
+  },
+  {
+    "id": 46,
+    "crecheId": 16,
+    "municipioId": 1,
+    "faixaEtaria": "BERCARIO",
+    "vagasTotais": 24,
+    "vagasDisponiveis": 12,
+    "version": 0
+  },
+  {
+    "id": 47,
+    "crecheId": 16,
+    "municipioId": 1,
+    "faixaEtaria": "MATERNAL",
+    "vagasTotais": 20,
+    "vagasDisponiveis": 20,
+    "version": 0
+  },
+  {
+    "id": 48,
+    "crecheId": 16,
+    "municipioId": 1,
+    "faixaEtaria": "PRE_ESCOLA",
+    "vagasTotais": 30,
+    "vagasDisponiveis": 17,
+    "version": 0
+  },
+  {
+    "id": 49,
+    "crecheId": 17,
+    "municipioId": 2,
+    "faixaEtaria": "BERCARIO",
+    "vagasTotais": 18,
+    "vagasDisponiveis": 10,
+    "version": 0
+  },
+  {
+    "id": 50,
+    "crecheId": 17,
+    "municipioId": 2,
+    "faixaEtaria": "MATERNAL",
+    "vagasTotais": 15,
+    "vagasDisponiveis": 7,
+    "version": 0
+  },
+  {
+    "id": 51,
+    "crecheId": 17,
+    "municipioId": 2,
+    "faixaEtaria": "PRE_ESCOLA",
+    "vagasTotais": 15,
+    "vagasDisponiveis": 10,
+    "version": 0
+  },
+  {
+    "id": 52,
+    "crecheId": 18,
+    "municipioId": 3,
+    "faixaEtaria": "BERCARIO",
+    "vagasTotais": 24,
+    "vagasDisponiveis": 8,
+    "version": 0
+  },
+  {
+    "id": 53,
+    "crecheId": 18,
+    "municipioId": 3,
+    "faixaEtaria": "MATERNAL",
+    "vagasTotais": 15,
+    "vagasDisponiveis": 6,
+    "version": 0
+  },
+  {
+    "id": 54,
+    "crecheId": 18,
+    "municipioId": 3,
+    "faixaEtaria": "PRE_ESCOLA",
+    "vagasTotais": 25,
+    "vagasDisponiveis": 22,
+    "version": 0
+  },
+  {
+    "id": 55,
+    "crecheId": 19,
+    "municipioId": 1,
+    "faixaEtaria": "BERCARIO",
+    "vagasTotais": 20,
+    "vagasDisponiveis": 6,
+    "version": 0
+  },
+  {
+    "id": 56,
+    "crecheId": 19,
+    "municipioId": 1,
+    "faixaEtaria": "MATERNAL",
+    "vagasTotais": 30,
+    "vagasDisponiveis": 15,
+    "version": 0
+  },
+  {
+    "id": 57,
+    "crecheId": 19,
+    "municipioId": 1,
+    "faixaEtaria": "PRE_ESCOLA",
+    "vagasTotais": 24,
+    "vagasDisponiveis": 20,
+    "version": 0
+  },
+  {
+    "id": 58,
+    "crecheId": 20,
+    "municipioId": 2,
+    "faixaEtaria": "BERCARIO",
+    "vagasTotais": 24,
+    "vagasDisponiveis": 4,
+    "version": 0
+  },
+  {
+    "id": 59,
+    "crecheId": 20,
+    "municipioId": 2,
+    "faixaEtaria": "MATERNAL",
+    "vagasTotais": 20,
+    "vagasDisponiveis": 4,
+    "version": 0
+  },
+  {
+    "id": 60,
+    "crecheId": 20,
+    "municipioId": 2,
+    "faixaEtaria": "PRE_ESCOLA",
+    "vagasTotais": 18,
+    "vagasDisponiveis": 17,
+    "version": 0
+  },
+  {
+    "id": 61,
+    "crecheId": 21,
+    "municipioId": 3,
+    "faixaEtaria": "BERCARIO",
+    "vagasTotais": 25,
+    "vagasDisponiveis": 8,
+    "version": 0
+  },
+  {
+    "id": 62,
+    "crecheId": 21,
+    "municipioId": 3,
+    "faixaEtaria": "MATERNAL",
+    "vagasTotais": 30,
+    "vagasDisponiveis": 18,
+    "version": 0
+  },
+  {
+    "id": 63,
+    "crecheId": 21,
+    "municipioId": 3,
+    "faixaEtaria": "PRE_ESCOLA",
+    "vagasTotais": 24,
+    "vagasDisponiveis": 18,
+    "version": 0
+  },
+  {
+    "id": 64,
+    "crecheId": 22,
+    "municipioId": 1,
+    "faixaEtaria": "BERCARIO",
+    "vagasTotais": 24,
+    "vagasDisponiveis": 11,
+    "version": 0
+  },
+  {
+    "id": 65,
+    "crecheId": 22,
+    "municipioId": 1,
+    "faixaEtaria": "MATERNAL",
+    "vagasTotais": 18,
+    "vagasDisponiveis": 4,
+    "version": 0
+  },
+  {
+    "id": 66,
+    "crecheId": 22,
+    "municipioId": 1,
+    "faixaEtaria": "PRE_ESCOLA",
+    "vagasTotais": 25,
+    "vagasDisponiveis": 15,
+    "version": 0
+  },
+  {
+    "id": 67,
+    "crecheId": 23,
+    "municipioId": 2,
+    "faixaEtaria": "BERCARIO",
+    "vagasTotais": 15,
+    "vagasDisponiveis": 1,
+    "version": 0
+  },
+  {
+    "id": 68,
+    "crecheId": 23,
+    "municipioId": 2,
+    "faixaEtaria": "MATERNAL",
+    "vagasTotais": 15,
+    "vagasDisponiveis": 4,
+    "version": 0
+  },
+  {
+    "id": 69,
+    "crecheId": 23,
+    "municipioId": 2,
+    "faixaEtaria": "PRE_ESCOLA",
+    "vagasTotais": 30,
+    "vagasDisponiveis": 5,
+    "version": 0
+  },
+  {
+    "id": 70,
+    "crecheId": 24,
+    "municipioId": 3,
+    "faixaEtaria": "BERCARIO",
+    "vagasTotais": 30,
+    "vagasDisponiveis": 13,
+    "version": 0
+  },
+  {
+    "id": 71,
+    "crecheId": 24,
+    "municipioId": 3,
+    "faixaEtaria": "MATERNAL",
+    "vagasTotais": 25,
+    "vagasDisponiveis": 2,
+    "version": 0
+  },
+  {
+    "id": 72,
+    "crecheId": 24,
+    "municipioId": 3,
+    "faixaEtaria": "PRE_ESCOLA",
+    "vagasTotais": 24,
+    "vagasDisponiveis": 12,
+    "version": 0
+  },
+  {
+    "id": 73,
+    "crecheId": 25,
+    "municipioId": 1,
+    "faixaEtaria": "BERCARIO",
+    "vagasTotais": 25,
+    "vagasDisponiveis": 14,
+    "version": 0
+  },
+  {
+    "id": 74,
+    "crecheId": 25,
+    "municipioId": 1,
+    "faixaEtaria": "MATERNAL",
+    "vagasTotais": 25,
+    "vagasDisponiveis": 8,
+    "version": 0
+  },
+  {
+    "id": 75,
+    "crecheId": 25,
+    "municipioId": 1,
+    "faixaEtaria": "PRE_ESCOLA",
+    "vagasTotais": 25,
+    "vagasDisponiveis": 0,
+    "version": 0
+  },
+  {
+    "id": 76,
+    "crecheId": 26,
+    "municipioId": 2,
+    "faixaEtaria": "BERCARIO",
+    "vagasTotais": 30,
+    "vagasDisponiveis": 23,
+    "version": 0
+  },
+  {
+    "id": 77,
+    "crecheId": 26,
+    "municipioId": 2,
+    "faixaEtaria": "MATERNAL",
+    "vagasTotais": 15,
+    "vagasDisponiveis": 8,
+    "version": 0
+  },
+  {
+    "id": 78,
+    "crecheId": 26,
+    "municipioId": 2,
+    "faixaEtaria": "PRE_ESCOLA",
+    "vagasTotais": 30,
+    "vagasDisponiveis": 10,
+    "version": 0
+  },
+  {
+    "id": 79,
+    "crecheId": 27,
+    "municipioId": 3,
+    "faixaEtaria": "BERCARIO",
+    "vagasTotais": 15,
+    "vagasDisponiveis": 9,
+    "version": 0
+  },
+  {
+    "id": 80,
+    "crecheId": 27,
+    "municipioId": 3,
+    "faixaEtaria": "MATERNAL",
+    "vagasTotais": 24,
+    "vagasDisponiveis": 5,
+    "version": 0
+  },
+  {
+    "id": 81,
+    "crecheId": 27,
+    "municipioId": 3,
+    "faixaEtaria": "PRE_ESCOLA",
+    "vagasTotais": 24,
+    "vagasDisponiveis": 0,
+    "version": 0
+  },
+  {
+    "id": 82,
+    "crecheId": 28,
+    "municipioId": 1,
+    "faixaEtaria": "BERCARIO",
+    "vagasTotais": 30,
+    "vagasDisponiveis": 28,
+    "version": 0
+  },
+  {
+    "id": 83,
+    "crecheId": 28,
+    "municipioId": 1,
+    "faixaEtaria": "MATERNAL",
+    "vagasTotais": 30,
+    "vagasDisponiveis": 8,
+    "version": 0
+  },
+  {
+    "id": 84,
+    "crecheId": 28,
+    "municipioId": 1,
+    "faixaEtaria": "PRE_ESCOLA",
+    "vagasTotais": 25,
+    "vagasDisponiveis": 24,
+    "version": 0
+  },
+  {
+    "id": 85,
+    "crecheId": 29,
+    "municipioId": 2,
+    "faixaEtaria": "BERCARIO",
+    "vagasTotais": 18,
+    "vagasDisponiveis": 16,
+    "version": 0
+  },
+  {
+    "id": 86,
+    "crecheId": 29,
+    "municipioId": 2,
+    "faixaEtaria": "MATERNAL",
+    "vagasTotais": 15,
+    "vagasDisponiveis": 9,
+    "version": 0
+  },
+  {
+    "id": 87,
+    "crecheId": 29,
+    "municipioId": 2,
+    "faixaEtaria": "PRE_ESCOLA",
+    "vagasTotais": 30,
+    "vagasDisponiveis": 16,
+    "version": 0
+  },
+  {
+    "id": 88,
+    "crecheId": 30,
+    "municipioId": 3,
+    "faixaEtaria": "BERCARIO",
+    "vagasTotais": 25,
+    "vagasDisponiveis": 6,
+    "version": 0
+  },
+  {
+    "id": 89,
+    "crecheId": 30,
+    "municipioId": 3,
+    "faixaEtaria": "MATERNAL",
+    "vagasTotais": 18,
+    "vagasDisponiveis": 11,
+    "version": 0
+  },
+  {
+    "id": 90,
+    "crecheId": 30,
+    "municipioId": 3,
+    "faixaEtaria": "PRE_ESCOLA",
+    "vagasTotais": 18,
+    "vagasDisponiveis": 17,
+    "version": 0
+  },
+  {
+    "id": 91,
+    "crecheId": 31,
+    "municipioId": 1,
+    "faixaEtaria": "BERCARIO",
+    "vagasTotais": 25,
+    "vagasDisponiveis": 0,
+    "version": 0
+  },
+  {
+    "id": 92,
+    "crecheId": 31,
+    "municipioId": 1,
+    "faixaEtaria": "MATERNAL",
+    "vagasTotais": 25,
+    "vagasDisponiveis": 10,
+    "version": 0
+  },
+  {
+    "id": 93,
+    "crecheId": 31,
+    "municipioId": 1,
+    "faixaEtaria": "PRE_ESCOLA",
+    "vagasTotais": 24,
+    "vagasDisponiveis": 0,
+    "version": 0
+  },
+  {
+    "id": 94,
+    "crecheId": 32,
+    "municipioId": 2,
+    "faixaEtaria": "BERCARIO",
+    "vagasTotais": 15,
+    "vagasDisponiveis": 11,
+    "version": 0
+  },
+  {
+    "id": 95,
+    "crecheId": 32,
+    "municipioId": 2,
+    "faixaEtaria": "MATERNAL",
+    "vagasTotais": 20,
+    "vagasDisponiveis": 7,
+    "version": 0
+  },
+  {
+    "id": 96,
+    "crecheId": 32,
+    "municipioId": 2,
+    "faixaEtaria": "PRE_ESCOLA",
+    "vagasTotais": 15,
+    "vagasDisponiveis": 7,
+    "version": 0
+  },
+  {
+    "id": 97,
+    "crecheId": 33,
+    "municipioId": 3,
+    "faixaEtaria": "BERCARIO",
+    "vagasTotais": 25,
+    "vagasDisponiveis": 2,
+    "version": 0
+  },
+  {
+    "id": 98,
+    "crecheId": 33,
+    "municipioId": 3,
+    "faixaEtaria": "MATERNAL",
+    "vagasTotais": 15,
+    "vagasDisponiveis": 15,
+    "version": 0
+  },
+  {
+    "id": 99,
+    "crecheId": 33,
+    "municipioId": 3,
+    "faixaEtaria": "PRE_ESCOLA",
+    "vagasTotais": 15,
+    "vagasDisponiveis": 4,
+    "version": 0
+  },
+  {
+    "id": 100,
+    "crecheId": 34,
+    "municipioId": 1,
+    "faixaEtaria": "BERCARIO",
+    "vagasTotais": 18,
+    "vagasDisponiveis": 15,
+    "version": 0
+  },
+  {
+    "id": 101,
+    "crecheId": 34,
+    "municipioId": 1,
+    "faixaEtaria": "MATERNAL",
+    "vagasTotais": 25,
+    "vagasDisponiveis": 5,
+    "version": 0
+  },
+  {
+    "id": 102,
+    "crecheId": 34,
+    "municipioId": 1,
+    "faixaEtaria": "PRE_ESCOLA",
+    "vagasTotais": 20,
+    "vagasDisponiveis": 16,
+    "version": 0
+  },
+  {
+    "id": 103,
+    "crecheId": 35,
+    "municipioId": 2,
+    "faixaEtaria": "BERCARIO",
+    "vagasTotais": 25,
+    "vagasDisponiveis": 13,
+    "version": 0
+  },
+  {
+    "id": 104,
+    "crecheId": 35,
+    "municipioId": 2,
+    "faixaEtaria": "MATERNAL",
+    "vagasTotais": 18,
+    "vagasDisponiveis": 17,
+    "version": 0
+  },
+  {
+    "id": 105,
+    "crecheId": 35,
+    "municipioId": 2,
+    "faixaEtaria": "PRE_ESCOLA",
+    "vagasTotais": 30,
+    "vagasDisponiveis": 22,
+    "version": 0
+  },
+  {
+    "id": 106,
+    "crecheId": 36,
+    "municipioId": 3,
+    "faixaEtaria": "BERCARIO",
+    "vagasTotais": 18,
+    "vagasDisponiveis": 9,
+    "version": 0
+  },
+  {
+    "id": 107,
+    "crecheId": 36,
+    "municipioId": 3,
+    "faixaEtaria": "MATERNAL",
+    "vagasTotais": 24,
+    "vagasDisponiveis": 21,
+    "version": 0
+  },
+  {
+    "id": 108,
+    "crecheId": 36,
+    "municipioId": 3,
+    "faixaEtaria": "PRE_ESCOLA",
+    "vagasTotais": 30,
+    "vagasDisponiveis": 11,
+    "version": 0
+  },
+  {
+    "id": 109,
+    "crecheId": 37,
+    "municipioId": 1,
+    "faixaEtaria": "BERCARIO",
+    "vagasTotais": 24,
+    "vagasDisponiveis": 16,
+    "version": 0
+  },
+  {
+    "id": 110,
+    "crecheId": 37,
+    "municipioId": 1,
+    "faixaEtaria": "MATERNAL",
+    "vagasTotais": 24,
+    "vagasDisponiveis": 3,
+    "version": 0
+  },
+  {
+    "id": 111,
+    "crecheId": 37,
+    "municipioId": 1,
+    "faixaEtaria": "PRE_ESCOLA",
+    "vagasTotais": 18,
+    "vagasDisponiveis": 7,
+    "version": 0
+  },
+  {
+    "id": 112,
+    "crecheId": 38,
+    "municipioId": 2,
+    "faixaEtaria": "BERCARIO",
+    "vagasTotais": 15,
+    "vagasDisponiveis": 10,
+    "version": 0
+  },
+  {
+    "id": 113,
+    "crecheId": 38,
+    "municipioId": 2,
+    "faixaEtaria": "MATERNAL",
+    "vagasTotais": 15,
+    "vagasDisponiveis": 7,
+    "version": 0
+  },
+  {
+    "id": 114,
+    "crecheId": 38,
+    "municipioId": 2,
+    "faixaEtaria": "PRE_ESCOLA",
+    "vagasTotais": 25,
+    "vagasDisponiveis": 7,
+    "version": 0
+  },
+  {
+    "id": 115,
+    "crecheId": 39,
+    "municipioId": 3,
+    "faixaEtaria": "BERCARIO",
+    "vagasTotais": 15,
+    "vagasDisponiveis": 2,
+    "version": 0
+  },
+  {
+    "id": 116,
+    "crecheId": 39,
+    "municipioId": 3,
+    "faixaEtaria": "MATERNAL",
+    "vagasTotais": 30,
+    "vagasDisponiveis": 20,
+    "version": 0
+  },
+  {
+    "id": 117,
+    "crecheId": 39,
+    "municipioId": 3,
+    "faixaEtaria": "PRE_ESCOLA",
+    "vagasTotais": 15,
+    "vagasDisponiveis": 7,
+    "version": 0
+  },
+  {
+    "id": 118,
+    "crecheId": 40,
+    "municipioId": 1,
+    "faixaEtaria": "BERCARIO",
+    "vagasTotais": 15,
+    "vagasDisponiveis": 1,
+    "version": 0
+  },
+  {
+    "id": 119,
+    "crecheId": 40,
+    "municipioId": 1,
+    "faixaEtaria": "MATERNAL",
+    "vagasTotais": 20,
+    "vagasDisponiveis": 2,
+    "version": 0
+  },
+  {
+    "id": 120,
+    "crecheId": 40,
+    "municipioId": 1,
+    "faixaEtaria": "PRE_ESCOLA",
+    "vagasTotais": 25,
+    "vagasDisponiveis": 7,
+    "version": 0
+  },
+  {
+    "id": 121,
+    "crecheId": 41,
+    "municipioId": 2,
+    "faixaEtaria": "BERCARIO",
+    "vagasTotais": 20,
+    "vagasDisponiveis": 15,
+    "version": 0
+  },
+  {
+    "id": 122,
+    "crecheId": 41,
+    "municipioId": 2,
+    "faixaEtaria": "MATERNAL",
+    "vagasTotais": 18,
+    "vagasDisponiveis": 17,
+    "version": 0
+  },
+  {
+    "id": 123,
+    "crecheId": 41,
+    "municipioId": 2,
+    "faixaEtaria": "PRE_ESCOLA",
+    "vagasTotais": 18,
+    "vagasDisponiveis": 18,
+    "version": 0
+  },
+  {
+    "id": 124,
+    "crecheId": 42,
+    "municipioId": 3,
+    "faixaEtaria": "BERCARIO",
+    "vagasTotais": 25,
+    "vagasDisponiveis": 15,
+    "version": 0
+  },
+  {
+    "id": 125,
+    "crecheId": 42,
+    "municipioId": 3,
+    "faixaEtaria": "MATERNAL",
+    "vagasTotais": 18,
+    "vagasDisponiveis": 15,
+    "version": 0
+  },
+  {
+    "id": 126,
+    "crecheId": 42,
+    "municipioId": 3,
+    "faixaEtaria": "PRE_ESCOLA",
+    "vagasTotais": 24,
+    "vagasDisponiveis": 6,
+    "version": 0
+  },
+  {
+    "id": 127,
+    "crecheId": 43,
+    "municipioId": 1,
+    "faixaEtaria": "BERCARIO",
+    "vagasTotais": 15,
+    "vagasDisponiveis": 3,
+    "version": 0
+  },
+  {
+    "id": 128,
+    "crecheId": 43,
+    "municipioId": 1,
+    "faixaEtaria": "MATERNAL",
+    "vagasTotais": 30,
+    "vagasDisponiveis": 13,
+    "version": 0
+  },
+  {
+    "id": 129,
+    "crecheId": 43,
+    "municipioId": 1,
+    "faixaEtaria": "PRE_ESCOLA",
+    "vagasTotais": 20,
+    "vagasDisponiveis": 13,
+    "version": 0
+  },
+  {
+    "id": 130,
+    "crecheId": 44,
+    "municipioId": 2,
+    "faixaEtaria": "BERCARIO",
+    "vagasTotais": 24,
+    "vagasDisponiveis": 14,
+    "version": 0
+  },
+  {
+    "id": 131,
+    "crecheId": 44,
+    "municipioId": 2,
+    "faixaEtaria": "MATERNAL",
+    "vagasTotais": 30,
+    "vagasDisponiveis": 1,
+    "version": 0
+  },
+  {
+    "id": 132,
+    "crecheId": 44,
+    "municipioId": 2,
+    "faixaEtaria": "PRE_ESCOLA",
+    "vagasTotais": 30,
+    "vagasDisponiveis": 20,
+    "version": 0
+  },
+  {
+    "id": 133,
+    "crecheId": 45,
+    "municipioId": 3,
+    "faixaEtaria": "BERCARIO",
+    "vagasTotais": 30,
+    "vagasDisponiveis": 3,
+    "version": 0
+  },
+  {
+    "id": 134,
+    "crecheId": 45,
+    "municipioId": 3,
+    "faixaEtaria": "MATERNAL",
+    "vagasTotais": 15,
+    "vagasDisponiveis": 12,
+    "version": 0
+  },
+  {
+    "id": 135,
+    "crecheId": 45,
+    "municipioId": 3,
+    "faixaEtaria": "PRE_ESCOLA",
+    "vagasTotais": 30,
+    "vagasDisponiveis": 10,
+    "version": 0
+  },
+  {
+    "id": 136,
+    "crecheId": 46,
+    "municipioId": 1,
+    "faixaEtaria": "BERCARIO",
+    "vagasTotais": 15,
+    "vagasDisponiveis": 7,
+    "version": 0
+  },
+  {
+    "id": 137,
+    "crecheId": 46,
+    "municipioId": 1,
+    "faixaEtaria": "MATERNAL",
+    "vagasTotais": 18,
+    "vagasDisponiveis": 6,
+    "version": 0
+  },
+  {
+    "id": 138,
+    "crecheId": 46,
+    "municipioId": 1,
+    "faixaEtaria": "PRE_ESCOLA",
+    "vagasTotais": 25,
+    "vagasDisponiveis": 14,
+    "version": 0
+  },
+  {
+    "id": 139,
+    "crecheId": 47,
+    "municipioId": 2,
+    "faixaEtaria": "BERCARIO",
+    "vagasTotais": 18,
+    "vagasDisponiveis": 13,
+    "version": 0
+  },
+  {
+    "id": 140,
+    "crecheId": 47,
+    "municipioId": 2,
+    "faixaEtaria": "MATERNAL",
+    "vagasTotais": 18,
+    "vagasDisponiveis": 8,
+    "version": 0
+  },
+  {
+    "id": 141,
+    "crecheId": 47,
+    "municipioId": 2,
+    "faixaEtaria": "PRE_ESCOLA",
+    "vagasTotais": 24,
+    "vagasDisponiveis": 7,
+    "version": 0
+  },
+  {
+    "id": 142,
+    "crecheId": 48,
+    "municipioId": 3,
+    "faixaEtaria": "BERCARIO",
+    "vagasTotais": 15,
+    "vagasDisponiveis": 14,
+    "version": 0
+  },
+  {
+    "id": 143,
+    "crecheId": 48,
+    "municipioId": 3,
+    "faixaEtaria": "MATERNAL",
+    "vagasTotais": 25,
+    "vagasDisponiveis": 3,
+    "version": 0
+  },
+  {
+    "id": 144,
+    "crecheId": 48,
+    "municipioId": 3,
+    "faixaEtaria": "PRE_ESCOLA",
+    "vagasTotais": 15,
+    "vagasDisponiveis": 0,
+    "version": 0
+  },
+  {
+    "id": 145,
+    "crecheId": 49,
+    "municipioId": 1,
+    "faixaEtaria": "BERCARIO",
+    "vagasTotais": 15,
+    "vagasDisponiveis": 7,
+    "version": 0
+  },
+  {
+    "id": 146,
+    "crecheId": 49,
+    "municipioId": 1,
+    "faixaEtaria": "MATERNAL",
+    "vagasTotais": 18,
+    "vagasDisponiveis": 13,
+    "version": 0
+  },
+  {
+    "id": 147,
+    "crecheId": 49,
+    "municipioId": 1,
+    "faixaEtaria": "PRE_ESCOLA",
+    "vagasTotais": 24,
+    "vagasDisponiveis": 15,
+    "version": 0
+  },
+  {
+    "id": 148,
+    "crecheId": 50,
+    "municipioId": 2,
+    "faixaEtaria": "BERCARIO",
+    "vagasTotais": 18,
+    "vagasDisponiveis": 12,
+    "version": 0
+  },
+  {
+    "id": 149,
+    "crecheId": 50,
+    "municipioId": 2,
+    "faixaEtaria": "MATERNAL",
+    "vagasTotais": 15,
+    "vagasDisponiveis": 5,
+    "version": 0
+  },
+  {
+    "id": 150,
+    "crecheId": 50,
+    "municipioId": 2,
+    "faixaEtaria": "PRE_ESCOLA",
+    "vagasTotais": 24,
+    "vagasDisponiveis": 0,
+    "version": 0
+  }
+]

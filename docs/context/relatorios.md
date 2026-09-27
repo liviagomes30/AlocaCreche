@@ -3,6 +3,15 @@
 > Leia este arquivo antes de implementar ou revisar código em `alocacreche-relatorios/`. Decisões
 > arquiteturais: `docs/adr/0001-fundacao-arquitetural.md`.
 
+> **Enquanto a equipe for de 3 integrantes** (`docs/adr/0004-divisao-equipe-tres-integrantes.md`): além
+> do que está descrito abaixo, esta integrante também é dona do **Publicador da Outbox**
+> (`core/outbox` → RabbitMQ), do **Gateway**, da **autenticação básica** (Sa-Token) e da implementação
+> de `GeolocalizacaoService` — mecânica de cada peça em `docs/context/notificacao-plataforma.md`. Como
+> o contrato dos três eventos (`VagaLiberadaEvent`, `FilaEsperaAtualizadaEvent`,
+> `MatriculaAtualizadaEvent`) já está fixado neste módulo, é possível construir e testar o publicador
+> inserindo eventos sintéticos direto na tabela `outbox`, sem esperar Inscrição/Matrícula gravarem
+> eventos reais — só confira conformidade de contrato quando essas stacks entregarem.
+
 ## Este é o único serviço realmente separado do grupo
 
 Deploy e banco próprios — a única fronteira do sistema onde perder ou atrasar um evento não compromete

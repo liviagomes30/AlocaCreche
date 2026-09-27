@@ -4,16 +4,39 @@ spring:
 
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/alocacreche}
-    username: ${SPRING_DATASOURCE_USERNAME:alocacreche}
-    password: ${SPRING_DATASOURCE_PASSWORD:alocacreche}
+    # NUNCA o usuario bootstrap do container (sempre superuser, ignora RLS
+    # incondicionalmente) - conecta como a role dedicada nao-superuser criada em
+    # docker/postgres-core-init/01-app-role.sql. Ver AD-002 / notas-tecnicas.md.
+    username: ${SPRING_DATASOURCE_USERNAME:alocacreche_app}
+    password: ${SPRING_DATASOURCE_PASSWORD:alocacreche_app}
+
+  sql:
+    init:
+      # Sem isso, schema.sql so roda para banco embutido - Postgres real e ignorado
+      # silenciosamente por padrao, mesmo com defer-datasource-initialization.
+      mode: always
 
   jpa:
     # Ver .claude/skills/java-development/spring-boot/sb-jpa-repository.md
     open-in-view: false
+    # Roda schema.sql (RLS) depois do ddl-auto criar as tabelas - ver ADR 0001 decisao 14.
+    defer-datasource-initialization: true
     hibernate:
       # TODO: trocar para "validate" assim que Flyway/Liquibase gerenciar o
       # schema (ver docs/adr/0002-versoes-stack-e-scaffold-inicial.md). Ate
       # la, "update" evita falha de startup num banco ainda sem schema.
+      #
+      # LIMITACAO CONHECIDA (aceita, nao corrigir com policy fail-open - decisao
+      # explicita): depois que schema.sql aplica FORCE ROW LEVEL SECURITY numa base
+      # com FKs entre tabelas (crianca->responsavel, turma->creche, etc.), reiniciar
+      # a app contra ESSA MESMA base persistente (docker-compose local, nao os testes
+      # de integracao) falha - o proprio "update" verifica FK existente via uma query
+      # real contra a tabela, e o Postgres nega porque app.current_tenant ainda nao
+      # foi definido nessa conexao nova (fail-closed, mesma garantia de
+      # TenantContext#aplicar). So acontece na base local persistente entre
+      # reinicios; Testcontainers comeca vazio a cada teste e nao e afetado.
+      # Workaround local: recriar o volume do postgres-core (docker compose down -v
+      # postgres-core). Some de vez quando "validate" substituir "update" acima.
       ddl-auto: update
     properties:
       hibernate:

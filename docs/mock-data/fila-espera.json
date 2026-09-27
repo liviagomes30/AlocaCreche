@@ -1,0 +1,284 @@
+[
+  {
+    "inscricaoId": 1,
+    "turmaId": 82,
+    "posicao": 1,
+    "dataEntrada": "2026-06-07T19:29:10"
+  },
+  {
+    "inscricaoId": 2,
+    "turmaId": 104,
+    "posicao": 1,
+    "dataEntrada": "2025-12-28T19:29:10"
+  },
+  {
+    "inscricaoId": 5,
+    "turmaId": 66,
+    "posicao": 1,
+    "dataEntrada": "2026-03-11T19:29:10"
+  },
+  {
+    "inscricaoId": 9,
+    "turmaId": 65,
+    "posicao": 1,
+    "dataEntrada": "2026-05-08T19:29:10"
+  },
+  {
+    "inscricaoId": 13,
+    "turmaId": 43,
+    "posicao": 1,
+    "dataEntrada": "2026-03-06T19:29:10"
+  },
+  {
+    "inscricaoId": 15,
+    "turmaId": 137,
+    "posicao": 1,
+    "dataEntrada": "2026-04-20T19:29:10"
+  },
+  {
+    "inscricaoId": 16,
+    "turmaId": 40,
+    "posicao": 1,
+    "dataEntrada": "2025-11-02T19:29:10"
+  },
+  {
+    "inscricaoId": 17,
+    "turmaId": 132,
+    "posicao": 1,
+    "dataEntrada": "2025-11-06T19:29:10"
+  },
+  {
+    "inscricaoId": 18,
+    "turmaId": 106,
+    "posicao": 1,
+    "dataEntrada": "2026-05-14T19:29:10"
+  },
+  {
+    "inscricaoId": 21,
+    "turmaId": 122,
+    "posicao": 1,
+    "dataEntrada": "2025-10-06T19:29:10"
+  },
+  {
+    "inscricaoId": 22,
+    "turmaId": 144,
+    "posicao": 1,
+    "dataEntrada": "2025-12-28T19:29:10"
+  },
+  {
+    "inscricaoId": 24,
+    "turmaId": 55,
+    "posicao": 1,
+    "dataEntrada": "2026-05-13T19:29:10"
+  },
+  {
+    "inscricaoId": 29,
+    "turmaId": 67,
+    "posicao": 1,
+    "dataEntrada": "2026-02-22T19:29:10"
+  },
+  {
+    "inscricaoId": 30,
+    "turmaId": 25,
+    "posicao": 1,
+    "dataEntrada": "2025-10-17T19:29:10"
+  },
+  {
+    "inscricaoId": 33,
+    "turmaId": 133,
+    "posicao": 1,
+    "dataEntrada": "2025-12-22T19:29:10"
+  },
+  {
+    "inscricaoId": 35,
+    "turmaId": 145,
+    "posicao": 1,
+    "dataEntrada": "2025-10-10T19:29:10"
+  },
+  {
+    "inscricaoId": 38,
+    "turmaId": 106,
+    "posicao": 2,
+    "dataEntrada": "2025-12-25T19:29:10"
+  },
+  {
+    "inscricaoId": 39,
+    "turmaId": 20,
+    "posicao": 1,
+    "dataEntrada": "2025-11-06T19:29:10"
+  },
+  {
+    "inscricaoId": 40,
+    "turmaId": 31,
+    "posicao": 1,
+    "dataEntrada": "2025-10-18T19:29:10"
+  },
+  {
+    "inscricaoId": 46,
+    "turmaId": 14,
+    "posicao": 1,
+    "dataEntrada": "2026-01-29T19:29:10"
+  },
+  {
+    "inscricaoId": 47,
+    "turmaId": 149,
+    "posicao": 1,
+    "dataEntrada": "2025-12-06T19:29:10"
+  },
+  {
+    "inscricaoId": 48,
+    "turmaId": 62,
+    "posicao": 1,
+    "dataEntrada": "2025-10-22T19:29:10"
+  },
+  {
+    "inscricaoId": 49,
+    "turmaId": 38,
+    "posicao": 1,
+    "dataEntrada": "2026-06-03T19:29:10"
+  },
+  {
+    "inscricaoId": 53,
+    "turmaId": 48,
+    "posicao": 1,
+    "dataEntrada": "2025-09-30T19:29:10"
+  },
+  {
+    "inscricaoId": 55,
+    "turmaId": 94,
+    "posicao": 1,
+    "dataEntrada": "2026-04-11T19:29:10"
+  },
+  {
+    "inscricaoId": 57,
+    "turmaId": 146,
+    "posicao": 1,
+    "dataEntrada": "2026-04-26T19:29:10"
+  },
+  {
+    "inscricaoId": 59,
+    "turmaId": 130,
+    "posicao": 1,
+    "dataEntrada": "2025-10-29T19:29:10"
+  },
+  {
+    "inscricaoId": 67,
+    "turmaId": 33,
+    "posicao": 1,
+    "dataEntrada": "2026-08-19T19:29:10"
+  },
+  {
+    "inscricaoId": 70,
+    "turmaId": 63,
+    "posicao": 1,
+    "dataEntrada": "2026-02-24T19:29:10"
+  },
+  {
+    "inscricaoId": 71,
+    "turmaId": 137,
+    "posicao": 2,
+    "dataEntrada": "2026-04-22T19:29:10"
+  },
+  {
+    "inscricaoId": 73,
+    "turmaId": 22,
+    "posicao": 1,
+    "dataEntrada": "2026-03-10T19:29:10"
+  },
+  {
+    "inscricaoId": 76,
+    "turmaId": 147,
+    "posicao": 1,
+    "dataEntrada": "2026-03-24T19:29:10"
+  },
+  {
+    "inscricaoId": 77,
+    "turmaId": 130,
+    "posicao": 2,
+    "dataEntrada": "2025-12-31T19:29:10"
+  },
+  {
+    "inscricaoId": 79,
+    "turmaId": 11,
+    "posicao": 1,
+    "dataEntrada": "2026-06-22T19:29:10"
+  },
+  {
+    "inscricaoId": 80,
+    "turmaId": 131,
+    "posicao": 1,
+    "dataEntrada": "2025-12-27T19:29:10"
+  },
+  {
+    "inscricaoId": 81,
+    "turmaId": 44,
+    "posicao": 1,
+    "dataEntrada": "2026-03-28T19:29:10"
+  },
+  {
+    "inscricaoId": 83,
+    "turmaId": 149,
+    "posicao": 2,
+    "dataEntrada": "2025-11-21T19:29:10"
+  },
+  {
+    "inscricaoId": 86,
+    "turmaId": 125,
+    "posicao": 1,
+    "dataEntrada": "2026-06-01T19:29:10"
+  },
+  {
+    "inscricaoId": 91,
+    "turmaId": 130,
+    "posicao": 3,
+    "dataEntrada": "2026-04-14T19:29:10"
+  },
+  {
+    "inscricaoId": 96,
+    "turmaId": 14,
+    "posicao": 2,
+    "dataEntrada": "2025-11-30T19:29:10"
+  },
+  {
+    "inscricaoId": 101,
+    "turmaId": 132,
+    "posicao": 2,
+    "dataEntrada": "2026-07-30T19:29:10"
+  },
+  {
+    "inscricaoId": 103,
+    "turmaId": 88,
+    "posicao": 1,
+    "dataEntrada": "2026-01-03T19:29:10"
+  },
+  {
+    "inscricaoId": 104,
+    "turmaId": 2,
+    "posicao": 1,
+    "dataEntrada": "2025-11-27T19:29:10"
+  },
+  {
+    "inscricaoId": 105,
+    "turmaId": 112,
+    "posicao": 1,
+    "dataEntrada": "2025-12-09T19:29:10"
+  },
+  {
+    "inscricaoId": 106,
+    "turmaId": 79,
+    "posicao": 1,
+    "dataEntrada": "2026-06-07T19:29:10"
+  },
+  {
+    "inscricaoId": 108,
+    "turmaId": 2,
+    "posicao": 2,
+    "dataEntrada": "2026-06-16T19:29:10"
+  },
+  {
+    "inscricaoId": 110,
+    "turmaId": 61,
+    "posicao": 1,
+    "dataEntrada": "2026-09-10T19:29:10"
+  }
+]

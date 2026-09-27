@@ -1,0 +1,835 @@
+[
+  {
+    "id": 1,
+    "inscricaoId": 2,
+    "mensagem": "Sua inscricao foi registrada e esta na fila de espera.",
+    "dataEnvio": "2026-01-02T19:29:10",
+    "tipo": "EMAIL"
+  },
+  {
+    "id": 2,
+    "inscricaoId": 3,
+    "mensagem": "Matricula confirmada com sucesso.",
+    "dataEnvio": "2026-03-28T19:29:10",
+    "tipo": "EMAIL"
+  },
+  {
+    "id": 3,
+    "inscricaoId": 3,
+    "mensagem": "Matricula confirmada com sucesso.",
+    "dataEnvio": "2026-03-29T19:29:10",
+    "tipo": "EMAIL"
+  },
+  {
+    "id": 4,
+    "inscricaoId": 5,
+    "mensagem": "Sua inscricao foi registrada e esta na fila de espera.",
+    "dataEnvio": "2026-03-15T19:29:10",
+    "tipo": "SMS"
+  },
+  {
+    "id": 5,
+    "inscricaoId": 6,
+    "mensagem": "Matricula confirmada com sucesso.",
+    "dataEnvio": "2026-02-01T19:29:10",
+    "tipo": "PUSH"
+  },
+  {
+    "id": 6,
+    "inscricaoId": 7,
+    "mensagem": "Matricula confirmada com sucesso.",
+    "dataEnvio": "2025-10-05T19:29:10",
+    "tipo": "PUSH"
+  },
+  {
+    "id": 7,
+    "inscricaoId": 8,
+    "mensagem": "Matricula confirmada com sucesso.",
+    "dataEnvio": "2025-12-31T19:29:10",
+    "tipo": "SMS"
+  },
+  {
+    "id": 8,
+    "inscricaoId": 9,
+    "mensagem": "Sua inscricao foi registrada e esta na fila de espera.",
+    "dataEnvio": "2026-05-13T19:29:10",
+    "tipo": "PUSH"
+  },
+  {
+    "id": 9,
+    "inscricaoId": 10,
+    "mensagem": "Matricula confirmada com sucesso.",
+    "dataEnvio": "2025-12-26T19:29:10",
+    "tipo": "SMS"
+  },
+  {
+    "id": 10,
+    "inscricaoId": 11,
+    "mensagem": "Sua inscricao foi cancelada.",
+    "dataEnvio": "2026-01-26T19:29:10",
+    "tipo": "PUSH"
+  },
+  {
+    "id": 11,
+    "inscricaoId": 12,
+    "mensagem": "Matricula confirmada com sucesso.",
+    "dataEnvio": "2026-05-28T19:29:10",
+    "tipo": "PUSH"
+  },
+  {
+    "id": 12,
+    "inscricaoId": 13,
+    "mensagem": "Sua inscricao foi registrada e esta na fila de espera.",
+    "dataEnvio": "2026-03-10T19:29:10",
+    "tipo": "SMS"
+  },
+  {
+    "id": 13,
+    "inscricaoId": 13,
+    "mensagem": "Sua inscricao foi registrada e esta na fila de espera.",
+    "dataEnvio": "2026-03-06T19:29:10",
+    "tipo": "SMS"
+  },
+  {
+    "id": 14,
+    "inscricaoId": 14,
+    "mensagem": "Matricula confirmada com sucesso.",
+    "dataEnvio": "2026-07-29T19:29:10",
+    "tipo": "SMS"
+  },
+  {
+    "id": 15,
+    "inscricaoId": 14,
+    "mensagem": "Matricula confirmada com sucesso.",
+    "dataEnvio": "2026-07-30T19:29:10",
+    "tipo": "SMS"
+  },
+  {
+    "id": 16,
+    "inscricaoId": 15,
+    "mensagem": "Sua inscricao foi registrada e esta na fila de espera.",
+    "dataEnvio": "2026-04-21T19:29:10",
+    "tipo": "SMS"
+  },
+  {
+    "id": 17,
+    "inscricaoId": 15,
+    "mensagem": "Sua inscricao foi registrada e esta na fila de espera.",
+    "dataEnvio": "2026-04-23T19:29:10",
+    "tipo": "EMAIL"
+  },
+  {
+    "id": 18,
+    "inscricaoId": 16,
+    "mensagem": "Sua inscricao foi registrada e esta na fila de espera.",
+    "dataEnvio": "2025-11-03T19:29:10",
+    "tipo": "EMAIL"
+  },
+  {
+    "id": 19,
+    "inscricaoId": 16,
+    "mensagem": "Sua inscricao foi registrada e esta na fila de espera.",
+    "dataEnvio": "2025-11-04T19:29:10",
+    "tipo": "PUSH"
+  },
+  {
+    "id": 20,
+    "inscricaoId": 17,
+    "mensagem": "Sua inscricao foi registrada e esta na fila de espera.",
+    "dataEnvio": "2025-11-09T19:29:10",
+    "tipo": "EMAIL"
+  },
+  {
+    "id": 21,
+    "inscricaoId": 18,
+    "mensagem": "Voce foi convocado(a). Confirme a matricula dentro do prazo.",
+    "dataEnvio": "2026-05-17T19:29:10",
+    "tipo": "PUSH"
+  },
+  {
+    "id": 22,
+    "inscricaoId": 18,
+    "mensagem": "Voce foi convocado(a). Confirme a matricula dentro do prazo.",
+    "dataEnvio": "2026-05-18T19:29:10",
+    "tipo": "EMAIL"
+  },
+  {
+    "id": 23,
+    "inscricaoId": 19,
+    "mensagem": "Matricula confirmada com sucesso.",
+    "dataEnvio": "2026-01-02T19:29:10",
+    "tipo": "SMS"
+  },
+  {
+    "id": 24,
+    "inscricaoId": 19,
+    "mensagem": "Matricula confirmada com sucesso.",
+    "dataEnvio": "2026-01-02T19:29:10",
+    "tipo": "SMS"
+  },
+  {
+    "id": 25,
+    "inscricaoId": 21,
+    "mensagem": "Sua inscricao foi registrada e esta na fila de espera.",
+    "dataEnvio": "2025-10-08T19:29:10",
+    "tipo": "EMAIL"
+  },
+  {
+    "id": 26,
+    "inscricaoId": 21,
+    "mensagem": "Sua inscricao foi registrada e esta na fila de espera.",
+    "dataEnvio": "2025-10-10T19:29:10",
+    "tipo": "PUSH"
+  },
+  {
+    "id": 27,
+    "inscricaoId": 22,
+    "mensagem": "Sua inscricao foi registrada e esta na fila de espera.",
+    "dataEnvio": "2025-12-28T19:29:10",
+    "tipo": "SMS"
+  },
+  {
+    "id": 28,
+    "inscricaoId": 23,
+    "mensagem": "Matricula confirmada com sucesso.",
+    "dataEnvio": "2026-03-04T19:29:10",
+    "tipo": "PUSH"
+  },
+  {
+    "id": 29,
+    "inscricaoId": 23,
+    "mensagem": "Matricula confirmada com sucesso.",
+    "dataEnvio": "2026-03-03T19:29:10",
+    "tipo": "EMAIL"
+  },
+  {
+    "id": 30,
+    "inscricaoId": 25,
+    "mensagem": "Sua inscricao foi cancelada.",
+    "dataEnvio": "2026-07-11T19:29:10",
+    "tipo": "PUSH"
+  },
+  {
+    "id": 31,
+    "inscricaoId": 26,
+    "mensagem": "O prazo de confirmacao da matricula expirou.",
+    "dataEnvio": "2025-10-01T19:29:10",
+    "tipo": "EMAIL"
+  },
+  {
+    "id": 32,
+    "inscricaoId": 27,
+    "mensagem": "O prazo de confirmacao da matricula expirou.",
+    "dataEnvio": "2026-07-08T19:29:10",
+    "tipo": "EMAIL"
+  },
+  {
+    "id": 33,
+    "inscricaoId": 28,
+    "mensagem": "Matricula confirmada com sucesso.",
+    "dataEnvio": "2026-06-03T19:29:10",
+    "tipo": "PUSH"
+  },
+  {
+    "id": 34,
+    "inscricaoId": 30,
+    "mensagem": "Sua inscricao foi registrada e esta na fila de espera.",
+    "dataEnvio": "2025-10-18T19:29:10",
+    "tipo": "PUSH"
+  },
+  {
+    "id": 35,
+    "inscricaoId": 30,
+    "mensagem": "Sua inscricao foi registrada e esta na fila de espera.",
+    "dataEnvio": "2025-10-21T19:29:10",
+    "tipo": "PUSH"
+  },
+  {
+    "id": 36,
+    "inscricaoId": 31,
+    "mensagem": "Sua inscricao foi cancelada.",
+    "dataEnvio": "2025-10-16T19:29:10",
+    "tipo": "EMAIL"
+  },
+  {
+    "id": 37,
+    "inscricaoId": 32,
+    "mensagem": "Matricula confirmada com sucesso.",
+    "dataEnvio": "2026-02-02T19:29:10",
+    "tipo": "SMS"
+  },
+  {
+    "id": 38,
+    "inscricaoId": 33,
+    "mensagem": "Sua inscricao foi registrada e esta na fila de espera.",
+    "dataEnvio": "2025-12-26T19:29:10",
+    "tipo": "PUSH"
+  },
+  {
+    "id": 39,
+    "inscricaoId": 33,
+    "mensagem": "Sua inscricao foi registrada e esta na fila de espera.",
+    "dataEnvio": "2025-12-24T19:29:10",
+    "tipo": "SMS"
+  },
+  {
+    "id": 40,
+    "inscricaoId": 34,
+    "mensagem": "Matricula confirmada com sucesso.",
+    "dataEnvio": "2025-11-11T19:29:10",
+    "tipo": "PUSH"
+  },
+  {
+    "id": 41,
+    "inscricaoId": 35,
+    "mensagem": "Voce foi convocado(a). Confirme a matricula dentro do prazo.",
+    "dataEnvio": "2025-10-13T19:29:10",
+    "tipo": "EMAIL"
+  },
+  {
+    "id": 42,
+    "inscricaoId": 35,
+    "mensagem": "Voce foi convocado(a). Confirme a matricula dentro do prazo.",
+    "dataEnvio": "2025-10-15T19:29:10",
+    "tipo": "SMS"
+  },
+  {
+    "id": 43,
+    "inscricaoId": 36,
+    "mensagem": "Sua inscricao foi cancelada.",
+    "dataEnvio": "2026-03-19T19:29:10",
+    "tipo": "SMS"
+  },
+  {
+    "id": 44,
+    "inscricaoId": 37,
+    "mensagem": "Matricula confirmada com sucesso.",
+    "dataEnvio": "2025-10-24T19:29:10",
+    "tipo": "EMAIL"
+  },
+  {
+    "id": 45,
+    "inscricaoId": 38,
+    "mensagem": "Sua inscricao foi registrada e esta na fila de espera.",
+    "dataEnvio": "2025-12-30T19:29:10",
+    "tipo": "EMAIL"
+  },
+  {
+    "id": 46,
+    "inscricaoId": 40,
+    "mensagem": "Sua inscricao foi registrada e esta na fila de espera.",
+    "dataEnvio": "2025-10-22T19:29:10",
+    "tipo": "PUSH"
+  },
+  {
+    "id": 47,
+    "inscricaoId": 41,
+    "mensagem": "Matricula confirmada com sucesso.",
+    "dataEnvio": "2026-06-29T19:29:10",
+    "tipo": "EMAIL"
+  },
+  {
+    "id": 48,
+    "inscricaoId": 41,
+    "mensagem": "Matricula confirmada com sucesso.",
+    "dataEnvio": "2026-06-28T19:29:10",
+    "tipo": "SMS"
+  },
+  {
+    "id": 49,
+    "inscricaoId": 42,
+    "mensagem": "Matricula confirmada com sucesso.",
+    "dataEnvio": "2026-07-08T19:29:10",
+    "tipo": "PUSH"
+  },
+  {
+    "id": 50,
+    "inscricaoId": 43,
+    "mensagem": "O prazo de confirmacao da matricula expirou.",
+    "dataEnvio": "2026-09-03T19:29:10",
+    "tipo": "PUSH"
+  },
+  {
+    "id": 51,
+    "inscricaoId": 44,
+    "mensagem": "Matricula confirmada com sucesso.",
+    "dataEnvio": "2026-05-05T19:29:10",
+    "tipo": "SMS"
+  },
+  {
+    "id": 52,
+    "inscricaoId": 45,
+    "mensagem": "O prazo de confirmacao da matricula expirou.",
+    "dataEnvio": "2026-01-08T19:29:10",
+    "tipo": "EMAIL"
+  },
+  {
+    "id": 53,
+    "inscricaoId": 45,
+    "mensagem": "O prazo de confirmacao da matricula expirou.",
+    "dataEnvio": "2026-01-10T19:29:10",
+    "tipo": "SMS"
+  },
+  {
+    "id": 54,
+    "inscricaoId": 46,
+    "mensagem": "Sua inscricao foi registrada e esta na fila de espera.",
+    "dataEnvio": "2026-01-30T19:29:10",
+    "tipo": "PUSH"
+  },
+  {
+    "id": 55,
+    "inscricaoId": 47,
+    "mensagem": "Voce foi convocado(a). Confirme a matricula dentro do prazo.",
+    "dataEnvio": "2025-12-07T19:29:10",
+    "tipo": "PUSH"
+  },
+  {
+    "id": 56,
+    "inscricaoId": 47,
+    "mensagem": "Voce foi convocado(a). Confirme a matricula dentro do prazo.",
+    "dataEnvio": "2025-12-11T19:29:10",
+    "tipo": "EMAIL"
+  },
+  {
+    "id": 57,
+    "inscricaoId": 52,
+    "mensagem": "Sua inscricao foi cancelada.",
+    "dataEnvio": "2026-02-17T19:29:10",
+    "tipo": "PUSH"
+  },
+  {
+    "id": 58,
+    "inscricaoId": 52,
+    "mensagem": "Sua inscricao foi cancelada.",
+    "dataEnvio": "2026-02-17T19:29:10",
+    "tipo": "EMAIL"
+  },
+  {
+    "id": 59,
+    "inscricaoId": 53,
+    "mensagem": "Voce foi convocado(a). Confirme a matricula dentro do prazo.",
+    "dataEnvio": "2025-09-30T19:29:10",
+    "tipo": "EMAIL"
+  },
+  {
+    "id": 60,
+    "inscricaoId": 54,
+    "mensagem": "Sua inscricao foi cancelada.",
+    "dataEnvio": "2026-07-11T19:29:10",
+    "tipo": "EMAIL"
+  },
+  {
+    "id": 61,
+    "inscricaoId": 54,
+    "mensagem": "Sua inscricao foi cancelada.",
+    "dataEnvio": "2026-07-13T19:29:10",
+    "tipo": "PUSH"
+  },
+  {
+    "id": 62,
+    "inscricaoId": 55,
+    "mensagem": "Sua inscricao foi registrada e esta na fila de espera.",
+    "dataEnvio": "2026-04-16T19:29:10",
+    "tipo": "SMS"
+  },
+  {
+    "id": 63,
+    "inscricaoId": 55,
+    "mensagem": "Sua inscricao foi registrada e esta na fila de espera.",
+    "dataEnvio": "2026-04-11T19:29:10",
+    "tipo": "EMAIL"
+  },
+  {
+    "id": 64,
+    "inscricaoId": 56,
+    "mensagem": "Sua inscricao foi cancelada.",
+    "dataEnvio": "2025-12-22T19:29:10",
+    "tipo": "EMAIL"
+  },
+  {
+    "id": 65,
+    "inscricaoId": 56,
+    "mensagem": "Sua inscricao foi cancelada.",
+    "dataEnvio": "2025-12-26T19:29:10",
+    "tipo": "PUSH"
+  },
+  {
+    "id": 66,
+    "inscricaoId": 57,
+    "mensagem": "Sua inscricao foi registrada e esta na fila de espera.",
+    "dataEnvio": "2026-04-30T19:29:10",
+    "tipo": "SMS"
+  },
+  {
+    "id": 67,
+    "inscricaoId": 59,
+    "mensagem": "Sua inscricao foi registrada e esta na fila de espera.",
+    "dataEnvio": "2025-10-30T19:29:10",
+    "tipo": "EMAIL"
+  },
+  {
+    "id": 68,
+    "inscricaoId": 59,
+    "mensagem": "Sua inscricao foi registrada e esta na fila de espera.",
+    "dataEnvio": "2025-10-29T19:29:10",
+    "tipo": "PUSH"
+  },
+  {
+    "id": 69,
+    "inscricaoId": 60,
+    "mensagem": "Matricula confirmada com sucesso.",
+    "dataEnvio": "2026-08-31T19:29:10",
+    "tipo": "EMAIL"
+  },
+  {
+    "id": 70,
+    "inscricaoId": 61,
+    "mensagem": "Sua inscricao foi cancelada.",
+    "dataEnvio": "2025-11-27T19:29:10",
+    "tipo": "SMS"
+  },
+  {
+    "id": 71,
+    "inscricaoId": 62,
+    "mensagem": "Matricula confirmada com sucesso.",
+    "dataEnvio": "2025-10-20T19:29:10",
+    "tipo": "SMS"
+  },
+  {
+    "id": 72,
+    "inscricaoId": 62,
+    "mensagem": "Matricula confirmada com sucesso.",
+    "dataEnvio": "2025-10-23T19:29:10",
+    "tipo": "SMS"
+  },
+  {
+    "id": 73,
+    "inscricaoId": 63,
+    "mensagem": "Sua inscricao foi cancelada.",
+    "dataEnvio": "2025-10-01T19:29:10",
+    "tipo": "EMAIL"
+  },
+  {
+    "id": 74,
+    "inscricaoId": 64,
+    "mensagem": "Matricula confirmada com sucesso.",
+    "dataEnvio": "2026-07-07T19:29:10",
+    "tipo": "EMAIL"
+  },
+  {
+    "id": 75,
+    "inscricaoId": 67,
+    "mensagem": "Sua inscricao foi registrada e esta na fila de espera.",
+    "dataEnvio": "2026-08-22T19:29:10",
+    "tipo": "SMS"
+  },
+  {
+    "id": 76,
+    "inscricaoId": 67,
+    "mensagem": "Sua inscricao foi registrada e esta na fila de espera.",
+    "dataEnvio": "2026-08-23T19:29:10",
+    "tipo": "SMS"
+  },
+  {
+    "id": 77,
+    "inscricaoId": 70,
+    "mensagem": "Voce foi convocado(a). Confirme a matricula dentro do prazo.",
+    "dataEnvio": "2026-02-24T19:29:10",
+    "tipo": "SMS"
+  },
+  {
+    "id": 78,
+    "inscricaoId": 71,
+    "mensagem": "Sua inscricao foi registrada e esta na fila de espera.",
+    "dataEnvio": "2026-04-27T19:29:10",
+    "tipo": "SMS"
+  },
+  {
+    "id": 79,
+    "inscricaoId": 71,
+    "mensagem": "Sua inscricao foi registrada e esta na fila de espera.",
+    "dataEnvio": "2026-04-26T19:29:10",
+    "tipo": "EMAIL"
+  },
+  {
+    "id": 80,
+    "inscricaoId": 73,
+    "mensagem": "Sua inscricao foi registrada e esta na fila de espera.",
+    "dataEnvio": "2026-03-11T19:29:10",
+    "tipo": "PUSH"
+  },
+  {
+    "id": 81,
+    "inscricaoId": 74,
+    "mensagem": "Matricula confirmada com sucesso.",
+    "dataEnvio": "2026-08-09T19:29:10",
+    "tipo": "EMAIL"
+  },
+  {
+    "id": 82,
+    "inscricaoId": 74,
+    "mensagem": "Matricula confirmada com sucesso.",
+    "dataEnvio": "2026-08-07T19:29:10",
+    "tipo": "PUSH"
+  },
+  {
+    "id": 83,
+    "inscricaoId": 75,
+    "mensagem": "Matricula confirmada com sucesso.",
+    "dataEnvio": "2025-10-04T19:29:10",
+    "tipo": "PUSH"
+  },
+  {
+    "id": 84,
+    "inscricaoId": 77,
+    "mensagem": "Sua inscricao foi registrada e esta na fila de espera.",
+    "dataEnvio": "2026-01-02T19:29:10",
+    "tipo": "EMAIL"
+  },
+  {
+    "id": 85,
+    "inscricaoId": 78,
+    "mensagem": "Sua inscricao foi cancelada.",
+    "dataEnvio": "2026-01-27T19:29:10",
+    "tipo": "EMAIL"
+  },
+  {
+    "id": 86,
+    "inscricaoId": 79,
+    "mensagem": "Sua inscricao foi registrada e esta na fila de espera.",
+    "dataEnvio": "2026-06-22T19:29:10",
+    "tipo": "SMS"
+  },
+  {
+    "id": 87,
+    "inscricaoId": 79,
+    "mensagem": "Sua inscricao foi registrada e esta na fila de espera.",
+    "dataEnvio": "2026-06-23T19:29:10",
+    "tipo": "PUSH"
+  },
+  {
+    "id": 88,
+    "inscricaoId": 80,
+    "mensagem": "Voce foi convocado(a). Confirme a matricula dentro do prazo.",
+    "dataEnvio": "2025-12-31T19:29:10",
+    "tipo": "SMS"
+  },
+  {
+    "id": 89,
+    "inscricaoId": 81,
+    "mensagem": "Voce foi convocado(a). Confirme a matricula dentro do prazo.",
+    "dataEnvio": "2026-03-31T19:29:10",
+    "tipo": "PUSH"
+  },
+  {
+    "id": 90,
+    "inscricaoId": 82,
+    "mensagem": "Matricula confirmada com sucesso.",
+    "dataEnvio": "2025-10-01T19:29:10",
+    "tipo": "PUSH"
+  },
+  {
+    "id": 91,
+    "inscricaoId": 84,
+    "mensagem": "Matricula confirmada com sucesso.",
+    "dataEnvio": "2025-10-31T19:29:10",
+    "tipo": "EMAIL"
+  },
+  {
+    "id": 92,
+    "inscricaoId": 85,
+    "mensagem": "Sua inscricao foi cancelada.",
+    "dataEnvio": "2025-09-21T19:29:10",
+    "tipo": "EMAIL"
+  },
+  {
+    "id": 93,
+    "inscricaoId": 85,
+    "mensagem": "Sua inscricao foi cancelada.",
+    "dataEnvio": "2025-09-22T19:29:10",
+    "tipo": "PUSH"
+  },
+  {
+    "id": 94,
+    "inscricaoId": 86,
+    "mensagem": "Voce foi convocado(a). Confirme a matricula dentro do prazo.",
+    "dataEnvio": "2026-06-03T19:29:10",
+    "tipo": "EMAIL"
+  },
+  {
+    "id": 95,
+    "inscricaoId": 86,
+    "mensagem": "Voce foi convocado(a). Confirme a matricula dentro do prazo.",
+    "dataEnvio": "2026-06-06T19:29:10",
+    "tipo": "SMS"
+  },
+  {
+    "id": 96,
+    "inscricaoId": 87,
+    "mensagem": "Matricula confirmada com sucesso.",
+    "dataEnvio": "2026-08-16T19:29:10",
+    "tipo": "EMAIL"
+  },
+  {
+    "id": 97,
+    "inscricaoId": 87,
+    "mensagem": "Matricula confirmada com sucesso.",
+    "dataEnvio": "2026-08-15T19:29:10",
+    "tipo": "PUSH"
+  },
+  {
+    "id": 98,
+    "inscricaoId": 88,
+    "mensagem": "Matricula confirmada com sucesso.",
+    "dataEnvio": "2025-12-21T19:29:10",
+    "tipo": "EMAIL"
+  },
+  {
+    "id": 99,
+    "inscricaoId": 88,
+    "mensagem": "Matricula confirmada com sucesso.",
+    "dataEnvio": "2025-12-23T19:29:10",
+    "tipo": "PUSH"
+  },
+  {
+    "id": 100,
+    "inscricaoId": 89,
+    "mensagem": "Matricula confirmada com sucesso.",
+    "dataEnvio": "2026-03-16T19:29:10",
+    "tipo": "PUSH"
+  },
+  {
+    "id": 101,
+    "inscricaoId": 89,
+    "mensagem": "Matricula confirmada com sucesso.",
+    "dataEnvio": "2026-03-18T19:29:10",
+    "tipo": "EMAIL"
+  },
+  {
+    "id": 102,
+    "inscricaoId": 92,
+    "mensagem": "Sua inscricao foi cancelada.",
+    "dataEnvio": "2026-03-20T19:29:10",
+    "tipo": "SMS"
+  },
+  {
+    "id": 103,
+    "inscricaoId": 93,
+    "mensagem": "Sua inscricao foi cancelada.",
+    "dataEnvio": "2025-10-07T19:29:10",
+    "tipo": "SMS"
+  },
+  {
+    "id": 104,
+    "inscricaoId": 94,
+    "mensagem": "Matricula confirmada com sucesso.",
+    "dataEnvio": "2026-07-03T19:29:10",
+    "tipo": "EMAIL"
+  },
+  {
+    "id": 105,
+    "inscricaoId": 97,
+    "mensagem": "O prazo de confirmacao da matricula expirou.",
+    "dataEnvio": "2026-08-22T19:29:10",
+    "tipo": "SMS"
+  },
+  {
+    "id": 106,
+    "inscricaoId": 98,
+    "mensagem": "O prazo de confirmacao da matricula expirou.",
+    "dataEnvio": "2026-03-28T19:29:10",
+    "tipo": "EMAIL"
+  },
+  {
+    "id": 107,
+    "inscricaoId": 100,
+    "mensagem": "O prazo de confirmacao da matricula expirou.",
+    "dataEnvio": "2026-01-15T19:29:10",
+    "tipo": "SMS"
+  },
+  {
+    "id": 108,
+    "inscricaoId": 101,
+    "mensagem": "Voce foi convocado(a). Confirme a matricula dentro do prazo.",
+    "dataEnvio": "2026-07-30T19:29:10",
+    "tipo": "EMAIL"
+  },
+  {
+    "id": 109,
+    "inscricaoId": 101,
+    "mensagem": "Voce foi convocado(a). Confirme a matricula dentro do prazo.",
+    "dataEnvio": "2026-07-30T19:29:10",
+    "tipo": "SMS"
+  },
+  {
+    "id": 110,
+    "inscricaoId": 103,
+    "mensagem": "Sua inscricao foi registrada e esta na fila de espera.",
+    "dataEnvio": "2026-01-06T19:29:10",
+    "tipo": "EMAIL"
+  },
+  {
+    "id": 111,
+    "inscricaoId": 104,
+    "mensagem": "Voce foi convocado(a). Confirme a matricula dentro do prazo.",
+    "dataEnvio": "2025-11-30T19:29:10",
+    "tipo": "SMS"
+  },
+  {
+    "id": 112,
+    "inscricaoId": 106,
+    "mensagem": "Sua inscricao foi registrada e esta na fila de espera.",
+    "dataEnvio": "2026-06-11T19:29:10",
+    "tipo": "PUSH"
+  },
+  {
+    "id": 113,
+    "inscricaoId": 107,
+    "mensagem": "Sua inscricao foi cancelada.",
+    "dataEnvio": "2026-06-15T19:29:10",
+    "tipo": "SMS"
+  },
+  {
+    "id": 114,
+    "inscricaoId": 108,
+    "mensagem": "Voce foi convocado(a). Confirme a matricula dentro do prazo.",
+    "dataEnvio": "2026-06-17T19:29:10",
+    "tipo": "SMS"
+  },
+  {
+    "id": 115,
+    "inscricaoId": 109,
+    "mensagem": "Matricula confirmada com sucesso.",
+    "dataEnvio": "2026-08-02T19:29:10",
+    "tipo": "SMS"
+  },
+  {
+    "id": 116,
+    "inscricaoId": 110,
+    "mensagem": "Sua inscricao foi registrada e esta na fila de espera.",
+    "dataEnvio": "2026-09-10T19:29:10",
+    "tipo": "EMAIL"
+  },
+  {
+    "id": 117,
+    "inscricaoId": 111,
+    "mensagem": "Sua inscricao foi cancelada.",
+    "dataEnvio": "2025-11-21T19:29:10",
+    "tipo": "SMS"
+  },
+  {
+    "id": 118,
+    "inscricaoId": 111,
+    "mensagem": "Sua inscricao foi cancelada.",
+    "dataEnvio": "2025-11-21T19:29:10",
+    "tipo": "SMS"
+  },
+  {
+    "id": 119,
+    "inscricaoId": 113,
+    "mensagem": "Matricula confirmada com sucesso.",
+    "dataEnvio": "2025-09-20T19:29:10",
+    "tipo": "EMAIL"
+  }
+]

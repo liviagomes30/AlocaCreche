@@ -1,11 +1,13 @@
 # Harness de IA (Claude Code e mirrors) — local, nao faz parte do repositorio remoto
 CLAUDE.md
 SKILLS.md
+ONBOARDING.md
 .claude/
 .cursor/
 .agents/
 .windsurf/
 .harness-eval/
+.specs/
 
 # Maven
 target/
