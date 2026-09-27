@@ -74,6 +74,19 @@ class OutboxPublicadorServiceTest {
     }
 
     @Test
+    @DisplayName("tipoEvento nulo marca ERRO sem lancar NullPointerException")
+    void tipoEventoNuloMarcaErroSemLancarNullPointerException() {
+        OutboxEvent evento = new OutboxEvent();
+        evento.setPayload("{}");
+
+        service.publicarEvento(evento);
+
+        verify(rabbitTemplate, never()).convertAndSend(anyString(), anyString(), anyString());
+        assertThat(evento.getStatus()).isEqualTo("ERRO");
+        verify(repository).save(evento);
+    }
+
+    @Test
     @DisplayName("falha de publish mantem PENDENTE e nao propaga a excecao")
     void falhaDePublishMantemPendenteSemPropagarExcecao() {
         OutboxEvent evento = new OutboxEvent("vaga.liberada", "{}");

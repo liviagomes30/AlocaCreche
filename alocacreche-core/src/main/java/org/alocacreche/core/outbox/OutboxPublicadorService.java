@@ -40,7 +40,8 @@ public class OutboxPublicadorService {
      */
     @Transactional
     public void publicarEvento(OutboxEvent evento) {
-        if (!ROUTING_KEYS_CONHECIDAS.contains(evento.getTipoEvento())) {
+        if (evento.getTipoEvento() == null
+                || !ROUTING_KEYS_CONHECIDAS.contains(evento.getTipoEvento())) {
             log.warn(
                     "OutboxEvent id={} com tipoEvento sem routing key conhecida: {}",
                     evento.getId(),
