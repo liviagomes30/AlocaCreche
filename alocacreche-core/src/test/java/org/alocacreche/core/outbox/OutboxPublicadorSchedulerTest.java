@@ -1,5 +1,8 @@
 package org.alocacreche.core.outbox;
 
+import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -39,7 +42,7 @@ class OutboxPublicadorSchedulerTest {
 
         scheduler.executar();
 
-        verify(service, never()).publicarEvento(org.mockito.ArgumentMatchers.any());
+        verify(service, never()).publicarEvento(any());
     }
 
     @Test
@@ -53,5 +56,21 @@ class OutboxPublicadorSchedulerTest {
 
         verify(service, times(1)).publicarEvento(evento1);
         verify(service, times(1)).publicarEvento(evento2);
+    }
+
+    @Test
+    @DisplayName("falha inesperada num evento nao impede o processamento dos demais do mesmo poll")
+    void falhaInesperadaNumEventoNaoImpedeProcessamentoDosDemais() {
+        OutboxEvent eventoComFalha = new OutboxEvent("vaga.liberada", "{}");
+        OutboxEvent eventoOk = new OutboxEvent("fila.atualizada", "{}");
+        when(service.buscarPendentes()).thenReturn(List.of(eventoComFalha, eventoOk));
+        doThrow(new RuntimeException("falha inesperada, ex.: erro de banco ao salvar"))
+                .when(service)
+                .publicarEvento(eventoComFalha);
+
+        assertThatCode(() -> scheduler.executar()).doesNotThrowAnyException();
+
+        verify(service, times(1)).publicarEvento(eventoComFalha);
+        verify(service, times(1)).publicarEvento(eventoOk);
     }
 }

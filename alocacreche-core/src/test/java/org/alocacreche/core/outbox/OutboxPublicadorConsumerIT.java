@@ -49,7 +49,13 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 class OutboxPublicadorConsumerIT {
 
     private static final String FILA_TESTE_OCUPACAO = "relatorios.ocupacao";
-    private static final long TIMEOUT_POLL_MS = 5_000;
+    /**
+     * 2x o intervalo do poll (fixedDelay=1000ms) - margem para jitter de agendamento sob teste,
+     * mas ainda apertado o suficiente para reprovar se o poll real ficar muito mais lento que o
+     * ~1s prometido na spec (OUTPUB-01). Um timeout muito mais largo (ex.: 5s) provaria só entrega
+     * eventual, nao o limite de latencia da spec.
+     */
+    private static final long TIMEOUT_POLL_MS = 2_000;
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     @Container
