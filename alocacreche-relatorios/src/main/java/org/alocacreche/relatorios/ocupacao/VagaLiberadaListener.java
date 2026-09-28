@@ -9,12 +9,6 @@ import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * Consome VagaLiberada da fila declarada em RabbitMqConfig. Valida o payload (lanca
- * EventoInvalidoException se invalido - exclui da politica de retry, ver AD-001), aplica o tenant
- * da sessao via TenantContext, e delega o upsert idempotente ao repositorio - tudo na mesma
- * transacao (OCUP-01/04).
- */
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -65,12 +59,6 @@ public class VagaLiberadaListener {
         }
     }
 
-    /**
-     * Retorna a excecao em vez de lanca-la diretamente para que cada chamada em validar() use
-     * "throw rejeitar(...)" - auto-documentado como divergente para quem le (e para o compilador,
-     * que exige o throw explicito), ao contrario de um metodo void que so lanca por efeito
-     * colateral.
-     */
     private EventoInvalidoException rejeitar(VagaLiberadaEvent evento, String motivo) {
         log.warn("Evento VagaLiberada rejeitado (turmaId={}): {}", evento.turmaId(), motivo);
         return new EventoInvalidoException(motivo);

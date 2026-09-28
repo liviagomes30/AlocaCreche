@@ -10,15 +10,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-/**
- * Leitura dos relatorios de distancia media de alocacao e taxa de confirmacao de matricula, ambos a
- * partir da mesma projecao MatriculaRelatorio (ver docs/arquitetura/visao-geral.md,
- * distanciaMediaAlocacao/taxaConfirmacaoMatricula). Autenticacao (Sa-Token) intencionalmente ausente
- * por agora - mesmo TODO documentado de OcupacaoConsultaController/RelatorioFilaEsperaController.
- *
- * <p>municipioId e periodo sem {@code required = false} ja produzem HTTP 400 automatico do Spring
- * MVC quando ausentes, antes destes metodos rodarem.
- */
 @RestController
 @RequestMapping("/api/v1/relatorios/matricula")
 @RequiredArgsConstructor

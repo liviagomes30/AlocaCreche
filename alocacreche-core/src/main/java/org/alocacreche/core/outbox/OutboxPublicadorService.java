@@ -9,12 +9,6 @@ import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * Le eventos PENDENTE (ordenados por id) e publica um por vez no RabbitMQ - falha de um evento
- * nunca aborta os demais do mesmo poll (ver OutboxPublicadorScheduler, que faz o loop). O payload
- * ja e a String JSON pronta gravada por quem escreveu na Outbox - este service nunca desserializa,
- * so repassa.
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -33,11 +27,6 @@ public class OutboxPublicadorService {
         return repository.findByStatusOrderByIdAsc(OutboxEvent.STATUS_PENDENTE);
     }
 
-    /**
-     * tipoEvento eh a propria routing key (convencao do projeto - ver spec de
-     * outbox-publicador-rabbitmq). Falha de publish (AmqpException) fica so em log, sem relancar -
-     * o evento continua PENDENTE, sera reprocessado no proximo poll.
-     */
     @Transactional
     public void publicarEvento(OutboxEvent evento) {
         if (evento.getTipoEvento() == null

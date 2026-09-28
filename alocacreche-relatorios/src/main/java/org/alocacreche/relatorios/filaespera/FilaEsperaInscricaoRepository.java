@@ -9,14 +9,6 @@ import org.springframework.data.repository.query.Param;
 
 public interface FilaEsperaInscricaoRepository extends JpaRepository<FilaEsperaInscricao, Long> {
 
-    /**
-     * Upsert atomico e idempotente: cria a linha se inscricaoId nao existir; atualiza somente se a
-     * sequencia recebida for maior que a ja aplicada. Sem janela de corrida - o Postgres serializa
-     * concorrencia no INSERT ... ON CONFLICT (ver FILA-01/02/03).
-     *
-     * <p>clearAutomatically = true: mesma razao de OcupacaoTurmaRepository.upsert - um upsert nativo
-     * nao atualiza o primeiro nivel de cache do EntityManager.
-     */
     @Modifying(clearAutomatically = true)
     @Query(
             value = """
@@ -41,13 +33,6 @@ public interface FilaEsperaInscricaoRepository extends JpaRepository<FilaEsperaI
             @Param("dataSaida") LocalDate dataSaida,
             @Param("eventId") Long eventId);
 
-    /**
-     * Agrega por turma em tempo de consulta - contagem de quem ainda aguarda (dataSaida nula) e o
-     * tempo medio de espera em dias, incluindo quem ainda aguarda no calculo (COALESCE com
-     * CURRENT_DATE). Turma sem nenhuma linha simplesmente nao aparece no GROUP BY (FILA-15). Mesmo
-     * padrao "(:crecheId IS NULL OR ...)" de OcupacaoTurmaRepository.buscarPorFiltro - volume pequeno
-     * por municipio torna o custo aceitavel.
-     */
     @Query(
             value = """
                 SELECT

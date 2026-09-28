@@ -9,12 +9,6 @@ import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * Consome FilaEsperaAtualizada da fila declarada em RabbitMqConfig. Valida o payload (campos
- * obrigatorios e consistencia dataSaida/dataEntrada - lanca FilaEsperaEventoInvalidoException se
- * invalido, exclui da politica de retry, ver AD-001), aplica o tenant da sessao via TenantContext,
- * e delega o upsert idempotente ao repositorio - tudo na mesma transacao (FILA-01/04/07/08).
- */
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -71,10 +65,6 @@ public class FilaEsperaAtualizadaListener {
         }
     }
 
-    /**
-     * Retorna a excecao em vez de lanca-la diretamente para que cada chamada em validar() use
-     * "throw rejeitar(...)" - mesma convencao de VagaLiberadaListener.
-     */
     private FilaEsperaEventoInvalidoException rejeitar(FilaEsperaAtualizadaEvent evento, String motivo) {
         log.warn("Evento FilaEsperaAtualizada rejeitado (inscricaoId={}): {}", evento.inscricaoId(), motivo);
         return new FilaEsperaEventoInvalidoException(motivo);

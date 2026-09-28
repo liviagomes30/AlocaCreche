@@ -8,14 +8,6 @@ import java.time.LocalDateTime;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-/**
- * Projecao de leitura da ocupacao de uma turma. Chave primaria = turmaId (chave de negocio, sem
- * surrogate id - e uma projecao, nao um dono de dominio). Mantida por upsert idempotente em
- * OcupacaoTurmaRepository; nunca criada/atualizada via save() direto - por isso nao ha setters, so
- * getters (mutar via setter fora do fluxo de upsert quebraria a garantia de idempotencia).
- *
- * <p>Isolada por Row-Level Security (municipio_id) - ver schema.sql.
- */
 @Entity
 @Table(name = "ocupacao_turma")
 @Getter

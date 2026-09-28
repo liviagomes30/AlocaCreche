@@ -4,13 +4,6 @@ import org.springframework.amqp.core.TopicExchange;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-/**
- * Declara a exchange do lado do publicador, de forma idempotente - alocacreche-core nao pode
- * depender de alocacreche-relatorios estar de pe primeiro para a exchange existir no broker.
- * Constantes espelham literalmente
- * alocacreche-relatorios/src/main/java/org/alocacreche/relatorios/config/RabbitMqConfig.java
- * (mesmo nome/tipo - nao ha modulo Java compartilhado entre os dois deploys, ADR 0001 decisao 2).
- */
 @Configuration
 public class OutboxRabbitConfig {
 

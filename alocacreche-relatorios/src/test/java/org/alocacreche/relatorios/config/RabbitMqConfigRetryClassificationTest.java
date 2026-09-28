@@ -12,7 +12,7 @@ import org.springframework.retry.policy.SimpleRetryPolicy;
  * Testa a classificacao de retry isoladamente (sem broker/Testcontainers - ver AD-001). O
  * mecanismo de classificacao ja causou dois bugs reais nesta feature (rodadas 1 e 2 do
  * Verificador), por isso esta prova e feita com a policy de producao de verdade
- * (RabbitMqConfig.retryableExceptions()), nao com uma reconstrucao manual do mapa.
+ * (RabbitMqConfig.excecoesSemRetryRejeitarParaDlq()), nao com uma reconstrucao manual do mapa.
  *
  * <p>Prova especificamente o ganho da refatoracao que trocou EventoInvalidoException.class por
  * EventoDominioInvalidoException.class (classe-base) no mapa: uma subclasse que RabbitMqConfig
@@ -31,7 +31,7 @@ class RabbitMqConfigRetryClassificationTest {
     @Test
     void subclasseNaoRegistradaExplicitamenteEClassificadaNaoRetryablePelaHierarquia() {
         SimpleRetryPolicy retryPolicy =
-                new SimpleRetryPolicy(3, RabbitMqConfig.retryableExceptions(), true, true);
+                new SimpleRetryPolicy(3, RabbitMqConfig.excecoesSemRetryRejeitarParaDlq(), true, true);
 
         RetryContext context =
                 registrarFalha(
@@ -45,7 +45,7 @@ class RabbitMqConfigRetryClassificationTest {
     @Test
     void excecaoNaoMapeadaContinuaRetryablePorPadrao() {
         SimpleRetryPolicy retryPolicy =
-                new SimpleRetryPolicy(3, RabbitMqConfig.retryableExceptions(), true, true);
+                new SimpleRetryPolicy(3, RabbitMqConfig.excecoesSemRetryRejeitarParaDlq(), true, true);
 
         RetryContext context =
                 registrarFalha(

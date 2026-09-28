@@ -6,11 +6,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-/**
- * Painel público cacheado (ver docs/arquitetura/visao-geral.md, consultarPainelPublico).
- * Autenticação intencionalmente ausente - painel é público por definição (mesma decisão do Epic 1
- * para o relatório gerencial, mas aqui é a escolha natural, não um TODO).
- */
 @RestController
 @RequestMapping("/api/v1/relatorios/painel-publico")
 @RequiredArgsConstructor

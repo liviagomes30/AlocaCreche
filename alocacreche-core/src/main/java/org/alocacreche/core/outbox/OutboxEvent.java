@@ -13,18 +13,6 @@ import lombok.Setter;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
-/**
- * Schema generico e estavel (ver ADR 0001, decisao 10) — nao adicione colunas
- * especificas de um tipo de evento aqui; o payload especifico vai dentro de {@code
- * payload} (JSON serializado). O {@code id} auto-incremento tambem serve como sequencia
- * global de entrega para consumidores que precisam detectar entregas fora de ordem
- * (ver {@code sb-outbox-pattern.md}).
- *
- * <p>{@code status} tem 3 valores possiveis: {@code PENDENTE} (aguardando publicacao),
- * {@code PROCESSADO} (publicado com sucesso) e {@code ERRO} (tipoEvento sem routing key
- * reconhecida pelo Publicador — erro permanente, nao tentado de novo, ver
- * OutboxPublicadorService).
- */
 @Entity
 @Table(name = "outbox")
 @Getter
@@ -43,12 +31,6 @@ public class OutboxEvent {
     @Column(name = "tipo_evento", nullable = false, length = 100)
     private String tipoEvento;
 
-    /**
-     * {@code @JdbcTypeCode(SqlTypes.JSON)} - sem isso, Hibernate faz bind como varchar e o insert
-     * falha ("column payload is of type jsonb but expression is of type character varying"), ja
-     * que {@code columnDefinition} sozinho so afeta a DDL gerada, nao o tipo usado no bind em
-     * tempo de execucao.
-     */
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "payload", nullable = false, columnDefinition = "jsonb")
     private String payload;

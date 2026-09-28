@@ -11,12 +11,6 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * Painel público agregado (ver docs/arquitetura/visao-geral.md, consultarPainelPublico). Reusa
- * OcupacaoTurmaRepository.buscarPorFiltro (mesma consulta do relatório detalhado) e agrega em
- * memória - volume de dados por município é pequeno o suficiente para não precisar de uma query SQL
- * agregada dedicada (ver design.md, relatorios-painel-publico).
- */
 @Service
 @RequiredArgsConstructor
 public class PainelPublicoService {
@@ -24,11 +18,6 @@ public class PainelPublicoService {
     private final OcupacaoTurmaRepository repository;
     private final EntityManager entityManager;
 
-    /**
-     * Sem sync=true de propósito - não é por causa do fail-open (sync=true não afeta o
-     * CacheErrorHandler, ver CacheConfig), e sim para não serializar chamadas simultâneas em cache
-     * miss (aceitando um thundering herd pequeno em vez de travar requisições concorrentes).
-     */
     @Cacheable(cacheNames = "painel-publico", key = "#municipioId")
     @Transactional(readOnly = true)
     public PainelPublicoDTO obterPainel(Long municipioId) {

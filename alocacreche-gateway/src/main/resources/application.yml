@@ -3,22 +3,17 @@ spring:
     name: alocacreche-gateway
   cloud:
     gateway:
-      # Prefixo de rota decidido em docs/adr/0003-prefixo-rest-api.md:
-      # /api/v1/<modulo>/<funcionalidade>. Spring Cloud Gateway casa rotas na
-      # ordem declarada aqui (primeiro match vence) - a rota de relatorios
-      # precisa vir ANTES da rota do core, porque seu predicate
-      # (/api/v1/relatorios/**) e um subconjunto do predicate do core
-      # (/api/v1/**). Com a ordem invertida, toda chamada a relatorios seria
-      # roteada (silenciosamente) para o core, que nem tem esses endpoints.
-      routes:
-        - id: alocacreche-relatorios
-          uri: ${ALOCACRECHE_RELATORIOS_URL:http://localhost:8082}
-          predicates:
-            - Path=/api/v1/relatorios/**
-        - id: alocacreche-core
-          uri: ${ALOCACRECHE_CORE_URL:http://localhost:8081}
-          predicates:
-            - Path=/api/v1/**
+      server:
+        webflux:
+          routes:
+            - id: alocacreche-relatorios
+              uri: ${ALOCACRECHE_RELATORIOS_URL:http://localhost:8082}
+              predicates:
+                - Path=/api/v1/relatorios/**
+            - id: alocacreche-core
+              uri: ${ALOCACRECHE_CORE_URL:http://localhost:8081}
+              predicates:
+                - Path=/api/v1/**
 
 server:
   port: ${SERVER_PORT:8080}

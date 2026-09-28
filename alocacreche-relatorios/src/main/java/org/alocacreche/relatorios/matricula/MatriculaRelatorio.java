@@ -11,15 +11,6 @@ import java.time.LocalDateTime;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-/**
- * Projecao de leitura do estado de uma matricula, usada tanto pelo relatorio de distancia media de
- * alocacao quanto pelo de taxa de confirmacao (mesma logica de FilaEsperaInscricao - uma unica
- * projecao alimenta mais de um relatorio agregado em tempo de consulta). Chave primaria =
- * matriculaId (chave de negocio, sem surrogate id - e uma projecao, nao dono de dominio). Mantida
- * por upsert idempotente em MatriculaRelatorioRepository; sem setters, so getters.
- *
- * <p>Isolada por Row-Level Security (municipio_id) - ver schema.sql.
- */
 @Entity
 @Table(name = "matricula_relatorio")
 @Getter

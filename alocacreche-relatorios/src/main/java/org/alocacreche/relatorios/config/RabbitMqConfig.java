@@ -21,12 +21,6 @@ import org.springframework.retry.interceptor.RetryOperationsInterceptor;
 import org.springframework.retry.policy.SimpleRetryPolicy;
 import org.springframework.retry.support.RetryTemplate;
 
-/**
- * Topologia RabbitMQ do consumidor VagaLiberada (ver design.md e ADR 0001, decisao 10). Retry +
- * dead-lettering seguem o padrao AD-001 (.specs/STATE.md): 3 tentativas via Spring Retry,
- * EventoDominioInvalidoException (classe-base, compartilhada por qualquer consumidor deste modulo)
- * excluida da politica (rejeicao imediata), DLX nativo do RabbitMQ na fila principal.
- */
 @Configuration
 public class RabbitMqConfig {
 
@@ -151,42 +145,21 @@ public class RabbitMqConfig {
         return factory;
     }
 
-    /**
-     * Exposto package-private (nao private) para ser testado isoladamente em
-     * RabbitMqConfigRetryClassificationTest, sem precisar de broker/Testcontainers - ver AD-001.
-     */
-    static Map<Class<? extends Throwable>, Boolean> retryableExceptions() {
-        // Map.of: tabela fixa de classificacao, nunca mutada apos construida (SimpleRetryPolicy
-        // copia para seu proprio ConcurrentHashMap internamente) - imutavel por natureza, nao so
-        // por convencao.
-        //
-        // EventoDominioInvalidoException (classe-base, nao uma excecao concreta de um dominio
-        // especifico) nunca tenta de novo - rejeicao imediata para a DLQ (OCUP-06/07). Qualquer
-        // consumidor futuro (ex.: MatriculaCriada) so precisa lancar uma subclasse desta excecao
-        // para herdar a mesma politica, sem editar esta classe - SubclassClassifier resolve pela
-        // hierarquia, nao por igualdade exata de classe (confirmado via bytecode, ver AD-001).
-        //
-        // MessageConversionException: JSON malformado falha na conversao, antes do
-        // listener/validar() rodar - tambem precisa ser rejeicao imediata (OCUP-06 cobre "nao
-        // puder ser desserializado", nao so campo faltando), senao cairia na politica de retry
-        // generica abaixo.
+    static Map<Class<? extends Throwable>, Boolean> excecoesSemRetryRejeitarParaDlq() {
         return Map.of(
                 EventoDominioInvalidoException.class, false,
                 MessageConversionException.class, false);
     }
 
     private RetryOperationsInterceptor retryInterceptor() {
-        // traverseCauses=true: o Spring AMQP envolve a excecao original numa
-        // ListenerExecutionFailedException antes de chegar aqui. defaultValue=true: qualquer
-        // excecao NAO listada acima (ex.: falha transitoria de banco) continua retryable por
-        // padrao. Ver .specs/STATE.md AD-001 - NAO adicionar uma entrada catch-all
-        // "Exception.class -> true" aqui: o classifier casa o wrapper externo
-        // (ListenerExecutionFailedException, que É uma Exception) com essa entrada antes de
-        // sequer olhar a causa, fazendo EventoInvalidoException/MessageConversionException
-        // serem retentadas mesmo estando mapeadas como false - descoberto por um teste fim a
-        // fim que contava invocacoes do listener, nao so o resultado final (DLQ + repositorio
-        // nunca chamado e verdade tanto com 1 tentativa quanto com 3).
-        SimpleRetryPolicy retryPolicy = new SimpleRetryPolicy(3, retryableExceptions(), true, true);
+        boolean classificarPelaCausaRealDaExcecao = true;
+        boolean excecoesNaoMapeadasSaoRetryablesPorPadrao = true;
+        SimpleRetryPolicy retryPolicy =
+                new SimpleRetryPolicy(
+                        3,
+                        excecoesSemRetryRejeitarParaDlq(),
+                        classificarPelaCausaRealDaExcecao,
+                        excecoesNaoMapeadasSaoRetryablesPorPadrao);
         RetryTemplate retryTemplate = new RetryTemplate();
         retryTemplate.setRetryPolicy(retryPolicy);
 

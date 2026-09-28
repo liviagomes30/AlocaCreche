@@ -27,7 +27,7 @@ class GeolocalizacaoServiceImplTest {
         void distanciaEntreMesmaCoordenadaEZero() {
             Endereco endereco = enderecoCom(-23.5505, -46.6333);
 
-            assertThat(service.calcularDistancia(endereco, endereco)).isCloseTo(0.0, within(0.01));
+            assertThat(service.calcularDistanciaEmQuilometros(endereco, endereco)).isCloseTo(0.0, within(0.01));
         }
 
         @Test
@@ -36,7 +36,7 @@ class GeolocalizacaoServiceImplTest {
             Endereco saoPaulo = enderecoCom(-23.5505, -46.6333);
             Endereco rioDeJaneiro = enderecoCom(-22.9068, -43.1729);
 
-            Double distancia = service.calcularDistancia(saoPaulo, rioDeJaneiro);
+            Double distancia = service.calcularDistanciaEmQuilometros(saoPaulo, rioDeJaneiro);
 
             assertThat(distancia).isCloseTo(357.0, within(10.0));
         }
@@ -51,7 +51,7 @@ class GeolocalizacaoServiceImplTest {
                 "org.alocacreche.core.comum.geolocalizacao.GeolocalizacaoServiceImplTest#coordenadasIncompletas")
         @DisplayName("lanca IllegalArgumentException em vez de calcular com dado faltando")
         void lancaExcecaoQuandoFaltaAlgumaCoordenada(String descricao, Endereco origem, Endereco destino) {
-            assertThatThrownBy(() -> service.calcularDistancia(origem, destino))
+            assertThatThrownBy(() -> service.calcularDistanciaEmQuilometros(origem, destino))
                     .isInstanceOf(IllegalArgumentException.class);
         }
     }

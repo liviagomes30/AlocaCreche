@@ -8,12 +8,6 @@ import org.springframework.data.repository.query.Param;
 
 public interface MatriculaRelatorioRepository extends JpaRepository<MatriculaRelatorio, Long> {
 
-    /**
-     * Upsert atomico e idempotente, mesmo padrao de FilaEsperaInscricaoRepository.upsert: cria a
-     * linha se matriculaId nao existir; atualiza somente se a sequencia recebida for maior que a ja
-     * aplicada. clearAutomatically = true porque um upsert nativo nao atualiza o primeiro nivel de
-     * cache do EntityManager.
-     */
     @Modifying(clearAutomatically = true)
     @Query(
             value = """
@@ -41,11 +35,6 @@ public interface MatriculaRelatorioRepository extends JpaRepository<MatriculaRel
             @Param("dataConfirmacao") LocalDate dataConfirmacao,
             @Param("eventId") Long eventId);
 
-    /**
-     * Media de distanciaKm das matriculas convocadas no mes de periodo (date_trunc por mes - mesmo
-     * nivel de granularidade dos demais relatorios agregados). AVG sem GROUP BY sempre retorna
-     * exatamente 1 linha (NULL se nenhuma matricula no periodo), nunca lista vazia.
-     */
     @Query(
             value = """
                 SELECT AVG(distancia_km)
@@ -56,11 +45,6 @@ public interface MatriculaRelatorioRepository extends JpaRepository<MatriculaRel
             nativeQuery = true)
     Double calcularDistanciaMedia(@Param("municipioId") Long municipioId, @Param("periodo") LocalDate periodo);
 
-    /**
-     * Total de matriculas convocadas no mes de periodo e quantas delas estao CONFIRMADA - a taxa em
-     * si (confirmadas / total) e calculada no controller, para nao propagar divisao por zero para
-     * dentro do SQL quando o periodo nao tem nenhuma matricula.
-     */
     @Query(
             value = """
                 SELECT

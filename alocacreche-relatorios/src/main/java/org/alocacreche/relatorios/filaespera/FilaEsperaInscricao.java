@@ -9,16 +9,6 @@ import java.time.LocalDateTime;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-/**
- * Projecao de leitura do estado de uma inscricao na fila de espera (data de entrada e, quando
- * aplicavel, data de saida). Chave primaria = inscricaoId (chave de negocio, sem surrogate id - e
- * uma projecao, nao um dono de dominio). Mantida por upsert idempotente em
- * FilaEsperaInscricaoRepository; nunca criada/atualizada via save() direto - por isso nao ha
- * setters, so getters (mutar via setter fora do fluxo de upsert quebraria a garantia de
- * idempotencia).
- *
- * <p>Isolada por Row-Level Security (municipio_id) - ver schema.sql.
- */
 @Entity
 @Table(name = "fila_espera_inscricao")
 @Getter

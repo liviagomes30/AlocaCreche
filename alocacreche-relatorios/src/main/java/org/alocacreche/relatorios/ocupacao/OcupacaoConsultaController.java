@@ -10,10 +10,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-/**
- * Leitura da projeção de ocupação (ver docs/arquitetura/visao-geral.md, relatorioOcupacao).
- * Autenticação intencionalmente ausente por agora - ver spec.md, Out of Scope (TODO documentado).
- */
 @RestController
 @RequestMapping("/api/v1/relatorios/ocupacao")
 @RequiredArgsConstructor

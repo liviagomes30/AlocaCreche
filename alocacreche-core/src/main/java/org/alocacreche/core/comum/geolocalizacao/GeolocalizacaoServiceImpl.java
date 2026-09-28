@@ -3,18 +3,14 @@ package org.alocacreche.core.comum.geolocalizacao;
 import org.alocacreche.core.comum.Endereco;
 import org.springframework.stereotype.Service;
 
-/**
- * Formula de Haversine sobre coordenadas ja geocodificadas - ver contrato em
- * {@link GeolocalizacaoService}. Nao chama nenhuma API externa.
- */
 @Service
 public class GeolocalizacaoServiceImpl implements GeolocalizacaoService {
 
     private static final double RAIO_TERRA_KM = 6371.0;
 
     @Override
-    public Double calcularDistancia(Endereco origem, Endereco destino) {
-        validarCoordenadas(origem, destino);
+    public Double calcularDistanciaEmQuilometros(Endereco origem, Endereco destino) {
+        validarCoordenadasPreenchidas(origem, destino);
 
         double latOrigemRad = Math.toRadians(origem.getLatitude());
         double latDestinoRad = Math.toRadians(destino.getLatitude());
@@ -29,7 +25,7 @@ public class GeolocalizacaoServiceImpl implements GeolocalizacaoService {
         return RAIO_TERRA_KM * c;
     }
 
-    private void validarCoordenadas(Endereco origem, Endereco destino) {
+    private void validarCoordenadasPreenchidas(Endereco origem, Endereco destino) {
         if (origem == null || destino == null
                 || origem.getLatitude() == null || origem.getLongitude() == null
                 || destino.getLatitude() == null || destino.getLongitude() == null) {

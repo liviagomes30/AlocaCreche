@@ -9,13 +9,6 @@ import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * Consome MatriculaAtualizada da fila declarada em RabbitMqConfig. Valida o payload (campos
- * obrigatorios e consistencia status/dataConfirmacao/distanciaKm - lanca
- * MatriculaEventoInvalidoException se invalido, exclui da politica de retry, ver AD-001), aplica o
- * tenant da sessao via TenantContext, e delega o upsert idempotente ao repositorio - mesmo padrao de
- * FilaEsperaAtualizadaListener.
- */
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -93,10 +86,6 @@ public class MatriculaAtualizadaListener {
         }
     }
 
-    /**
-     * Retorna a excecao em vez de lanca-la diretamente para que cada chamada em validar() use
-     * "throw rejeitar(...)" - mesma convencao de FilaEsperaAtualizadaListener.
-     */
     private MatriculaEventoInvalidoException rejeitar(MatriculaAtualizadaEvent evento, String motivo) {
         log.warn("Evento MatriculaAtualizada rejeitado (matriculaId={}): {}", evento.matriculaId(), motivo);
         return new MatriculaEventoInvalidoException(motivo);
