@@ -6,7 +6,9 @@ services:
       POSTGRES_USER: alocacreche
       POSTGRES_PASSWORD: alocacreche
     ports:
-      - "5432:5432"
+      # Porta do host configuravel (padrao 5432) para quem ja tem outro Postgres ocupando-a.
+      # Dentro do container continua 5432. Ver .env.example.
+      - "${POSTGRES_CORE_PORT:-5432}:5432"
     volumes:
       - postgres-core-data:/var/lib/postgresql/data
       # Cria a role nao-superuser alocacreche_app na primeira inicializacao do
