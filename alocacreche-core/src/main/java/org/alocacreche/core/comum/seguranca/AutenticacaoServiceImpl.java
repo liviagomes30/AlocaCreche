@@ -13,9 +13,11 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.alocacreche.core.comum.tenant.TenantContext;
 import org.alocacreche.core.notificacao.MunicipioRepository;
+import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
+@Service
 @RequiredArgsConstructor
 public class AutenticacaoServiceImpl implements AutenticacaoService {
 
