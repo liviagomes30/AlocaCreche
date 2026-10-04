@@ -16,6 +16,7 @@ public class VagaLiberadaListener {
 
     private final OcupacaoTurmaRepository repository;
     private final EntityManager entityManager;
+    private final PainelPublicoCacheInvalidador painelCacheInvalidador;
 
     @RabbitListener(queues = RabbitMqConfig.OCUPACAO_QUEUE)
     @Transactional
@@ -30,6 +31,7 @@ public class VagaLiberadaListener {
                 evento.crecheId(),
                 evento.vagasDisponiveis(),
                 evento.eventId());
+        painelCacheInvalidador.invalidarAposCommit(evento.municipioId());
 
         log.info(
                 "Ocupacao atualizada: turmaId={}, municipioId={}, eventId={}",

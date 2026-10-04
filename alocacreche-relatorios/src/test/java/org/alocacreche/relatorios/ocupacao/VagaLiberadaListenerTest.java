@@ -16,7 +16,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 /**
- * Cobre OCUP-04 (tenant aplicado antes do upsert) e OCUP-06/OCUP-07 (payload invalido rejeitado
+ * Cobre OCUP-04 (tenant aplicado antes do upsert), a invalidacao do cache do painel e OCUP-06/OCUP-07 (payload invalido rejeitado
  * sem chamar o repositorio). Mecanica real do upsert/RLS ja e coberta por
  * OcupacaoTurmaRepositoryIT (T5) - aqui o repositorio e mockado de proposito, o alvo desta camada
  * e a logica de validacao e orquestracao, nao a persistencia.
@@ -27,12 +27,13 @@ class VagaLiberadaListenerTest {
     @Mock private OcupacaoTurmaRepository repository;
     @Mock private EntityManager entityManager;
     @Mock private Query query;
+    @Mock private PainelPublicoCacheInvalidador painelCacheInvalidador;
 
     private VagaLiberadaListener listener;
 
     @BeforeEach
     void setUp() {
-        listener = new VagaLiberadaListener(repository, entityManager);
+        listener = new VagaLiberadaListener(repository, entityManager, painelCacheInvalidador);
     }
 
     @Test
@@ -49,6 +50,7 @@ class VagaLiberadaListenerTest {
         verify(query).setParameter(1, "7");
         verify(query).getSingleResult();
         verify(repository).upsert(100L, 7L, 10L, 5, 1L);
+        verify(painelCacheInvalidador).invalidarAposCommit(7L);
     }
 
     @Test
@@ -59,7 +61,7 @@ class VagaLiberadaListenerTest {
         assertThatThrownBy(() -> listener.receber(evento))
                 .isInstanceOf(EventoInvalidoException.class);
 
-        verifyNoInteractions(repository);
+        verifyNoInteractions(repository, painelCacheInvalidador);
     }
 
     @Test
@@ -70,7 +72,7 @@ class VagaLiberadaListenerTest {
         assertThatThrownBy(() -> listener.receber(evento))
                 .isInstanceOf(EventoInvalidoException.class);
 
-        verifyNoInteractions(repository);
+        verifyNoInteractions(repository, painelCacheInvalidador);
     }
 
     @Test
@@ -81,6 +83,6 @@ class VagaLiberadaListenerTest {
         assertThatThrownBy(() -> listener.receber(evento))
                 .isInstanceOf(EventoInvalidoException.class);
 
-        verifyNoInteractions(repository);
+        verifyNoInteractions(repository, painelCacheInvalidador);
     }
 }

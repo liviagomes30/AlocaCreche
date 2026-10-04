@@ -15,10 +15,12 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class PainelPublicoService {
 
+    public static final String CACHE_PAINEL_PUBLICO = "painel-publico";
+
     private final OcupacaoTurmaRepository repository;
     private final EntityManager entityManager;
 
-    @Cacheable(cacheNames = "painel-publico", key = "#municipioId")
+    @Cacheable(cacheNames = CACHE_PAINEL_PUBLICO, key = "#municipioId")
     @Transactional(readOnly = true)
     public PainelPublicoDTO obterPainel(Long municipioId) {
         TenantContext.aplicar(entityManager, municipioId);

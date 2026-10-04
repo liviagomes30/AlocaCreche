@@ -8,6 +8,7 @@ import static org.mockito.Mockito.verify;
 import com.redis.testcontainers.RedisContainer;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
+import java.time.LocalDateTime;
 import org.alocacreche.relatorios.tenant.TenantContext;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -26,7 +27,7 @@ import org.testcontainers.utility.DockerImageName;
 
 /**
  * Cobre PAINEL-01, PAINEL-03, PAINEL-04, PAINEL-06 (agregação, município vazio, cache hit real,
- * TenantContext). PAINEL-05 (fail-open com Redis fora do ar) está em PainelPublicoFailOpenIT - uma
+ * TenantContext) e a invalidação do cache quando chega um evento de vaga liberada. PAINEL-05 (fail-open com Redis fora do ar) está em PainelPublicoFailOpenIT - uma
  * classe separada, porque aquele teste precisa DERRUBAR o Redis, o que contaminaria os testes desta
  * classe se compartilhassem o mesmo container.
  */
@@ -52,6 +53,7 @@ class PainelPublicoServiceIT {
     }
 
     @Autowired private PainelPublicoService service;
+    @Autowired private VagaLiberadaListener vagaLiberadaListener;
     @MockitoSpyBean private OcupacaoTurmaRepository repository;
     @Autowired private PlatformTransactionManager transactionManager;
     @PersistenceContext private EntityManager entityManager;
@@ -108,6 +110,19 @@ class PainelPublicoServiceIT {
         // (deserializada corretamente, ja que "segunda" bate campo a campo com "primeira"), nao
         // recalculada do banco.
         verify(repository, times(1)).buscarPorFiltro(any(), any(), any());
+    }
+
+    @Test
+    void eventoDeVagaLiberadaInvalidaOCacheEOPainelRefleteOValorNovo() {
+        seedTurma(504L, 5041L, 63L, 3, 1L);
+        PainelPublicoDTO antes = service.obterPainel(504L);
+        assertThat(antes.totalVagasDisponiveis()).isEqualTo(3L);
+
+        vagaLiberadaListener.receber(
+                new VagaLiberadaEvent(2L, "VagaLiberada", 504L, 5041L, 63L, 5, LocalDateTime.now()));
+
+        // Sem a invalidacao, o painel devolveria 3 por ate 60s (TTL do cache).
+        assertThat(service.obterPainel(504L).totalVagasDisponiveis()).isEqualTo(5L);
     }
 
     private void seedTurma(
