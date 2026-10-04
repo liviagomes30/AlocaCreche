@@ -29,9 +29,9 @@ de cada módulo livre para os donos implementarem.
    **Gatilho de revisão:** assim que `cn.dev33:sa-token-spring-boot4-starter` (ou
    equivalente) aparecer publicado no Maven Central, reavalie a migração para Spring Boot
    4.1.x nesta ADR.
-2. **Java 21 (LTS)**, compatível com Spring Boot 3.5.x (mínimo Java 17) e com o Resilience4j
-   2.x usado abaixo (Resilience4j 3.x exige Java 21 — outro motivo para não pular para
-   uma combinação ainda mais nova sem necessidade).
+2. **Java 25 (LTS)**, atualização da decisão original de Java 21, compatível com Spring Boot 3.5.x
+   (mínimo Java 17) e com o Resilience4j 2.x usado abaixo. O JDK 25.0.2 foi escolhido por ser o LTS
+   mais recente disponível no ambiente do projeto.
 3. **Spring Cloud 2025.0.0** como release train do Gateway — confirmado compatível com
    Spring Boot 3.5.x (blog oficial Spring: "Spring Cloud 2025.0.0 is compatible with
    Spring Boot 3.5.0").
@@ -59,11 +59,12 @@ de cada módulo livre para os donos implementarem.
    `Notificacao`, `Responsavel`, `Crianca`, `FilaEspera`) foi criada pelo scaffold — cada
    uma é responsabilidade do dono do módulo correspondente (ver `docs/context/`), para não
    antecipar decisões de modelagem que são trabalho de quem vai implementar.
+
 8. **Infra local via `docker-compose.yml` na raiz**: dois containers Postgres separados
    (`postgres-core` porta 5432, `postgres-relatorios` porta 5433 — refletindo o "banco
    realmente separado" da ADR 0001, decisão 2), um Redis compartilhado, um RabbitMQ
    compartilhado (é o transporte que liga os dois lados por design).
-9. **Sem Maven Wrapper (`mvnw`) neste scaffold.** Cada integrante deve ter Java 21 e
+9. **Sem Maven Wrapper (`mvnw`) neste scaffold.** Cada integrante deve ter Java 25 e
    Maven instalados (ou rodar `mvn -N io.takari:maven:wrapper -Dmaven=3.9.16` uma vez
    para gerar o wrapper localmente) — optou-se por não gerar os scripts `mvnw`/`mvnw.cmd`
    à mão sem poder testá-los de ponta a ponta neste ambiente.
