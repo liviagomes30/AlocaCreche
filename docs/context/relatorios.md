@@ -46,6 +46,16 @@ deliberadamente restrita a este caso.
   campo obrigatório em `FiltroRelatorioDTO`.
 - **Mascarar CPF, renda e critério de vulnerabilidade social** em qualquer relatório ou painel (LGPD).
 
+## Pendências adiadas (TODO)
+
+- **TODO — autenticação e permissão nos controllers de relatórios (adiado em 2026-10-04, por
+  decisão da dona do módulo).** Hoje nenhum endpoint de `alocacreche-relatorios` tem
+  `@SaCheckPermission`, e o Sa-Token ainda não está no `pom.xml` deste módulo (só no
+  `alocacreche-core`). Isso descumpre a regra obrigatória do `CLAUDE.md` e deve ser resolvido antes
+  de qualquer exposição fora do ambiente local. Ao retomar: o painel público pode permanecer aberto
+  (consulta pública), mas ocupação, fila de espera e relatórios de matrícula devem exigir
+  `relatorios:<funcionalidade>:<operacao>`.
+
 ## Aspecto técnico de destaque
 
 Mensageria + eventual consistency + CQRS + cache (Redis).
