@@ -70,3 +70,10 @@ ALTER TABLE notificacao FORCE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS notificacao_tenant_isolation ON notificacao;
 CREATE POLICY notificacao_tenant_isolation ON notificacao
     USING (municipio_id = current_setting('app.current_tenant')::bigint);
+
+-- usuario
+ALTER TABLE usuario ENABLE ROW LEVEL SECURITY;
+ALTER TABLE usuario FORCE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS usuario_tenant_isolation ON usuario;
+CREATE POLICY usuario_tenant_isolation ON usuario
+    USING (municipio_id = current_setting('app.current_tenant')::bigint);
