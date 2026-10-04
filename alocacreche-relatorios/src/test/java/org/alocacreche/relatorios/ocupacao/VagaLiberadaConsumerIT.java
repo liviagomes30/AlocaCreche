@@ -101,6 +101,31 @@ class VagaLiberadaConsumerIT {
         assertThat(turma.getUltimaSequenciaAplicada()).isEqualTo(1L);
     }
 
+    /**
+     * Reproduz o formato de fio do publicador da Outbox em alocacreche-core: o payload JSON ja
+     * serializado como bytes, com content-type application/json e sem o cabecalho __TypeId__ que
+     * o conversor do proprio MSRelatorios adicionaria.
+     */
+    @Test
+    void mensagemNoFormatoDoPublicadorDaOutboxAtualizaProjecao() throws InterruptedException {
+        MessageProperties messageProperties = new MessageProperties();
+        messageProperties.setContentType(MessageProperties.CONTENT_TYPE_JSON);
+        messageProperties.setContentEncoding(StandardCharsets.UTF_8.name());
+        String payload =
+                "{\"turmaId\":301,\"municipioId\":1,\"crecheId\":31,\"vagasDisponiveis\":4,"
+                        + "\"tipoEvento\":\"VagaLiberada\",\"eventId\":17}";
+
+        rabbitTemplate.send(
+                RabbitMqConfig.DOMINIO_EXCHANGE,
+                RabbitMqConfig.VAGA_LIBERADA_ROUTING_KEY,
+                new Message(payload.getBytes(StandardCharsets.UTF_8), messageProperties));
+
+        OcupacaoTurma turma = buscarComRetry(301L, 1L, 5_000);
+        assertThat(turma).isNotNull();
+        assertThat(turma.getVagasDisponiveis()).isEqualTo(4);
+        assertThat(turma.getUltimaSequenciaAplicada()).isEqualTo(17L);
+    }
+
     @Test
     void payloadMalformadoVaiDiretoParaDlqSemReentrega() {
         MessageProperties messageProperties = new MessageProperties();

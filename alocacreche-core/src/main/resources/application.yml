@@ -56,6 +56,14 @@ spring:
 server:
   port: ${SERVER_PORT:8081}
 
+alocacreche:
+  outbox:
+    purga:
+      # Quantos dias um evento PROCESSADO fica na tabela outbox antes de ser apagado.
+      retencao-dias: ${ALOCACRECHE_OUTBOX_RETENCAO_DIAS:7}
+      # Todo dia as 03:00 (formato cron do Spring, com segundos).
+      cron: ${ALOCACRECHE_OUTBOX_PURGA_CRON:0 0 3 * * *}
+
 sa-token:
   token-name: satoken
   timeout: 2592000

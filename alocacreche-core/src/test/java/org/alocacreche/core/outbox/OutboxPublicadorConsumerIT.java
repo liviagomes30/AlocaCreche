@@ -5,6 +5,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
+import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -18,6 +20,9 @@ import org.springframework.amqp.rabbit.core.RabbitAdmin;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.scheduling.annotation.ScheduledAnnotationBeanPostProcessor;
+import org.springframework.scheduling.config.CronTask;
+import org.springframework.scheduling.config.ScheduledTask;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -80,6 +85,8 @@ class OutboxPublicadorConsumerIT {
     @Autowired private RabbitAdmin rabbitAdmin;
     @Autowired private TopicExchange dominioExchange;
     @Autowired private PlatformTransactionManager transactionManager;
+    @Autowired private OutboxPurgaService purgaService;
+    @Autowired private ScheduledAnnotationBeanPostProcessor agendador;
 
     private TransactionTemplate transactionTemplate;
 
@@ -117,7 +124,7 @@ class OutboxPublicadorConsumerIT {
         Message mensagem = rabbitTemplate.receive(FILA_TESTE_OCUPACAO, TIMEOUT_POLL_MS);
 
         assertThat(mensagem).isNotNull();
-        assertJsonEquivalente(mensagem.getBody(), "{\"turmaId\":300}");
+        assertJsonEquivalente(mensagem.getBody(), "{\"turmaId\":300,\"eventId\":" + id + "}");
         assertThat(buscarStatusComRetry(id, TIMEOUT_POLL_MS)).isEqualTo("PROCESSADO");
     }
 
@@ -145,8 +152,10 @@ class OutboxPublicadorConsumerIT {
 
         assertThat(primeiraMensagem).isNotNull();
         assertThat(segundaMensagem).isNotNull();
-        assertJsonEquivalente(primeiraMensagem.getBody(), "{\"turmaId\":303}");
-        assertJsonEquivalente(segundaMensagem.getBody(), "{\"turmaId\":304}");
+        assertJsonEquivalente(
+                primeiraMensagem.getBody(), "{\"turmaId\":303,\"eventId\":" + primeiro + "}");
+        assertJsonEquivalente(
+                segundaMensagem.getBody(), "{\"turmaId\":304,\"eventId\":" + segundo + "}");
         assertThat(primeiro).isLessThan(segundo);
     }
 
@@ -161,6 +170,56 @@ class OutboxPublicadorConsumerIT {
 
         Message mensagemInesperada = rabbitTemplate.receive(FILA_TESTE_OCUPACAO, 500);
         assertThat(mensagemInesperada).isNull();
+    }
+
+    @Test
+    @DisplayName("purga apaga so PROCESSADO antigo e mantem PROCESSADO recente e ERRO")
+    void purgaApagaSoProcessadoAntigo() {
+        LocalDateTime antigo = LocalDateTime.now().minusDays(10);
+        Long processadoAntigo = inserirComStatus("PROCESSADO", antigo);
+        Long processadoRecente = inserirComStatus("PROCESSADO", LocalDateTime.now().minusDays(1));
+        Long erroAntigo = inserirComStatus("ERRO", antigo);
+
+        int apagados = purgaService.purgarProcessadosAntigos();
+
+        assertThat(apagados).isEqualTo(1);
+        assertThat(existe(processadoAntigo)).isFalse();
+        assertThat(existe(processadoRecente)).isTrue();
+        assertThat(existe(erroAntigo)).isTrue();
+    }
+
+    @Test
+    @DisplayName("a purga esta registrada como tarefa cron do agendador (1x por dia, 03:00)")
+    void purgaEstaRegistradaComoTarefaCron() {
+        List<String> expressoes =
+                agendador.getScheduledTasks().stream()
+                        .map(ScheduledTask::getTask)
+                        .filter(CronTask.class::isInstance)
+                        .map(CronTask.class::cast)
+                        .filter(
+                                tarefa ->
+                                        tarefa.getRunnable()
+                                                .toString()
+                                                .contains("OutboxPurgaScheduler"))
+                        .map(CronTask::getExpression)
+                        .toList();
+
+        assertThat(expressoes).containsExactly("0 0 3 * * *");
+    }
+
+    private Long inserirComStatus(String status, LocalDateTime criadoEm) {
+        return transactionTemplate.execute(
+                txStatus -> {
+                    OutboxEvent evento = new OutboxEvent("vaga.liberada", "{}");
+                    evento.setStatus(status);
+                    evento.setCriadoEm(criadoEm);
+                    return repository.save(evento).getId();
+                });
+    }
+
+    private boolean existe(Long id) {
+        return Boolean.TRUE.equals(
+                transactionTemplate.execute(txStatus -> repository.existsById(id)));
     }
 
     private Long inserirPendente(String tipoEvento, String payload) {
