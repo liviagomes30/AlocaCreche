@@ -65,8 +65,12 @@ alocacreche:
       cron: ${ALOCACRECHE_OUTBOX_PURGA_CRON:0 0 3 * * *}
 
 sa-token:
-  token-name: satoken
-  timeout: 2592000
+  token-name: Authorization
+  token-prefix: Bearer
+  timeout: 28800
+  is-read-header: true
+  is-read-cookie: false
+  is-read-body: false
   is-share: false
   is-log: false
   jwt-secret-key: ${SA_TOKEN_JWT_SECRET:troque-este-segredo-antes-de-qualquer-deploy}
