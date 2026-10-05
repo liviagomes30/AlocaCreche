@@ -20,26 +20,26 @@ import org.springframework.http.client.ClientHttpResponse;
  * invalida, e anexa o cabecalho {@code Authorization: Bearer} ao {@link TestRestTemplate}. O
  * segredo e o configurado no contexto Spring do proprio IT ({@code sa-token.jwt-secret-key}).
  */
-final class TokenTeste {
+public final class TokenTeste {
 
-    static final String SEGREDO_INVALIDO = "outro-segredo-qualquer-0123456789";
+    public static final String SEGREDO_INVALIDO = "outro-segredo-qualquer-0123456789";
     private static final long UMA_HORA_EM_MILISSEGUNDOS = 3_600_000L;
     private static final long UMA_HORA_EM_SEGUNDOS = 3_600L;
 
     private TokenTeste() {
     }
 
-    static String valido(Long municipioId, List<String> perms) {
+    public static String valido(Long municipioId, List<String> perms) {
         return new StpLogicJwtForStateless()
                 .createTokenValue(1L, "default", UMA_HORA_EM_SEGUNDOS, claims(municipioId, perms));
     }
 
-    static String validoSemMunicipio(List<String> perms) {
+    public static String validoSemMunicipio(List<String> perms) {
         return new StpLogicJwtForStateless()
                 .createTokenValue(1L, "default", UMA_HORA_EM_SEGUNDOS, Map.of("perms", perms));
     }
 
-    static String expirado(Long municipioId, List<String> perms) {
+    public static String expirado(Long municipioId, List<String> perms) {
         return montar(
                 SaManager.getConfig().getJwtSecretKey(),
                 System.currentTimeMillis() - UMA_HORA_EM_MILISSEGUNDOS,
@@ -47,7 +47,7 @@ final class TokenTeste {
                 perms);
     }
 
-    static String comAssinaturaInvalida(Long municipioId, List<String> perms) {
+    public static String comAssinaturaInvalida(Long municipioId, List<String> perms) {
         return montar(
                 SEGREDO_INVALIDO,
                 System.currentTimeMillis() + UMA_HORA_EM_MILISSEGUNDOS,
@@ -55,7 +55,7 @@ final class TokenTeste {
                 perms);
     }
 
-    static void usarToken(TestRestTemplate restTemplate, String token) {
+    public static void usarToken(TestRestTemplate restTemplate, String token) {
         restTemplate.getRestTemplate().getInterceptors().removeIf(InterceptadorDeToken.class::isInstance);
         if (token != null) {
             restTemplate.getRestTemplate().getInterceptors().add(new InterceptadorDeToken(token));

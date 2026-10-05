@@ -1,8 +1,10 @@
 package org.alocacreche.relatorios.ocupacao;
 
+import cn.dev33.satoken.annotation.SaCheckPermission;
 import jakarta.persistence.EntityManager;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.alocacreche.relatorios.seguranca.MunicipioDoToken;
 import org.alocacreche.relatorios.tenant.TenantContext;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -17,13 +19,16 @@ public class OcupacaoConsultaController {
 
     private final OcupacaoTurmaRepository repository;
     private final EntityManager entityManager;
+    private final MunicipioDoToken municipioDoToken;
 
     @GetMapping
+    @SaCheckPermission("relatorios:ocupacao:list")
     @Transactional(readOnly = true)
     public List<OcupacaoTurmaDTO> consultar(
             @RequestParam Long municipioId,
             @RequestParam(required = false) Long crecheId,
             @RequestParam(required = false) Long turmaId) {
+        municipioDoToken.exigir(municipioId);
         TenantContext.aplicar(entityManager, municipioId);
 
         return repository.buscarPorFiltro(municipioId, crecheId, turmaId).stream()
