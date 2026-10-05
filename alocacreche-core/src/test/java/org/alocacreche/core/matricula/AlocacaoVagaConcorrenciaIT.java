@@ -220,10 +220,12 @@ class AlocacaoVagaConcorrenciaIT {
         long eventosAntes = outboxEventRepository.count();
         SimpleJpaRepository<OutboxEvent, Long> gravadorReal =
                 new SimpleJpaRepository<>(OutboxEvent.class, entityManager);
-        AtomicInteger gravacoes = new AtomicInteger();
+        AtomicInteger falhasInjetadas = new AtomicInteger();
         doAnswer(
                         invocacao -> {
-                            if (gravacoes.incrementAndGet() == 3) {
+                            OutboxEvent evento = invocacao.getArgument(0);
+                            if ("matricula.atualizada".equals(evento.getTipoEvento())) {
+                                falhasInjetadas.incrementAndGet();
                                 throw new IllegalStateException("falha ao gravar matricula.atualizada");
                             }
                             return gravadorReal.save(invocacao.getArgument(0));
@@ -235,7 +237,7 @@ class AlocacaoVagaConcorrenciaIT {
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("falha ao gravar matricula.atualizada");
 
-        assertThat(gravacoes).hasValue(3);
+        assertThat(falhasInjetadas).hasValue(1);
         assertThat(outboxEventRepository.count()).isEqualTo(eventosAntes);
         emTenant(
                 () -> {
