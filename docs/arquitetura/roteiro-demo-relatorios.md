@@ -10,7 +10,7 @@ Valores entre `<...>` são placeholders: escolha os seus e não os versione.
 
 ## 1. Pré-requisitos
 
-- Java 21 ou superior e Maven.
+- Java 25 e Maven (o projeto exige o JDK 25, ver ADR 0002).
 - Docker (para Postgres, Redis e RabbitMQ).
 - Raiz do repositório como diretório atual em todos os comandos.
 
@@ -67,6 +67,12 @@ cd alocacreche-core && mvn spring-boot:run
 
 Quando aparecer `Started AlocaCrecheCoreApplication`, pare com `Ctrl+C` (o log avisa
 `Usuario inicial nao criado: municipio 1 inexistente`, o que é esperado nesta primeira vez).
+
+Se a primeira subida falhar com `Port 8083 was already in use`, o schema e o RLS **já foram criados**
+antes do erro e a segunda tentativa cai na limitação do `ddl-auto: update` com RLS
+(`unrecognized configuration parameter "app.current_tenant"`). Libere a porta (ou troque `SERVER_PORT`),
+recrie o volume e recomece desta seção:
+`docker compose rm -sf postgres-core && docker volume rm creche_postgres-core-data && docker compose up -d postgres-core`.
 
 ## 5. Criar o município por SQL
 
@@ -231,14 +237,25 @@ curl -s "$REL/api/v1/relatorios/matricula/distancia-media?municipioId=1&periodo=
   -H "Authorization: Bearer $TOKEN"
 ```
 
-Esperado (para um município sem outros dados):
+Esperado (conferido em uma execução real em 2026-10-05):
 
 | Relatório | Resultado |
 | --- | --- |
-| `ocupacao` | uma turma com `vagasDisponiveis` igual a `2` |
-| `fila-espera` | `quantidadeAguardando` igual a `1` (duas entraram, uma saiu na alocação) |
-| `matricula/taxa-confirmacao` | `totalMatriculas` `1`, `totalConfirmadas` `1`, `taxaConfirmacao` `1.0` |
-| `matricula/distancia-media` | `distanciaMediaKm` positivo (cerca de 1,5 km entre os endereços do exemplo) |
+| `ocupacao` (filtrado pela turma) | uma turma com `vagasDisponiveis` igual a `2`; `ultimaSequenciaAplicada` é o id da linha da Outbox do último evento de vaga |
+| `fila-espera` (filtrado pela turma) | `quantidadeAguardando` igual a `1` (duas entraram, uma saiu na alocação) |
+| `matricula/taxa-confirmacao` | `totalMatriculas` `1`, `totalConfirmadas` `1`, `taxaConfirmacao` `1.0`, **somente com o banco dos relatórios zerado** (ver o aviso abaixo) |
+| `matricula/distancia-media` | `distanciaMediaKm` cerca de `1.51` entre os endereços do exemplo, também sujeito ao aviso abaixo |
+| `painel-publico` | responde 200 **sem** token, com os totais agregados do município |
+
+`ocupacao` e `fila-espera` são filtrados pela turma, então batem sempre. Já `taxa-confirmacao`,
+`distancia-media` e `painel-publico` agregam o **município inteiro**, e por isso incluem qualquer outra
+matrícula que já esteja no banco dos relatórios.
+
+**Aviso: eventos de teste no broker local.** Os testes de integração do core não configuram um RabbitMQ
+de teste para a maioria dos casos e o Publicador roda sempre; com o RabbitMQ do `docker compose` no ar,
+rodar `mvn verify` publica eventos de teste nas filas `relatorios.*`, e o MSRelatorios os consome quando
+sobe. Para números exatos, antes da demonstração zere o banco dos relatórios e as filas:
+`docker compose rm -sf postgres-relatorios rabbitmq && docker volume rm creche_postgres-relatorios-data && docker compose up -d postgres-relatorios rabbitmq`.
 
 ## 11. Segurança em um minuto
 
