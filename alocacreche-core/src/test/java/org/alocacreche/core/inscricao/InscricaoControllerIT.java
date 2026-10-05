@@ -2,7 +2,9 @@ package org.alocacreche.core.inscricao;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 import cn.dev33.satoken.jwt.StpLogicJwtForStateless;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -81,11 +83,11 @@ class InscricaoControllerIT {
     @Autowired private StpLogicJwtForStateless stpLogic;
     @Autowired private MunicipioRepository municipioRepository;
     @Autowired private CrecheRepository crecheRepository;
-    @Autowired private TurmaRepository turmaRepository;
-    @Autowired private ResponsavelRepository responsavelRepository;
-    @Autowired private CriancaRepository criancaRepository;
-    @Autowired private InscricaoRepository inscricaoRepository;
-    @Autowired private FilaEsperaRepository filaEsperaRepository;
+    @MockitoSpyBean private TurmaRepository turmaRepository;
+    @MockitoSpyBean private ResponsavelRepository responsavelRepository;
+    @MockitoSpyBean private CriancaRepository criancaRepository;
+    @MockitoSpyBean private InscricaoRepository inscricaoRepository;
+    @MockitoSpyBean private FilaEsperaRepository filaEsperaRepository;
     @MockitoSpyBean private OutboxEventRepository outboxEventRepository;
     @Autowired private PlatformTransactionManager transactionManager;
     @PersistenceContext private EntityManager entityManager;
@@ -254,10 +256,22 @@ class InscricaoControllerIT {
         corpo.remove("turmaId");
         ((Map<String, Object>) corpo.get("responsavel")).put("nome", " ");
         ((Map<String, Object>) corpo.get("crianca")).put("dataNascimento", LocalDate.now().plusDays(1).toString());
+        clearInvocations(
+                responsavelRepository,
+                criancaRepository,
+                inscricaoRepository,
+                filaEsperaRepository,
+                turmaRepository);
 
         ResponseEntity<String> resposta = postar(corpo, tokenCom(municipioA, List.of("*")));
 
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        verifyNoInteractions(
+                responsavelRepository,
+                criancaRepository,
+                inscricaoRepository,
+                filaEsperaRepository,
+                turmaRepository);
         JsonNode json = objectMapper.readTree(resposta.getBody());
         List<String> campos = new ArrayList<>();
         json.get("campos").forEach(campo -> campos.add(campo.asText()));
