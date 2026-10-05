@@ -8,7 +8,6 @@ import cn.dev33.satoken.annotation.SaCheckPermission;
 import cn.dev33.satoken.annotation.SaIgnore;
 import cn.dev33.satoken.jwt.SaJwtUtil;
 import cn.dev33.satoken.jwt.StpLogicJwtForStateless;
-import cn.dev33.satoken.stp.StpInterface;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
@@ -41,7 +40,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
  * Prova a configuracao stateless do Sa-Token no core (AUTH-09, AUTH-12 a AUTH-14): negar por
  * padrao, {@code @SaIgnore} liberando, 401 e 403 com corpo JSON. Usa um controller de teste
  * interno, que nunca existe em {@code src/main}. O {@code StpInterface} usado aqui e o
- * {@link StpInterfaceDeTeste}, porque o de producao pertence a nucleo-bootstrap-comum.
+ * {@link StpInterfaceImpl} real do core.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Testcontainers
@@ -236,11 +235,6 @@ class SegurancaConfigIT {
         @Bean
         ControllerDeTeste controllerDeTeste() {
             return new ControllerDeTeste();
-        }
-
-        @Bean
-        StpInterface stpInterfaceDeTeste() {
-            return new StpInterfaceDeTeste();
         }
     }
 

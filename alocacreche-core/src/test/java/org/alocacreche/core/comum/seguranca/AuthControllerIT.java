@@ -5,7 +5,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import cn.dev33.satoken.annotation.SaCheckPermission;
 import cn.dev33.satoken.annotation.SaIgnore;
 import cn.dev33.satoken.jwt.StpLogicJwtForStateless;
-import cn.dev33.satoken.stp.StpInterface;
 import cn.dev33.satoken.secure.BCrypt;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -338,11 +337,6 @@ class AuthControllerIT {
         @Bean
         ControllerDeTeste controllerDeTeste() {
             return new ControllerDeTeste();
-        }
-
-        @Bean
-        StpInterface stpInterfaceDeTeste() {
-            return new StpInterfaceDeTeste();
         }
     }
 
