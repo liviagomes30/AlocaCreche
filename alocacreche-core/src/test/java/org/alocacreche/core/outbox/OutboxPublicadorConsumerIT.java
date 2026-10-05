@@ -48,7 +48,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
  * compatibilidade de fio - nao ha modulo Java compartilhado entre os dois deploys para uma
  * dependencia de compilacao (ver design.md, Risco de strings duplicadas).
  */
-@SpringBootTest
+@SpringBootTest(properties = "alocacreche.outbox.publicador.habilitado=true")
 @Testcontainers
 @DisplayName("OutboxPublicadorScheduler + OutboxPublicadorService (fim a fim)")
 class OutboxPublicadorConsumerIT {

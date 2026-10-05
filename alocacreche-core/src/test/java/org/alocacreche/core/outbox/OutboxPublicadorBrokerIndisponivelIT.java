@@ -30,7 +30,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
  * derruba so a aplicacao RabbitMQ (fecha o listener AMQP), mantendo o container e a porta mapeada
  * estaveis - a mesma tecnica documentada pelo proprio RabbitMQ para testes de disponibilidade.
  */
-@SpringBootTest
+@SpringBootTest(properties = "alocacreche.outbox.publicador.habilitado=true")
 @Testcontainers
 class OutboxPublicadorBrokerIndisponivelIT {
 

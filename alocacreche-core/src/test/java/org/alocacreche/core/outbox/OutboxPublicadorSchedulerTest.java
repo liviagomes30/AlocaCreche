@@ -1,10 +1,12 @@
 package org.alocacreche.core.outbox;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -16,6 +18,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 
 /**
  * Cobre so a orquestracao do loop (chama o service uma vez por evento pendente, via bean externo -
@@ -72,5 +75,20 @@ class OutboxPublicadorSchedulerTest {
 
         verify(service, times(1)).publicarEvento(eventoComFalha);
         verify(service, times(1)).publicarEvento(eventoOk);
+    }
+
+    @Test
+    @DisplayName("flag alocacreche.outbox.publicador.habilitado: ligado por padrao, desligado so com false")
+    void flagLigaEDesligaOBeanDoScheduler() {
+        ApplicationContextRunner runner =
+                new ApplicationContextRunner()
+                        .withBean(OutboxPublicadorService.class, () -> mock(OutboxPublicadorService.class))
+                        .withUserConfiguration(OutboxPublicadorScheduler.class);
+
+        runner.run(contexto -> assertThat(contexto).hasSingleBean(OutboxPublicadorScheduler.class));
+        runner.withPropertyValues("alocacreche.outbox.publicador.habilitado=true")
+                .run(contexto -> assertThat(contexto).hasSingleBean(OutboxPublicadorScheduler.class));
+        runner.withPropertyValues("alocacreche.outbox.publicador.habilitado=false")
+                .run(contexto -> assertThat(contexto).doesNotHaveBean(OutboxPublicadorScheduler.class));
     }
 }

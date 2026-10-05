@@ -58,6 +58,9 @@ server:
 
 alocacreche:
   outbox:
+    publicador:
+      # Liga/desliga o OutboxPublicadorScheduler (ligado por padrao; os testes o desligam).
+      habilitado: ${ALOCACRECHE_OUTBOX_PUBLICADOR_HABILITADO:true}
     purga:
       # Quantos dias um evento PROCESSADO fica na tabela outbox antes de ser apagado.
       retencao-dias: ${ALOCACRECHE_OUTBOX_RETENCAO_DIAS:7}

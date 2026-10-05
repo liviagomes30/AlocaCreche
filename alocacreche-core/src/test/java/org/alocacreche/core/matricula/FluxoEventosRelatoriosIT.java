@@ -60,7 +60,9 @@ import org.testcontainers.containers.RabbitMQContainer;
  * de teste replicam as de {@code alocacreche-relatorios} (nao ha modulo Java compartilhado entre
  * os dois deploys).
  */
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@SpringBootTest(
+        webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
+        properties = "alocacreche.outbox.publicador.habilitado=true")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @DisplayName("Fluxo completo de eventos ate o RabbitMQ")
 class FluxoEventosRelatoriosIT {
