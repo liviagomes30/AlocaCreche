@@ -23,6 +23,7 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.testcontainers.containers.PostgreSQLContainer;
@@ -160,6 +161,23 @@ class SegurancaConfigIT {
     }
 
     @Test
+    @DisplayName("erro de binding em endpoint aberto sem token preserva o corpo JSON 400 do Spring")
+    void erroDeBindingEmEndpointAbertoPreservaOCorpoJson400() {
+        ResponseEntity<String> resposta = restTemplate.getForEntity("/teste-seguranca/aberto-com-parametro", String.class);
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(resposta.getBody()).contains("\"status\":400").contains("\"error\":\"Bad Request\"");
+    }
+
+    @Test
+    @DisplayName("chamada direta ao /error sem token continua protegida e responde 401")
+    void chamadaDiretaAoErrorSemTokenResponde401() {
+        ResponseEntity<String> resposta = restTemplate.getForEntity("/error", String.class);
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+    }
+
+    @Test
     @DisplayName("o interceptor e registrado sem nenhum caminho de exclusao")
     void interceptorNaoTemCaminhoDeExclusao() {
         InterceptorRegistry registry = new InterceptorRegistry();
@@ -200,6 +218,12 @@ class SegurancaConfigIT {
         @SaIgnore
         @GetMapping("/aberto")
         public String aberto() {
+            return "ok";
+        }
+
+        @SaIgnore
+        @GetMapping("/aberto-com-parametro")
+        public String abertoComParametro(@RequestParam Long id) {
             return "ok";
         }
 
