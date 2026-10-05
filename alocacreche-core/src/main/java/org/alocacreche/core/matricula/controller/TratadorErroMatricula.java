@@ -2,6 +2,7 @@ package org.alocacreche.core.matricula.controller;
 
 import java.util.List;
 import java.util.Map;
+import org.alocacreche.core.matricula.service.ConflitoException;
 import org.alocacreche.core.matricula.service.DadoInvalidoException;
 import org.alocacreche.core.matricula.service.RecursoNaoEncontradoException;
 import org.springframework.http.HttpStatus;
@@ -19,6 +20,11 @@ public class TratadorErroMatricula {
     @ExceptionHandler(RecursoNaoEncontradoException.class)
     public ResponseEntity<Map<String, String>> tratarNaoEncontrado(RecursoNaoEncontradoException excecao) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("erro", excecao.getMessage()));
+    }
+
+    @ExceptionHandler(ConflitoException.class)
+    public ResponseEntity<Map<String, String>> tratarConflito(ConflitoException excecao) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("erro", excecao.getMessage()));
     }
 
     @ExceptionHandler(DadoInvalidoException.class)
