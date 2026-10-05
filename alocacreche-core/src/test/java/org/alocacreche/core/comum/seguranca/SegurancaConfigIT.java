@@ -1,6 +1,7 @@
 package org.alocacreche.core.comum.seguranca;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assumptions.assumeThat;
 
 import cn.dev33.satoken.SaManager;
 import cn.dev33.satoken.annotation.SaCheckPermission;
@@ -202,6 +203,17 @@ class SegurancaConfigIT {
 
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
         assertThat(resposta.getBody()).contains("\"status\":404").contains("\"error\":\"Not Found\"");
+    }
+
+    @Test
+    @DisplayName("o segredo padrao do core valida o token fixo do contrato com o relatorios")
+    void segredoPadraoDoCoreValidaOTokenFixoDoContrato() {
+        assumeThat(System.getenv("SA_TOKEN_JWT_SECRET")).isNull();
+
+        ResponseEntity<String> resposta =
+                chamar("/teste-seguranca/sem-anotacao", SaTokenJwtContratoTest.TOKEN_DOURADO);
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
     }
 
     @Test

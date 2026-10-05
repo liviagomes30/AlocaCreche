@@ -30,7 +30,7 @@ class SaTokenJwtContratoTest {
      * JWT fixo emitido com o segredo padrao do core (municipioId=1, perms relatorios:ocupacao:list,
      * expiracao no seculo 22). O mesmo valor e usado no SegurancaConfigIT do MSRelatorios.
      */
-    private static final String TOKEN_DOURADO =
+    static final String TOKEN_DOURADO =
             "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJsb2dpblR5cGUiOiJsb2dpbiIsImxvZ2luSWQiOjEsImRldmljZVR5cGUiOiJkZWZhdWx0IiwiZWZmIjo0MjkxMjEwNjY2NjY5LCJyblN0ciI6ImlYRmRYQ2hWQldFUG41ZjgxZm5OY3NoUE9HRlNyS2VlIiwicGVybXMiOlsicmVsYXRvcmlvczpvY3VwYWNhbzpsaXN0Il0sIm11bmljaXBpb0lkIjoxfQ.UlvWX7wmwTaDYM2zIEDUQW_N5Z1b0mPjLaMu6j0t_qk";
 
     private SaTokenConfig configAnterior;
