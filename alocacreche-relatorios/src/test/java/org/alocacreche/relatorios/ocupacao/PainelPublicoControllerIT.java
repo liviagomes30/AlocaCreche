@@ -8,11 +8,15 @@ import static org.mockito.Mockito.verify;
 import com.redis.testcontainers.RedisContainer;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
+import java.util.List;
+import org.alocacreche.relatorios.seguranca.TokenTeste;
 import org.alocacreche.relatorios.tenant.TenantContext;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -27,7 +31,8 @@ import org.testcontainers.utility.DockerImageName;
 /**
  * Cobre PAINEL-01, PAINEL-02, PAINEL-03 via HTTP real. A lógica de cache/fail-open já foi provada em
  * PainelPublicoServiceIT/PainelPublicoFailOpenIT - aqui o foco é só a camada HTTP (roteamento,
- * validação de query param, serialização JSON da resposta).
+ * validação de query param, serialização JSON da resposta). O painel é aberto por decisão
+ * (AUTH-16): responde 200 sem token e também com um token válido.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Testcontainers
@@ -54,6 +59,11 @@ class PainelPublicoControllerIT {
     @MockitoSpyBean private OcupacaoTurmaRepository repository;
     @Autowired private PlatformTransactionManager transactionManager;
     @PersistenceContext private EntityManager entityManager;
+
+    @BeforeEach
+    void limparToken() {
+        TokenTeste.usarToken(restTemplate, null);
+    }
 
     @Test
     void consultarRetornaPainelAgregadoDoMunicipio() {
@@ -102,6 +112,19 @@ class PainelPublicoControllerIT {
         assertThat(resposta.getBody().totalCrechesComVaga()).isZero();
         assertThat(resposta.getBody().totalTurmas()).isZero();
         assertThat(resposta.getBody().atualizadoEm()).isNull();
+    }
+
+    @Test
+    void consultarComTokenValidoSemPermissaoNenhumaRetorna200() {
+        seedTurma(702L, 7003L, 72L, 3, 1L);
+        TokenTeste.usarToken(restTemplate, TokenTeste.valido(1L, List.of()));
+
+        ResponseEntity<PainelPublicoDTO> resposta =
+                restTemplate.getForEntity(
+                        "/api/v1/relatorios/painel-publico?municipioId=702", PainelPublicoDTO.class);
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(resposta.getBody().totalVagasDisponiveis()).isEqualTo(3L);
     }
 
     private void seedTurma(
