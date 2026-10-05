@@ -7,6 +7,8 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import java.sql.Connection;
 import java.time.LocalDate;
+import java.util.List;
+import org.alocacreche.relatorios.seguranca.TokenTeste;
 import org.alocacreche.relatorios.tenant.TenantContext;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -14,6 +16,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -25,9 +28,9 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 /**
- * Cobre FILA-10 a FILA-15 via HTTP real (Testcontainers Postgres). Autenticação (Sa-Token) é
- * intencionalmente não coberta - ver spec.md, Out of Scope (mesmo TODO documentado de
- * {@code OcupacaoConsultaControllerIT}).
+ * Cobre FILA-10 a FILA-15 via HTTP real (Testcontainers Postgres) e a protecao por permissao do
+ * endpoint (AUTH-11, AUTH-12, AUTH-13 e AUTH-17): 200 com a permissao, 403 sem a permissao ou com
+ * municipio diferente do token, 401 sem token.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Testcontainers
@@ -44,6 +47,9 @@ class RelatorioFilaEsperaControllerIT {
         registry.add("spring.datasource.password", () -> "alocacreche_app");
     }
 
+    private static final String URL = "/api/v1/relatorios/fila-espera?municipioId=1";
+    private static final String PERMISSAO = "relatorios:fila:list";
+
     @Autowired private TestRestTemplate restTemplate;
 
     @MockitoSpyBean private FilaEsperaInscricaoRepository repository;
@@ -56,6 +62,7 @@ class RelatorioFilaEsperaControllerIT {
     @BeforeEach
     void setUp() {
         transactionTemplate = new TransactionTemplate(transactionManager);
+        TokenTeste.usarToken(restTemplate, TokenTeste.valido(1L, List.of(PERMISSAO)));
     }
 
     @AfterEach
@@ -199,12 +206,64 @@ class RelatorioFilaEsperaControllerIT {
         ResponseEntity<RelatorioFilaEsperaDTO[]> respostaMunicipio1 =
                 restTemplate.getForEntity(
                         "/api/v1/relatorios/fila-espera?municipioId=1", RelatorioFilaEsperaDTO[].class);
+        TokenTeste.usarToken(restTemplate, TokenTeste.valido(2L, List.of(PERMISSAO)));
         ResponseEntity<RelatorioFilaEsperaDTO[]> respostaMunicipio2 =
                 restTemplate.getForEntity(
                         "/api/v1/relatorios/fila-espera?municipioId=2", RelatorioFilaEsperaDTO[].class);
 
         assertThat(respostaMunicipio1.getBody()).extracting(RelatorioFilaEsperaDTO::turmaId).containsExactly(770L);
         assertThat(respostaMunicipio2.getBody()).extracting(RelatorioFilaEsperaDTO::turmaId).containsExactly(771L);
+    }
+
+    @Test
+    void consultarComAPermissaoDoRelatorioRetorna200() {
+        seedInscricao(1L, 5080L, 780L, 79L, LocalDate.now().minusDays(1), null, 1L);
+
+        ResponseEntity<RelatorioFilaEsperaDTO[]> resposta =
+                restTemplate.getForEntity(URL, RelatorioFilaEsperaDTO[].class);
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(resposta.getBody()).extracting(RelatorioFilaEsperaDTO::turmaId).containsExactly(780L);
+    }
+
+    @Test
+    void consultarComTokenSemAPermissaoRetorna403ComCorpoJsonDeErro() {
+        TokenTeste.usarToken(restTemplate, TokenTeste.valido(1L, List.of("relatorios:ocupacao:list")));
+
+        ResponseEntity<String> resposta = restTemplate.getForEntity(URL, String.class);
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(resposta.getBody()).contains("\"erro\"");
+    }
+
+    @Test
+    void consultarSemTokenRetorna401ComCorpoJsonDeErro() {
+        TokenTeste.usarToken(restTemplate, null);
+
+        ResponseEntity<String> resposta = restTemplate.getForEntity(URL, String.class);
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(resposta.getBody()).contains("\"erro\"");
+    }
+
+    @Test
+    void consultarMunicipioDiferenteDoTokenRetorna403SemConsultarOBanco() {
+        ResponseEntity<String> resposta =
+                restTemplate.getForEntity("/api/v1/relatorios/fila-espera?municipioId=2", String.class);
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(resposta.getBody()).contains("\"erro\"");
+        verifyNoInteractions(repository);
+    }
+
+    @Test
+    void consultarComTokenSemMunicipioRetorna403SemConsultarOBanco() {
+        TokenTeste.usarToken(restTemplate, TokenTeste.validoSemMunicipio(List.of(PERMISSAO)));
+
+        ResponseEntity<String> resposta = restTemplate.getForEntity(URL, String.class);
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        verifyNoInteractions(repository);
     }
 
     private void seedInscricao(
