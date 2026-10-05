@@ -113,6 +113,15 @@ class OutboxPayloadsContratoTest {
     }
 
     @Test
+    @DisplayName("dataEntrada da fila sai em ISO-8601 como texto, nao como numero")
+    void dataEntradaSaiEmIso8601() throws Exception {
+        JsonNode json = objectMapper.readTree(objectMapper.writeValueAsString(filaPayload()));
+
+        assertThat(json.get("dataEntrada").isTextual()).isTrue();
+        assertThat(json.get("dataEntrada").asText()).isEqualTo("2026-10-05");
+    }
+
+    @Test
     @DisplayName("dataSaida e dataConfirmacao aceitam nulo e saem como null no JSON")
     void camposOpcionaisAceitamNulo() throws Exception {
         JsonNode jsonFila = objectMapper.readTree(objectMapper.writeValueAsString(filaPayload()));

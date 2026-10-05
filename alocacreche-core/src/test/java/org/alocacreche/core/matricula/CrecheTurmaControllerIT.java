@@ -2,7 +2,9 @@ package org.alocacreche.core.matricula;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 import cn.dev33.satoken.jwt.StpLogicJwtForStateless;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -72,8 +74,8 @@ class CrecheTurmaControllerIT {
     @Autowired private ObjectMapper objectMapper;
     @Autowired private StpLogicJwtForStateless stpLogic;
     @Autowired private MunicipioRepository municipioRepository;
-    @Autowired private CrecheRepository crecheRepository;
-    @Autowired private TurmaRepository turmaRepository;
+    @MockitoSpyBean private CrecheRepository crecheRepository;
+    @MockitoSpyBean private TurmaRepository turmaRepository;
     @MockitoSpyBean private OutboxEventRepository outboxEventRepository;
     @Autowired private PlatformTransactionManager transactionManager;
     @PersistenceContext private EntityManager entityManager;
@@ -227,6 +229,47 @@ class CrecheTurmaControllerIT {
     }
 
     @Test
+    @DisplayName("creche sem nome responde 400 sem consultar o banco")
+    void crecheSemNomeNaoConsultaOBanco() {
+        Map<String, Object> corpo = corpoCreche();
+        corpo.remove("nome");
+        clearInvocations(crecheRepository, turmaRepository, outboxEventRepository);
+
+        ResponseEntity<String> resposta = postar(CAMINHO_CRECHES, corpo, tokenCom(municipioA, List.of("*")));
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        verifyNoInteractions(crecheRepository, turmaRepository, outboxEventRepository);
+    }
+
+    @Test
+    @DisplayName("turma sem faixaEtaria responde 400 sem consultar o banco")
+    void turmaSemFaixaEtariaNaoConsultaOBanco() {
+        Long crecheId = criarCrechePorHttp(municipioA);
+        Map<String, Object> corpo = corpoTurma(crecheId, 5);
+        corpo.remove("faixaEtaria");
+        clearInvocations(crecheRepository, turmaRepository, outboxEventRepository);
+
+        ResponseEntity<String> resposta = postar(CAMINHO_TURMAS, corpo, tokenCom(municipioA, List.of("*")));
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        verifyNoInteractions(crecheRepository, turmaRepository, outboxEventRepository);
+    }
+
+    @Test
+    @DisplayName("JSON ilegivel em creches e em turmas responde 400 sem consultar o banco")
+    void jsonIlegivelResponde400SemConsultarOBanco() {
+        String token = tokenCom(municipioA, List.of("*"));
+        clearInvocations(crecheRepository, turmaRepository, outboxEventRepository);
+
+        ResponseEntity<String> creche = postarTexto(CAMINHO_CRECHES, "{isto nao e json", token);
+        ResponseEntity<String> turma = postarTexto(CAMINHO_TURMAS, "{isto nao e json", token);
+
+        assertThat(creche.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(turma.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        verifyNoInteractions(crecheRepository, turmaRepository, outboxEventRepository);
+    }
+
+    @Test
     @DisplayName("sem token os dois endpoints respondem 401")
     void semTokenResponde401() {
         assertThat(postar(CAMINHO_CRECHES, corpoCreche(), null).getStatusCode())
@@ -305,6 +348,13 @@ class CrecheTurmaControllerIT {
         } catch (Exception excecao) {
             throw new IllegalStateException(excecao);
         }
+    }
+
+    private ResponseEntity<String> postarTexto(String caminho, String corpo, String token) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set(HttpHeaders.AUTHORIZATION, "Bearer " + token);
+        return restTemplate.exchange(caminho, HttpMethod.POST, new HttpEntity<>(corpo, headers), String.class);
     }
 
     private String tokenCom(Long municipioId, List<String> permissoes) {

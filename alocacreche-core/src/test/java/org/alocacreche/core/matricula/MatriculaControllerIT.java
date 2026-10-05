@@ -2,7 +2,9 @@ package org.alocacreche.core.matricula;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 import cn.dev33.satoken.jwt.StpLogicJwtForStateless;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -18,6 +20,7 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import org.alocacreche.core.comum.tenant.TenantContext;
+import org.alocacreche.core.inscricao.FilaEspera;
 import org.alocacreche.core.inscricao.FilaEsperaRepository;
 import org.alocacreche.core.inscricao.InscricaoRepository;
 import org.alocacreche.core.inscricao.StatusInscricao;
@@ -82,10 +85,10 @@ class MatriculaControllerIT {
     @Autowired private ObjectMapper objectMapper;
     @Autowired private StpLogicJwtForStateless stpLogic;
     @Autowired private MunicipioRepository municipioRepository;
-    @Autowired private TurmaRepository turmaRepository;
-    @Autowired private MatriculaRepository matriculaRepository;
-    @Autowired private InscricaoRepository inscricaoRepository;
-    @Autowired private FilaEsperaRepository filaEsperaRepository;
+    @MockitoSpyBean private TurmaRepository turmaRepository;
+    @MockitoSpyBean private MatriculaRepository matriculaRepository;
+    @MockitoSpyBean private InscricaoRepository inscricaoRepository;
+    @MockitoSpyBean private FilaEsperaRepository filaEsperaRepository;
     @MockitoSpyBean private OutboxEventRepository outboxEventRepository;
     @Autowired private PlatformTransactionManager transactionManager;
     @PersistenceContext private EntityManager entityManager;
@@ -179,6 +182,81 @@ class MatriculaControllerIT {
         assertThat(matriculaEvento.get("distanciaKm").asDouble()).isPositive();
         assertThat(matriculaEvento.get("dataConvocacao").asText()).isEqualTo(LocalDate.now().toString());
         assertThat(matriculaEvento.get("dataConfirmacao").isNull()).isTrue();
+    }
+
+    @Test
+    @DisplayName("com dois inscritos, a matricula vai para a inscricao de menor posicao e o segundo segue na fila")
+    void alocarMatriculaAInscricaoDeMenorPosicao() {
+        Long turmaId = criarTurmaPorHttp(municipioA, 1);
+        inscreverPorHttp(municipioA, turmaId, true);
+        inscreverPorHttp(municipioA, turmaId, true);
+        List<Long> inscricoesNaFila =
+                emTenant(municipioA, () -> {
+                    List<FilaEspera> fila = filaEsperaRepository.findByTurmaIdOrderByPosicaoAsc(turmaId);
+                    assertThat(fila).extracting(FilaEspera::getPosicao).containsExactly(1, 2);
+                    return fila.stream().map(item -> item.getInscricao().getId()).toList();
+                });
+        Long inscricaoDaPosicaoUm = inscricoesNaFila.get(0);
+        Long inscricaoDaPosicaoDois = inscricoesNaFila.get(1);
+
+        ResponseEntity<String> resposta = alocar(turmaId, tokenCom(municipioA, List.of("*")));
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        emTenant(municipioA, () -> {
+            List<Matricula> matriculas = matriculaRepository.findByTurmaId(turmaId);
+            assertThat(matriculas).hasSize(1);
+            assertThat(matriculas.get(0).getInscricaoId()).isEqualTo(inscricaoDaPosicaoUm);
+            assertThat(filaEsperaRepository.findByTurmaIdOrderByPosicaoAsc(turmaId))
+                    .extracting(item -> item.getInscricao().getId())
+                    .containsExactly(inscricaoDaPosicaoDois);
+            return null;
+        });
+    }
+
+    @Test
+    @DisplayName("alocar sem turmaId responde 400 sem consultar turma, fila nem matricula")
+    void alocarSemTurmaIdNaoConsultaOBanco() {
+        String token = tokenCom(municipioA, List.of("*"));
+        clearInvocations(turmaRepository, filaEsperaRepository, matriculaRepository);
+
+        ResponseEntity<String> resposta = postar(CAMINHO_ALOCAR, new HashMap<>(), token);
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        verifyNoInteractions(turmaRepository, filaEsperaRepository, matriculaRepository);
+    }
+
+    @Test
+    @DisplayName("alocar com JSON ilegivel responde 400 sem consultar turma, fila nem matricula")
+    void alocarComJsonIlegivelNaoConsultaOBanco() {
+        String token = tokenCom(municipioA, List.of("*"));
+        clearInvocations(turmaRepository, filaEsperaRepository, matriculaRepository);
+
+        ResponseEntity<String> resposta =
+                restTemplate.exchange(
+                        CAMINHO_ALOCAR,
+                        HttpMethod.POST,
+                        new HttpEntity<>("{isto nao e json", cabecalhos(token)),
+                        String.class);
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        verifyNoInteractions(turmaRepository, filaEsperaRepository, matriculaRepository);
+    }
+
+    @Test
+    @DisplayName("confirmar com id nao numerico responde 400 sem consultar matricula nem inscricao")
+    void confirmarComIdNaoNumericoResponde400() {
+        String token = tokenCom(municipioA, List.of("*"));
+        clearInvocations(matriculaRepository, inscricaoRepository);
+
+        ResponseEntity<String> resposta =
+                restTemplate.exchange(
+                        "/api/v1/matricula/matriculas/abc/confirmar",
+                        HttpMethod.POST,
+                        new HttpEntity<>(cabecalhos(token)),
+                        String.class);
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        verifyNoInteractions(matriculaRepository, inscricaoRepository);
     }
 
     @Test
