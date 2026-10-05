@@ -46,15 +46,40 @@ deliberadamente restrita a este caso.
   campo obrigatório em `FiltroRelatorioDTO`.
 - **Mascarar CPF, renda e critério de vulnerabilidade social** em qualquer relatório ou painel (LGPD).
 
+## Autenticação e permissões
+
+Os endpoints de `alocacreche-relatorios` validam sozinhos o JWT emitido pelo login do
+`alocacreche-core` (`POST /api/v1/auth/login`), com o mesmo segredo (`sa-token.jwt-secret-key`). O
+Gateway só roteia, não valida token.
+
+- **Token**: cabeçalho `Authorization: Bearer <jwt>`, validade de 8 horas (`sa-token.timeout`),
+  modo stateless (nenhum estado de sessão no servidor).
+- **Claims lidas por este módulo**: `municipioId` (número) e `perms` (lista de permissões). A lista pode
+  conter o curinga `*`, que libera qualquer endpoint protegido.
+- **Nega por padrão**: o `SaInterceptor` do módulo exige login em `/**`, sem nenhum
+  `excludePathPatterns` (proibido pelo `CLAUDE.md`). Endpoint sem anotação responde 401 sem token.
+  Exceção explícita e única: o `PainelPublicoController` usa `@SaIgnore` e continua público.
+- **Permissões** (`modulo:funcionalidade:operacao`): `relatorios:ocupacao:list` (ocupação),
+  `relatorios:fila:list` (fila de espera) e `relatorios:matricula:list` (distância média e taxa de
+  confirmação).
+- **Isolamento por município**: todo controller protegido chama `MunicipioDoToken.exigir(municipioId)`
+  antes de `TenantContext.aplicar` e de qualquer consulta; `municipioId` pedido diferente da claim, ou
+  claim ausente, responde 403 sem tocar o banco.
+- **Respostas**: 401 (sem token, malformado, assinatura inválida ou expirado) e 403 (sem permissão ou
+  município diferente) trazem corpo JSON `{"erro": ...}`.
+- **Guarda de regressão**: `ControllersProtegidosTest` falha se um método de controller não tiver
+  `@SaCheckPermission` nem `@SaIgnore`, ou se o interceptor declarar caminho de exclusão.
+- **Redespacho de erro**: o interceptor ignora o redespacho interno de erro do container
+  (`DispatcherType.ERROR`), onde o contexto do Sa-Token não existe; sem isso o corpo JSON de erro do
+  Spring (400, 404) virava HTML. Uma chamada direta a `/error` continua exigindo login.
+
 ## Pendências adiadas (TODO)
 
-- **TODO — autenticação e permissão nos controllers de relatórios (adiado em 2026-10-04, por
-  decisão da dona do módulo).** Hoje nenhum endpoint de `alocacreche-relatorios` tem
-  `@SaCheckPermission`, e o Sa-Token ainda não está no `pom.xml` deste módulo (só no
-  `alocacreche-core`). Isso descumpre a regra obrigatória do `CLAUDE.md` e deve ser resolvido antes
-  de qualquer exposição fora do ambiente local. Ao retomar: o painel público pode permanecer aberto
-  (consulta pública), mas ocupação, fila de espera e relatórios de matrícula devem exigir
-  `relatorios:<funcionalidade>:<operacao>`.
+- **TODO — rate limit no login.** Não há bloqueio nem limite de tentativas de login; exige estado
+  compartilhado (Redis) e uma política de bloqueio ainda não decidida.
+- **TODO — segredo JWT placeholder.** O `sa-token.jwt-secret-key` tem um valor padrão de
+  desenvolvimento no `application.yml` (`SA_TOKEN_JWT_SECRET`); trocá-lo fora do ambiente local é
+  responsabilidade de deploy, e a aplicação não falha ao subir com o valor padrão.
 
 ## Aspecto técnico de destaque
 
