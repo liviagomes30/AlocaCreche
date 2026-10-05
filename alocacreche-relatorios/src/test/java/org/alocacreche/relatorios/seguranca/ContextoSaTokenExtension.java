@@ -2,6 +2,7 @@ package org.alocacreche.relatorios.seguranca;
 
 import cn.dev33.satoken.SaManager;
 import cn.dev33.satoken.config.SaTokenConfig;
+import cn.dev33.satoken.context.SaTokenContext;
 import cn.dev33.satoken.jwt.StpLogicJwtForStateless;
 import cn.dev33.satoken.spring.SaTokenContextForSpringInJakartaServlet;
 import cn.dev33.satoken.stp.StpLogic;
@@ -26,11 +27,13 @@ class ContextoSaTokenExtension implements BeforeEachCallback, AfterEachCallback 
 
     private SaTokenConfig configAnterior;
     private StpLogic stpLogicAnterior;
+    private SaTokenContext contextoAnterior;
 
     @Override
     public void beforeEach(ExtensionContext context) {
         configAnterior = SaManager.getConfig();
         stpLogicAnterior = StpUtil.getStpLogic();
+        contextoAnterior = SaManager.getSaTokenContext();
         SaManager.setConfig(new SaTokenConfig()
                 .setJwtSecretKey(SEGREDO)
                 .setTokenName("Authorization")
@@ -46,6 +49,7 @@ class ContextoSaTokenExtension implements BeforeEachCallback, AfterEachCallback 
     public void afterEach(ExtensionContext context) {
         RequestContextHolder.resetRequestAttributes();
         StpUtil.setStpLogic(stpLogicAnterior);
+        SaManager.setSaTokenContext(contextoAnterior);
         SaManager.setConfig(configAnterior);
     }
 
