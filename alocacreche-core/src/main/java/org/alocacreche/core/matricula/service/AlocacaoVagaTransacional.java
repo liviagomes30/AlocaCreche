@@ -1,0 +1,145 @@
+package org.alocacreche.core.matricula.service;
+
+import jakarta.persistence.EntityManager;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.List;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.alocacreche.core.comum.Endereco;
+import org.alocacreche.core.comum.geolocalizacao.GeolocalizacaoService;
+import org.alocacreche.core.comum.seguranca.SessaoTenantResolver;
+import org.alocacreche.core.comum.tenant.TenantContext;
+import org.alocacreche.core.inscricao.FilaEspera;
+import org.alocacreche.core.inscricao.FilaEsperaRepository;
+import org.alocacreche.core.inscricao.Inscricao;
+import org.alocacreche.core.inscricao.StatusInscricao;
+import org.alocacreche.core.matricula.Creche;
+import org.alocacreche.core.matricula.Matricula;
+import org.alocacreche.core.matricula.MatriculaRepository;
+import org.alocacreche.core.matricula.StatusMatricula;
+import org.alocacreche.core.matricula.Turma;
+import org.alocacreche.core.matricula.TurmaRepository;
+import org.alocacreche.core.notificacao.Municipio;
+import org.alocacreche.core.notificacao.MunicipioRepository;
+import org.alocacreche.core.outbox.OutboxEventWriter;
+import org.alocacreche.core.outbox.OutboxPayloads.FilaEsperaAtualizadaPayload;
+import org.alocacreche.core.outbox.OutboxPayloads.MatriculaAtualizadaPayload;
+import org.alocacreche.core.outbox.OutboxPayloads.VagaLiberadaPayload;
+import org.alocacreche.core.outbox.OutboxRabbitConfig;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+
+@Slf4j
+@Component
+@RequiredArgsConstructor
+public class AlocacaoVagaTransacional {
+
+    private final SessaoTenantResolver sessaoTenantResolver;
+    private final EntityManager entityManager;
+    private final TurmaRepository turmaRepository;
+    private final FilaEsperaRepository filaEsperaRepository;
+    private final MatriculaRepository matriculaRepository;
+    private final MunicipioRepository municipioRepository;
+    private final GeolocalizacaoService geolocalizacaoService;
+    private final OutboxEventWriter outboxEventWriter;
+
+    @Transactional
+    public MatriculaAlocadaResponse executar(Long turmaId) {
+        Long municipioId = sessaoTenantResolver.municipioIdAtual();
+        TenantContext.aplicar(entityManager, municipioId);
+
+        Turma turma =
+                turmaRepository
+                        .findById(turmaId)
+                        .orElseThrow(() -> new RecursoNaoEncontradoException("Turma nao encontrada"));
+        if (turma.getVagasDisponiveis() <= 0) {
+            throw new ConflitoException("Turma sem vaga disponivel");
+        }
+        List<FilaEspera> fila = filaEsperaRepository.findByTurmaIdOrderByPosicaoAsc(turmaId);
+        if (fila.isEmpty()) {
+            throw new ConflitoException("Fila de espera da turma esta vazia");
+        }
+
+        FilaEspera primeiroDaFila = fila.get(0);
+        Inscricao inscricao = primeiroDaFila.getInscricao();
+        Creche creche = turma.getCreche();
+        Double distanciaKm = calcularDistancia(inscricao.getCrianca().getResponsavel().getEndereco(), creche.getEndereco());
+        Municipio municipio =
+                municipioRepository
+                        .findById(municipioId)
+                        .orElseThrow(() -> new RecursoNaoEncontradoException("Municipio nao encontrado"));
+
+        turma.setVagasDisponiveis(turma.getVagasDisponiveis() - 1);
+        turmaRepository.saveAndFlush(turma);
+
+        LocalDateTime agora = LocalDateTime.now();
+        Matricula matricula = new Matricula();
+        matricula.setMunicipioId(municipioId);
+        matricula.setInscricaoId(inscricao.getId());
+        matricula.setTurma(turma);
+        matricula.setStatus(StatusMatricula.PENDENTE);
+        matricula.setDataConvocacao(agora);
+        matricula.setPrazoConfirmacao(agora.plusDays(municipio.getPrazoConfirmacaoDias()));
+        matricula.setDistanciaKm(distanciaKm);
+        Matricula salva = matriculaRepository.saveAndFlush(matricula);
+
+        filaEsperaRepository.delete(primeiroDaFila);
+        inscricao.setStatus(StatusInscricao.CONVOCADA);
+
+        registrarEventos(municipioId, turma, creche, primeiroDaFila, salva);
+
+        log.info("Matricula {} criada para a turma {} do municipio {}", salva.getId(), turmaId, municipioId);
+        return new MatriculaAlocadaResponse(salva.getId());
+    }
+
+    private Double calcularDistancia(Endereco origem, Endereco destino) {
+        if (!temCoordenadas(origem) || !temCoordenadas(destino)) {
+            throw new DadoInvalidoException("Responsavel e creche precisam ter latitude e longitude para a alocacao");
+        }
+        return geolocalizacaoService.calcularDistanciaEmQuilometros(origem, destino);
+    }
+
+    private boolean temCoordenadas(Endereco endereco) {
+        return endereco != null && endereco.getLatitude() != null && endereco.getLongitude() != null;
+    }
+
+    private void registrarEventos(
+            Long municipioId, Turma turma, Creche creche, FilaEspera filaRemovida, Matricula matricula) {
+        LocalDateTime ocorridoEm = LocalDateTime.now();
+        outboxEventWriter.registrar(
+                OutboxRabbitConfig.VAGA_LIBERADA_ROUTING_KEY,
+                new VagaLiberadaPayload(
+                        OutboxRabbitConfig.VAGA_LIBERADA_ROUTING_KEY,
+                        municipioId,
+                        turma.getId(),
+                        creche.getId(),
+                        turma.getVagasDisponiveis(),
+                        ocorridoEm));
+        outboxEventWriter.registrar(
+                OutboxRabbitConfig.FILA_ATUALIZADA_ROUTING_KEY,
+                new FilaEsperaAtualizadaPayload(
+                        OutboxRabbitConfig.FILA_ATUALIZADA_ROUTING_KEY,
+                        municipioId,
+                        turma.getId(),
+                        creche.getId(),
+                        matricula.getInscricaoId(),
+                        filaRemovida.getDataEntrada().toLocalDate(),
+                        LocalDate.now(),
+                        ocorridoEm));
+        outboxEventWriter.registrar(
+                OutboxRabbitConfig.MATRICULA_ATUALIZADA_ROUTING_KEY,
+                new MatriculaAtualizadaPayload(
+                        OutboxRabbitConfig.MATRICULA_ATUALIZADA_ROUTING_KEY,
+                        municipioId,
+                        turma.getId(),
+                        creche.getId(),
+                        matricula.getInscricaoId(),
+                        matricula.getId(),
+                        matricula.getStatus().name(),
+                        matricula.getDistanciaKm(),
+                        matricula.getDataConvocacao().toLocalDate(),
+                        null,
+                        ocorridoEm));
+    }
+}
