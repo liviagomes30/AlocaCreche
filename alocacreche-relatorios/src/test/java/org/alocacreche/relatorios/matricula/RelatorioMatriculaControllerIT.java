@@ -8,13 +8,18 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import java.sql.Connection;
 import java.time.LocalDate;
+import java.util.List;
+import org.alocacreche.relatorios.seguranca.TokenTeste;
 import org.alocacreche.relatorios.tenant.TenantContext;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -27,8 +32,9 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 
 /**
  * Cobre os dois endpoints via HTTP real (Testcontainers Postgres) - mesmo padrao de
- * RelatorioFilaEsperaControllerIT/OcupacaoConsultaControllerIT. Autenticacao (Sa-Token)
- * intencionalmente nao coberta - mesmo TODO documentado nas duas classes irmas.
+ * RelatorioFilaEsperaControllerIT/OcupacaoConsultaControllerIT - e a protecao por permissao dos dois
+ * endpoints (AUTH-11, AUTH-12, AUTH-13 e AUTH-17): 200 com a permissao, 403 sem a permissao ou com
+ * municipio diferente do token, 401 sem token.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Testcontainers
@@ -45,6 +51,10 @@ class RelatorioMatriculaControllerIT {
         registry.add("spring.datasource.password", () -> "alocacreche_app");
     }
 
+    private static final String DISTANCIA_MEDIA = "distancia-media";
+    private static final String TAXA_CONFIRMACAO = "taxa-confirmacao";
+    private static final String PERMISSAO = "relatorios:matricula:list";
+
     @Autowired private TestRestTemplate restTemplate;
 
     @MockitoSpyBean private MatriculaRelatorioRepository repository;
@@ -57,6 +67,7 @@ class RelatorioMatriculaControllerIT {
     @BeforeEach
     void setUp() {
         transactionTemplate = new TransactionTemplate(transactionManager);
+        TokenTeste.usarToken(restTemplate, TokenTeste.valido(1L, List.of(PERMISSAO)));
     }
 
     @AfterEach
@@ -131,6 +142,61 @@ class RelatorioMatriculaControllerIT {
                         DistanciaMediaAlocacaoDTO.class);
 
         assertThat(resposta.getBody().distanciaMediaKm()).isNull();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {DISTANCIA_MEDIA, TAXA_CONFIRMACAO})
+    void consultarComAPermissaoDoRelatorioRetorna200(String endpoint) {
+        ResponseEntity<String> resposta = restTemplate.getForEntity(url(endpoint, 1L), String.class);
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {DISTANCIA_MEDIA, TAXA_CONFIRMACAO})
+    void consultarComTokenSemAPermissaoRetorna403ComCorpoJsonDeErro(String endpoint) {
+        TokenTeste.usarToken(restTemplate, TokenTeste.valido(1L, List.of("relatorios:fila:list")));
+
+        ResponseEntity<String> resposta = restTemplate.getForEntity(url(endpoint, 1L), String.class);
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(resposta.getBody()).contains("\"erro\"");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {DISTANCIA_MEDIA, TAXA_CONFIRMACAO})
+    void consultarSemTokenRetorna401ComCorpoJsonDeErro(String endpoint) {
+        TokenTeste.usarToken(restTemplate, null);
+
+        ResponseEntity<String> resposta = restTemplate.getForEntity(url(endpoint, 1L), String.class);
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(resposta.getBody()).contains("\"erro\"");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {DISTANCIA_MEDIA, TAXA_CONFIRMACAO})
+    void consultarMunicipioDiferenteDoTokenRetorna403SemConsultarOBanco(String endpoint) {
+        ResponseEntity<String> resposta = restTemplate.getForEntity(url(endpoint, 2L), String.class);
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(resposta.getBody()).contains("\"erro\"");
+        verifyNoInteractions(repository);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {DISTANCIA_MEDIA, TAXA_CONFIRMACAO})
+    void consultarComTokenSemMunicipioRetorna403SemConsultarOBanco(String endpoint) {
+        TokenTeste.usarToken(restTemplate, TokenTeste.validoSemMunicipio(List.of(PERMISSAO)));
+
+        ResponseEntity<String> resposta = restTemplate.getForEntity(url(endpoint, 1L), String.class);
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        verifyNoInteractions(repository);
+    }
+
+    private static String url(String endpoint, Long municipioId) {
+        return "/api/v1/relatorios/matricula/" + endpoint + "?municipioId=" + municipioId + "&periodo=2026-05-01";
     }
 
     private void seedMatricula(

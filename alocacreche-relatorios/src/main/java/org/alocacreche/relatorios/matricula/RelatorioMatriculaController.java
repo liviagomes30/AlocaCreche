@@ -1,8 +1,10 @@
 package org.alocacreche.relatorios.matricula;
 
+import cn.dev33.satoken.annotation.SaCheckPermission;
 import jakarta.persistence.EntityManager;
 import java.time.LocalDate;
 import lombok.RequiredArgsConstructor;
+import org.alocacreche.relatorios.seguranca.MunicipioDoToken;
 import org.alocacreche.relatorios.tenant.TenantContext;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -17,11 +19,14 @@ public class RelatorioMatriculaController {
 
     private final MatriculaRelatorioRepository repository;
     private final EntityManager entityManager;
+    private final MunicipioDoToken municipioDoToken;
 
     @GetMapping("/distancia-media")
+    @SaCheckPermission("relatorios:matricula:list")
     @Transactional(readOnly = true)
     public DistanciaMediaAlocacaoDTO distanciaMedia(
             @RequestParam Long municipioId, @RequestParam LocalDate periodo) {
+        municipioDoToken.exigir(municipioId);
         TenantContext.aplicar(entityManager, municipioId);
 
         Double distanciaMediaKm = repository.calcularDistanciaMedia(municipioId, periodo);
@@ -29,9 +34,11 @@ public class RelatorioMatriculaController {
     }
 
     @GetMapping("/taxa-confirmacao")
+    @SaCheckPermission("relatorios:matricula:list")
     @Transactional(readOnly = true)
     public RelatorioConfirmacaoMatriculaDTO taxaConfirmacao(
             @RequestParam Long municipioId, @RequestParam LocalDate periodo) {
+        municipioDoToken.exigir(municipioId);
         TenantContext.aplicar(entityManager, municipioId);
 
         RelatorioConfirmacaoProjection projecao = repository.calcularTaxaConfirmacao(municipioId, periodo);
