@@ -29,6 +29,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.testcontainers.containers.PostgreSQLContainer;
@@ -185,6 +186,32 @@ class SegurancaConfigIT {
                 segredo);
     }
 
+    @Test
+    @DisplayName("erro de binding em endpoint aberto sem token preserva o corpo JSON 400 do Spring")
+    void erroDeBindingEmEndpointAbertoPreservaOCorpoJson400() {
+        ResponseEntity<String> resposta = restTemplate.getForEntity("/teste-seguranca/aberto-com-parametro", String.class);
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(resposta.getBody()).contains("\"status\":400").contains("\"error\":\"Bad Request\"");
+    }
+
+    @Test
+    @DisplayName("rota inexistente com token valido preserva o corpo JSON 404 do Spring")
+    void rotaInexistenteComTokenValidoPreservaOCorpoJson404() {
+        ResponseEntity<String> resposta = chamar("/teste-seguranca/nao-existe", tokenCom(List.of("*")));
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(resposta.getBody()).contains("\"status\":404").contains("\"error\":\"Not Found\"");
+    }
+
+    @Test
+    @DisplayName("chamada direta ao /error sem token continua protegida e responde 401")
+    void chamadaDiretaAoErrorSemTokenResponde401() {
+        ResponseEntity<String> resposta = restTemplate.getForEntity("/error", String.class);
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+    }
+
     private static void assertCorpoJsonComErro(ResponseEntity<String> resposta) {
         assertThat(resposta.getHeaders().getContentType()).isNotNull();
         assertThat(resposta.getHeaders().getContentType().isCompatibleWith(MediaType.APPLICATION_JSON)).isTrue();
@@ -218,6 +245,12 @@ class SegurancaConfigIT {
         @SaIgnore
         @GetMapping("/aberto")
         public String aberto() {
+            return "ok";
+        }
+
+        @SaIgnore
+        @GetMapping("/aberto-com-parametro")
+        public String abertoComParametro(@RequestParam Long id) {
             return "ok";
         }
 
