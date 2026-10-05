@@ -112,6 +112,8 @@ public class InscricaoServiceImpl implements InscricaoService {
         inscricao.setRendaPerCapita(request.rendaPerCapita());
         inscricao.setCriterioVulnerabilidade(request.criterioVulnerabilidade());
         // TODO: calcular o scorePrioridade; o motor de prioridade e da Stack A (Inscricao e Fila) e fica nulo no minimo
+        // TODO: Responsavel.cpf e unico no banco inteiro, nao por municipio, entao o 409 vale entre municipios (Stack A)
+        // TODO: a posicao na fila pode colidir sob inscricoes simultaneas na mesma turma (Stack A)
         return inscricaoRepository.saveAndFlush(inscricao);
     }
 
