@@ -3,6 +3,7 @@ package org.alocacreche.core.matricula;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -29,6 +30,7 @@ import org.alocacreche.core.inscricao.CriancaRepository;
 import org.alocacreche.core.inscricao.FilaEspera;
 import org.alocacreche.core.inscricao.FilaEsperaRepository;
 import org.alocacreche.core.inscricao.Inscricao;
+import org.alocacreche.core.inscricao.StatusInscricao;
 import org.alocacreche.core.inscricao.InscricaoRepository;
 import org.alocacreche.core.inscricao.Responsavel;
 import org.alocacreche.core.inscricao.ResponsavelRepository;
@@ -39,6 +41,7 @@ import org.alocacreche.core.matricula.service.MatriculaAlocadaResponse;
 import org.alocacreche.core.notificacao.ConfiguracaoPriorizacao;
 import org.alocacreche.core.notificacao.Municipio;
 import org.alocacreche.core.notificacao.MunicipioRepository;
+import org.alocacreche.core.outbox.OutboxEvent;
 import org.alocacreche.core.outbox.OutboxEventRepository;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -49,6 +52,7 @@ import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.dao.OptimisticLockingFailureException;
+import org.springframework.data.jpa.repository.support.SimpleJpaRepository;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -84,6 +88,7 @@ class AlocacaoVagaConcorrenciaIT {
 
     @MockitoBean private SessaoTenantResolver sessaoTenantResolver;
     @MockitoSpyBean private AlocacaoVagaTransacional alocacaoVagaTransacional;
+    @MockitoSpyBean private OutboxEventRepository outboxEventRepository;
 
     @Autowired private AlocacaoVagaService alocacaoVagaService;
     @Autowired private MunicipioRepository municipioRepository;
@@ -94,7 +99,6 @@ class AlocacaoVagaConcorrenciaIT {
     @Autowired private CriancaRepository criancaRepository;
     @Autowired private InscricaoRepository inscricaoRepository;
     @Autowired private FilaEsperaRepository filaEsperaRepository;
-    @Autowired private OutboxEventRepository outboxEventRepository;
     @Autowired private PlatformTransactionManager transactionManager;
     @PersistenceContext private EntityManager entityManager;
 
@@ -205,6 +209,42 @@ class AlocacaoVagaConcorrenciaIT {
                     assertThat(matriculaRepository.findByTurmaId(turmaId)).isEmpty();
                     assertThat(turmaRepository.findById(turmaId).orElseThrow().getVagasDisponiveis())
                             .isEqualTo(2);
+                    return null;
+                });
+    }
+
+    @Test
+    @DisplayName("falha ao gravar o terceiro evento desfaz a alocacao inteira: nada persiste e a Outbox nao ganha linha")
+    void falhaNoTerceiroEventoDesfazAAlocacao() {
+        Long turmaId = semearTurmaComFila(2, 1);
+        long eventosAntes = outboxEventRepository.count();
+        SimpleJpaRepository<OutboxEvent, Long> gravadorReal =
+                new SimpleJpaRepository<>(OutboxEvent.class, entityManager);
+        AtomicInteger gravacoes = new AtomicInteger();
+        doAnswer(
+                        invocacao -> {
+                            if (gravacoes.incrementAndGet() == 3) {
+                                throw new IllegalStateException("falha ao gravar matricula.atualizada");
+                            }
+                            return gravadorReal.save(invocacao.getArgument(0));
+                        })
+                .when(outboxEventRepository)
+                .save(any(OutboxEvent.class));
+
+        assertThatThrownBy(() -> alocacaoVagaService.alocarProximoElegivel(turmaId))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("falha ao gravar matricula.atualizada");
+
+        assertThat(gravacoes).hasValue(3);
+        assertThat(outboxEventRepository.count()).isEqualTo(eventosAntes);
+        emTenant(
+                () -> {
+                    assertThat(matriculaRepository.findByTurmaId(turmaId)).isEmpty();
+                    assertThat(turmaRepository.findById(turmaId).orElseThrow().getVagasDisponiveis())
+                            .isEqualTo(2);
+                    List<FilaEspera> fila = filaEsperaRepository.findByTurmaIdOrderByPosicaoAsc(turmaId);
+                    assertThat(fila).hasSize(1);
+                    assertThat(fila.get(0).getInscricao().getStatus()).isEqualTo(StatusInscricao.AGUARDANDO);
                     return null;
                 });
     }

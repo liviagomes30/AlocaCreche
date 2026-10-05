@@ -1,6 +1,8 @@
 package org.alocacreche.core.inscricao;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 
 import cn.dev33.satoken.jwt.StpLogicJwtForStateless;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -42,6 +44,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.testcontainers.containers.PostgreSQLContainer;
@@ -83,7 +86,7 @@ class InscricaoControllerIT {
     @Autowired private CriancaRepository criancaRepository;
     @Autowired private InscricaoRepository inscricaoRepository;
     @Autowired private FilaEsperaRepository filaEsperaRepository;
-    @Autowired private OutboxEventRepository outboxEventRepository;
+    @MockitoSpyBean private OutboxEventRepository outboxEventRepository;
     @Autowired private PlatformTransactionManager transactionManager;
     @PersistenceContext private EntityManager entityManager;
 
@@ -172,6 +175,28 @@ class InscricaoControllerIT {
         assertThat(objectMapper.readTree(primeira.getBody()).get("posicao").asInt()).isEqualTo(1);
         assertThat(objectMapper.readTree(segunda.getBody()).get("posicao").asInt()).isEqualTo(2);
         assertThat(outboxEventRepository.findAll()).hasSize(2);
+    }
+
+    @Test
+    @DisplayName("falha ao gravar o evento desfaz a inscricao: Responsavel, Inscricao e FilaEspera nao persistem")
+    void falhaNoEventoDesfazAInscricao() {
+        String cpf = novoCpf();
+        long inscricoesAntes = emTenant(municipioA, inscricaoRepository::count);
+        doThrow(new IllegalStateException("falha ao gravar fila.atualizada"))
+                .when(outboxEventRepository)
+                .save(any(OutboxEvent.class));
+
+        ResponseEntity<String> resposta =
+                postar(corpo(cpf, turmaDoMunicipioA), tokenCom(municipioA, List.of("*")));
+
+        assertThat(resposta.getStatusCode().is5xxServerError()).isTrue();
+        assertThat(outboxEventRepository.findAll()).isEmpty();
+        emTenant(municipioA, () -> {
+            assertThat(responsavelRepository.findByCpf(cpf)).isEmpty();
+            assertThat(inscricaoRepository.count()).isEqualTo(inscricoesAntes);
+            assertThat(filaEsperaRepository.findByTurmaIdOrderByPosicaoAsc(turmaDoMunicipioA)).isEmpty();
+            return null;
+        });
     }
 
     @Test

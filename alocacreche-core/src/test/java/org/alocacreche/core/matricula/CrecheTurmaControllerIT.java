@@ -1,6 +1,8 @@
 package org.alocacreche.core.matricula;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 
 import cn.dev33.satoken.jwt.StpLogicJwtForStateless;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -34,6 +36,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.testcontainers.containers.PostgreSQLContainer;
@@ -71,7 +74,7 @@ class CrecheTurmaControllerIT {
     @Autowired private MunicipioRepository municipioRepository;
     @Autowired private CrecheRepository crecheRepository;
     @Autowired private TurmaRepository turmaRepository;
-    @Autowired private OutboxEventRepository outboxEventRepository;
+    @MockitoSpyBean private OutboxEventRepository outboxEventRepository;
     @Autowired private PlatformTransactionManager transactionManager;
     @PersistenceContext private EntityManager entityManager;
 
@@ -141,6 +144,25 @@ class CrecheTurmaControllerIT {
         assertThat(json.get("crecheId").asLong()).isEqualTo(crecheId);
         assertThat(json.get("vagasDisponiveis").asInt()).isEqualTo(5);
         assertThat(json.get("ocorridoEm").isTextual()).isTrue();
+    }
+
+    @Test
+    @DisplayName("falha ao gravar vaga.liberada desfaz a criacao da turma: nenhuma turma e nenhuma linha na Outbox")
+    void falhaNoEventoDesfazACriacaoDaTurma() {
+        Long crecheId = criarCrechePorHttp(municipioA);
+        doThrow(new IllegalStateException("falha ao gravar vaga.liberada"))
+                .when(outboxEventRepository)
+                .save(any(OutboxEvent.class));
+
+        ResponseEntity<String> resposta =
+                postar(CAMINHO_TURMAS, corpoTurma(crecheId, 5), tokenCom(municipioA, List.of("*")));
+
+        assertThat(resposta.getStatusCode().is5xxServerError()).isTrue();
+        assertThat(outboxEventRepository.findAll()).isEmpty();
+        emTenant(municipioA, () -> {
+            assertThat(turmaRepository.findByCrecheId(crecheId)).isEmpty();
+            return null;
+        });
     }
 
     @Test

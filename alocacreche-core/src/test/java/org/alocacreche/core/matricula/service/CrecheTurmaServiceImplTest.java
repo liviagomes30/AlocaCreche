@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
@@ -171,6 +172,18 @@ class CrecheTurmaServiceImplTest {
                 .isInstanceOf(DadoInvalidoException.class);
 
         verifyNoInteractions(turmaRepository, outboxEventWriter);
+    }
+
+    @Test
+    @DisplayName("falha ao gravar vaga.liberada propaga a excecao, sem ser engolida")
+    void falhaDoGravadorDeEventoPropaga() {
+        doThrow(new IllegalStateException("falha na outbox"))
+                .when(outboxEventWriter)
+                .registrar(eq(OutboxRabbitConfig.VAGA_LIBERADA_ROUTING_KEY), any());
+
+        assertThatThrownBy(() -> service.criarTurma(new CriarTurmaRequest(CRECHE_ID, FaixaEtaria.BERCARIO, 5)))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("falha na outbox");
     }
 
     @Test

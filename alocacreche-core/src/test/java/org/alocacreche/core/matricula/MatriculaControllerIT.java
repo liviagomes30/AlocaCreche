@@ -1,6 +1,8 @@
 package org.alocacreche.core.matricula;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 
 import cn.dev33.satoken.jwt.StpLogicJwtForStateless;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -40,6 +42,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.testcontainers.containers.PostgreSQLContainer;
@@ -83,7 +86,7 @@ class MatriculaControllerIT {
     @Autowired private MatriculaRepository matriculaRepository;
     @Autowired private InscricaoRepository inscricaoRepository;
     @Autowired private FilaEsperaRepository filaEsperaRepository;
-    @Autowired private OutboxEventRepository outboxEventRepository;
+    @MockitoSpyBean private OutboxEventRepository outboxEventRepository;
     @Autowired private PlatformTransactionManager transactionManager;
     @PersistenceContext private EntityManager entityManager;
 
@@ -204,6 +207,29 @@ class MatriculaControllerIT {
         assertThat(json.get("matriculaId").asLong()).isEqualTo(matriculaId);
         assertThat(json.get("distanciaKm").asDouble()).isEqualTo(distancia);
         assertThat(json.get("dataConfirmacao").asText()).isEqualTo(LocalDate.now().toString());
+    }
+
+    @Test
+    @DisplayName("falha ao gravar o evento de confirmacao desfaz tudo: segue PENDENTE, inscricao CONVOCADA e sem linha na Outbox")
+    void falhaNoEventoDeConfirmacaoDesfazAConfirmacao() {
+        Long matriculaId = alocarNovaMatricula(municipioA);
+        outboxEventRepository.deleteAll();
+        doThrow(new IllegalStateException("falha ao gravar matricula.atualizada"))
+                .when(outboxEventRepository)
+                .save(any(OutboxEvent.class));
+
+        ResponseEntity<String> resposta = confirmar(matriculaId, tokenCom(municipioA, List.of("*")));
+
+        assertThat(resposta.getStatusCode().is5xxServerError()).isTrue();
+        assertThat(outboxEventRepository.findAll()).isEmpty();
+        emTenant(municipioA, () -> {
+            Matricula matricula = matriculaRepository.findById(matriculaId).orElseThrow();
+            assertThat(matricula.getStatus()).isEqualTo(StatusMatricula.PENDENTE);
+            assertThat(matricula.getDataConfirmacao()).isNull();
+            assertThat(inscricaoRepository.findById(matricula.getInscricaoId()).orElseThrow().getStatus())
+                    .isEqualTo(StatusInscricao.CONVOCADA);
+            return null;
+        });
     }
 
     @Test

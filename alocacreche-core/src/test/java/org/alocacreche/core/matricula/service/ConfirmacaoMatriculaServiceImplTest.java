@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
@@ -183,6 +184,18 @@ class ConfirmacaoMatriculaServiceImplTest {
                 .isInstanceOf(RecursoNaoEncontradoException.class);
 
         verifyNoInteractions(inscricaoRepository, outboxEventWriter);
+    }
+
+    @Test
+    @DisplayName("falha ao gravar o evento propaga a excecao, sem ser engolida")
+    void falhaDoGravadorDeEventoPropaga() {
+        doThrow(new IllegalStateException("falha na outbox"))
+                .when(outboxEventWriter)
+                .registrar(eq(OutboxRabbitConfig.MATRICULA_ATUALIZADA_ROUTING_KEY), any());
+
+        assertThatThrownBy(() -> service.confirmar(MATRICULA_ID))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("falha na outbox");
     }
 
     @Test

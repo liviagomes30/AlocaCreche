@@ -6,6 +6,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
@@ -339,6 +341,20 @@ class AlocacaoVagaTransacionalTest {
         responsavel.setEndereco(null);
 
         assertThatThrownBy(() -> alocacao.executar(TURMA_ID)).isInstanceOf(ConflitoException.class);
+    }
+
+    @Test
+    @DisplayName("falha ao gravar qualquer evento propaga a excecao, sem ser engolida")
+    void falhaDoGravadorDeEventoPropaga() {
+        doNothing()
+                .doNothing()
+                .doThrow(new IllegalStateException("falha na outbox"))
+                .when(outboxEventWriter)
+                .registrar(anyString(), any());
+
+        assertThatThrownBy(() -> alocacao.executar(TURMA_ID))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("falha na outbox");
     }
 
     @Test
