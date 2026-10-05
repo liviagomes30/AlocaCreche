@@ -151,6 +151,48 @@ class OutboxPayloadsContratoTest {
         assertThat(matricula).doesNotContain("eventId");
     }
 
+    @Test
+    @DisplayName("VagaLiberada serializada e igual ao fixture compartilhado com o MSRelatorios")
+    void vagaLiberadaIgualAoFixture() throws Exception {
+        VagaLiberadaPayload payload =
+                new VagaLiberadaPayload("vaga.liberada", 1L, 2L, 3L, 5, OCORRIDO_EM);
+
+        assertThat(objectMapper.readTree(objectMapper.writeValueAsString(payload)))
+                .isEqualTo(objectMapper.readTree(EventosContratoFixtures.VAGA_LIBERADA));
+    }
+
+    @Test
+    @DisplayName("FilaEsperaAtualizada serializada e igual ao fixture, com dataEntrada ISO e dataSaida nula")
+    void filaEsperaAtualizadaIgualAoFixture() throws Exception {
+        FilaEsperaAtualizadaPayload payload =
+                new FilaEsperaAtualizadaPayload(
+                        "fila.atualizada", 1L, 2L, 3L, 4L, LocalDate.of(2026, 10, 3), null, OCORRIDO_EM);
+
+        assertThat(objectMapper.readTree(objectMapper.writeValueAsString(payload)))
+                .isEqualTo(objectMapper.readTree(EventosContratoFixtures.FILA_ATUALIZADA));
+    }
+
+    @Test
+    @DisplayName("MatriculaAtualizada serializada e igual ao fixture, com as datas em ISO-8601")
+    void matriculaAtualizadaIgualAoFixture() throws Exception {
+        MatriculaAtualizadaPayload payload =
+                new MatriculaAtualizadaPayload(
+                        "matricula.atualizada",
+                        1L,
+                        2L,
+                        3L,
+                        4L,
+                        6L,
+                        "CONFIRMADA",
+                        2.75,
+                        LocalDate.of(2026, 10, 5),
+                        LocalDate.of(2026, 10, 7),
+                        OCORRIDO_EM);
+
+        assertThat(objectMapper.readTree(objectMapper.writeValueAsString(payload)))
+                .isEqualTo(objectMapper.readTree(EventosContratoFixtures.MATRICULA_ATUALIZADA));
+    }
+
     private static FilaEsperaAtualizadaPayload filaPayload() {
         return new FilaEsperaAtualizadaPayload(
                 "fila.atualizada", 1L, 2L, 3L, 4L, LocalDate.of(2026, 10, 5), null, OCORRIDO_EM);
