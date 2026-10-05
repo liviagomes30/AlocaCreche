@@ -44,6 +44,13 @@ class SegurancaConfigIT {
     private static final String PERMISSAO_EXIGIDA = "relatorios:ocupacao:list";
     private static final Long MUNICIPIO = 1L;
 
+    /**
+     * JWT fixo emitido com o segredo padrao do core (municipioId=1, perms relatorios:ocupacao:list,
+     * expiracao no seculo 22). Nao regenerar em runtime: fixa o contrato do segredo entre os modulos.
+     */
+    private static final String TOKEN_DOURADO =
+            "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJsb2dpblR5cGUiOiJsb2dpbiIsImxvZ2luSWQiOjEsImRldmljZVR5cGUiOiJkZWZhdWx0IiwiZWZmIjo0MjkxMjEwNjY2NjY5LCJyblN0ciI6ImlYRmRYQ2hWQldFUG41ZjgxZm5OY3NoUE9HRlNyS2VlIiwicGVybXMiOlsicmVsYXRvcmlvczpvY3VwYWNhbzpsaXN0Il0sIm11bmljaXBpb0lkIjoxfQ.UlvWX7wmwTaDYM2zIEDUQW_N5Z1b0mPjLaMu6j0t_qk";
+
     @Container
     static PostgreSQLContainer<?> postgres =
             new PostgreSQLContainer<>("postgres:16").withInitScript("db/relatorios-app-role.sql");
@@ -100,6 +107,16 @@ class SegurancaConfigIT {
     @DisplayName("token com a permissao exigida responde 200")
     void tokenComAPermissaoResponde200() {
         TokenTeste.usarToken(restTemplate, TokenTeste.valido(MUNICIPIO, List.of(PERMISSAO_EXIGIDA)));
+
+        ResponseEntity<String> resposta = restTemplate.getForEntity("/teste-seguranca/protegido", String.class);
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+    }
+
+    @Test
+    @DisplayName("token fixo emitido com o segredo padrao do core e aceito com o segredo padrao do relatorios")
+    void tokenFixoDoCoreEAceitoComOSegredoPadrao() {
+        TokenTeste.usarToken(restTemplate, TOKEN_DOURADO);
 
         ResponseEntity<String> resposta = restTemplate.getForEntity("/teste-seguranca/protegido", String.class);
 

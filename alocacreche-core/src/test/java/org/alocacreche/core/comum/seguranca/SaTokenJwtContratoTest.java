@@ -24,6 +24,14 @@ import org.junit.jupiter.api.Test;
 class SaTokenJwtContratoTest {
 
     private static final String SEGREDO = "segredo-de-teste-do-contrato-jwt-0123456789";
+    private static final String SEGREDO_PADRAO = "troque-este-segredo-antes-de-qualquer-deploy";
+
+    /**
+     * JWT fixo emitido com o segredo padrao do core (municipioId=1, perms relatorios:ocupacao:list,
+     * expiracao no seculo 22). O mesmo valor e usado no SegurancaConfigIT do MSRelatorios.
+     */
+    private static final String TOKEN_DOURADO =
+            "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJsb2dpblR5cGUiOiJsb2dpbiIsImxvZ2luSWQiOjEsImRldmljZVR5cGUiOiJkZWZhdWx0IiwiZWZmIjo0MjkxMjEwNjY2NjY5LCJyblN0ciI6ImlYRmRYQ2hWQldFUG41ZjgxZm5OY3NoUE9HRlNyS2VlIiwicGVybXMiOlsicmVsYXRvcmlvczpvY3VwYWNhbzpsaXN0Il0sIm11bmljaXBpb0lkIjoxfQ.UlvWX7wmwTaDYM2zIEDUQW_N5Z1b0mPjLaMu6j0t_qk";
 
     private SaTokenConfig configAnterior;
     private StpLogicJwtForStateless stpLogic;
@@ -55,6 +63,18 @@ class SaTokenJwtContratoTest {
         assertThat(perms).isInstanceOf(List.class);
         assertThat((List<?>) perms).map(String::valueOf)
                 .containsExactly("relatorios:ocupacao:list", "relatorios:fila:list");
+    }
+
+    @Test
+    @DisplayName("o token fixo e lido com o segredo padrao do core e traz municipioId e perms")
+    void tokenFixoELidoComOSegredoPadraoDoCore() {
+        SaManager.setConfig(new SaTokenConfig().setJwtSecretKey(SEGREDO_PADRAO).setIsPrint(false));
+
+        Object municipioId = stpLogic.getExtra(TOKEN_DOURADO, "municipioId");
+        Object perms = stpLogic.getExtra(TOKEN_DOURADO, "perms");
+
+        assertThat(((Number) municipioId).longValue()).isEqualTo(1L);
+        assertThat((List<?>) perms).map(String::valueOf).containsExactly("relatorios:ocupacao:list");
     }
 
     @Test
