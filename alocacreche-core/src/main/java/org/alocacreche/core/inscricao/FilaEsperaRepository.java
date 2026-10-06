@@ -10,6 +10,8 @@ public interface FilaEsperaRepository extends JpaRepository<FilaEspera, Long> {
 
     List<FilaEspera> findByTurmaIdOrderByPosicaoAsc(Long turmaId);
 
+    Optional<FilaEspera> findFirstByTurmaIdOrderByPosicaoAsc(Long turmaId);
+
     Optional<FilaEspera> findByInscricaoId(Long inscricaoId);
 
     @Query("select max(f.posicao) from FilaEspera f where f.turmaId = :turmaId")

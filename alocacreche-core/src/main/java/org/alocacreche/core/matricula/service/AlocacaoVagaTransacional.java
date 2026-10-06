@@ -1,9 +1,7 @@
 package org.alocacreche.core.matricula.service;
 
 import jakarta.persistence.EntityManager;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.alocacreche.core.comum.Endereco;
@@ -56,12 +54,10 @@ public class AlocacaoVagaTransacional {
         if (turma.getVagasDisponiveis() <= 0) {
             throw new ConflitoException("Turma sem vaga disponivel");
         }
-        List<FilaEspera> fila = filaEsperaRepository.findByTurmaIdOrderByPosicaoAsc(turmaId);
-        if (fila.isEmpty()) {
-            throw new ConflitoException("Fila de espera da turma esta vazia");
-        }
-
-        FilaEspera primeiroDaFila = fila.get(0);
+        FilaEspera primeiroDaFila =
+                filaEsperaRepository
+                        .findFirstByTurmaIdOrderByPosicaoAsc(turmaId)
+                        .orElseThrow(() -> new ConflitoException("Fila de espera da turma esta vazia"));
         Inscricao inscricao = primeiroDaFila.getInscricao();
         Creche creche = turma.getCreche();
         Double distanciaKm = calcularDistancia(inscricao.getCrianca().getResponsavel().getEndereco(), creche.getEndereco());
@@ -70,10 +66,10 @@ public class AlocacaoVagaTransacional {
                         .findById(municipioId)
                         .orElseThrow(() -> new RecursoNaoEncontradoException("Municipio nao encontrado"));
 
+        LocalDateTime agora = LocalDateTime.now();
         turma.setVagasDisponiveis(turma.getVagasDisponiveis() - 1);
         turmaRepository.saveAndFlush(turma);
 
-        LocalDateTime agora = LocalDateTime.now();
         Matricula matricula = new Matricula();
         matricula.setMunicipioId(municipioId);
         matricula.setInscricaoId(inscricao.getId());
@@ -87,7 +83,7 @@ public class AlocacaoVagaTransacional {
         filaEsperaRepository.delete(primeiroDaFila);
         inscricao.setStatus(StatusInscricao.CONVOCADA);
 
-        registrarEventos(municipioId, turma, creche, primeiroDaFila, salva);
+        registrarEventos(municipioId, turma, creche, primeiroDaFila, salva, agora);
 
         log.info("Matricula {} criada para a turma {} do municipio {}", salva.getId(), turmaId, municipioId);
         return new MatriculaAlocadaResponse(salva.getId());
@@ -105,8 +101,12 @@ public class AlocacaoVagaTransacional {
     }
 
     private void registrarEventos(
-            Long municipioId, Turma turma, Creche creche, FilaEspera filaRemovida, Matricula matricula) {
-        LocalDateTime ocorridoEm = LocalDateTime.now();
+            Long municipioId,
+            Turma turma,
+            Creche creche,
+            FilaEspera filaRemovida,
+            Matricula matricula,
+            LocalDateTime agora) {
         outboxEventWriter.registrar(
                 OutboxRabbitConfig.VAGA_LIBERADA_ROUTING_KEY,
                 new VagaLiberadaPayload(
@@ -115,7 +115,7 @@ public class AlocacaoVagaTransacional {
                         turma.getId(),
                         creche.getId(),
                         turma.getVagasDisponiveis(),
-                        ocorridoEm));
+                        agora));
         outboxEventWriter.registrar(
                 OutboxRabbitConfig.FILA_ATUALIZADA_ROUTING_KEY,
                 new FilaEsperaAtualizadaPayload(
@@ -125,8 +125,8 @@ public class AlocacaoVagaTransacional {
                         creche.getId(),
                         matricula.getInscricaoId(),
                         filaRemovida.getDataEntrada().toLocalDate(),
-                        LocalDate.now(),
-                        ocorridoEm));
+                        agora.toLocalDate(),
+                        agora));
         outboxEventWriter.registrar(
                 OutboxRabbitConfig.MATRICULA_ATUALIZADA_ROUTING_KEY,
                 new MatriculaAtualizadaPayload(
@@ -140,6 +140,6 @@ public class AlocacaoVagaTransacional {
                         matricula.getDistanciaKm(),
                         matricula.getDataConvocacao().toLocalDate(),
                         null,
-                        ocorridoEm));
+                        agora));
     }
 }

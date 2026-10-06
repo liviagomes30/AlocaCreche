@@ -10,6 +10,7 @@ import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -22,6 +23,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.alocacreche.core.comum.Endereco;
 import org.alocacreche.core.comum.geolocalizacao.GeolocalizacaoService;
 import org.alocacreche.core.comum.seguranca.SessaoTenantResolver;
@@ -53,6 +55,8 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 import org.mockito.Mock;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.annotation.Transactional;
@@ -133,13 +137,6 @@ class AlocacaoVagaTransacionalTest {
         primeiroDaFila.setPosicao(1);
         primeiroDaFila.setDataEntrada(LocalDateTime.now().minusDays(2));
 
-        Inscricao outraInscricao = new Inscricao();
-        outraInscricao.setId(41L);
-        FilaEspera segundoDaFila = new FilaEspera();
-        segundoDaFila.setInscricao(outraInscricao);
-        segundoDaFila.setTurmaId(TURMA_ID);
-        segundoDaFila.setPosicao(2);
-
         Municipio municipio = new Municipio();
         municipio.setId(MUNICIPIO_ID);
         municipio.setPrazoConfirmacaoDias(PRAZO_DIAS);
@@ -149,8 +146,8 @@ class AlocacaoVagaTransacionalTest {
         lenient().when(consultaTenant.setParameter(eq(1), any())).thenReturn(consultaTenant);
         lenient().when(turmaRepository.findById(TURMA_ID)).thenReturn(Optional.of(turma));
         lenient()
-                .when(filaEsperaRepository.findByTurmaIdOrderByPosicaoAsc(TURMA_ID))
-                .thenReturn(List.of(primeiroDaFila, segundoDaFila));
+                .when(filaEsperaRepository.findFirstByTurmaIdOrderByPosicaoAsc(TURMA_ID))
+                .thenReturn(Optional.of(primeiroDaFila));
         lenient().when(municipioRepository.findById(MUNICIPIO_ID)).thenReturn(Optional.of(municipio));
         lenient()
                 .when(geolocalizacaoService.calcularDistanciaEmQuilometros(any(), any()))
@@ -184,6 +181,7 @@ class AlocacaoVagaTransacionalTest {
         assertThat(matricula.getDataConvocacao()).isBetween(antes, depois);
         assertThat(matricula.getDataConfirmacao()).isNull();
         assertThat(matricula.getDistanciaKm()).isEqualTo(DISTANCIA_KM);
+        verify(filaEsperaRepository, never()).findByTurmaIdOrderByPosicaoAsc(any());
     }
 
     @Test
@@ -276,6 +274,38 @@ class AlocacaoVagaTransacionalTest {
         assertThat(evento.dataConfirmacao()).isNull();
     }
 
+    @Test
+    @DisplayName("a matricula e os tres eventos derivam do mesmo instante, mesmo com o relogio avancando a cada leitura")
+    void matriculaEEventosUsamOMesmoInstante() {
+        LocalDateTime base = LocalDateTime.of(2020, 1, 1, 10, 0, 0);
+        AtomicInteger leituras = new AtomicInteger();
+        MatriculaAtualizadaPayload matriculaEvento;
+        VagaLiberadaPayload vaga;
+        FilaEsperaAtualizadaPayload fila;
+        Matricula matricula;
+        try (MockedStatic<LocalDateTime> relogio =
+                mockStatic(LocalDateTime.class, Mockito.CALLS_REAL_METHODS)) {
+            relogio.when(LocalDateTime::now)
+                    .thenAnswer(invocacao -> base.plusSeconds(leituras.incrementAndGet()));
+
+            alocacao.executar(TURMA_ID);
+        }
+
+        ArgumentCaptor<Matricula> salva = ArgumentCaptor.forClass(Matricula.class);
+        verify(matriculaRepository).saveAndFlush(salva.capture());
+        matricula = salva.getValue();
+        vaga = capturar(OutboxRabbitConfig.VAGA_LIBERADA_ROUTING_KEY, VagaLiberadaPayload.class);
+        fila = capturar(OutboxRabbitConfig.FILA_ATUALIZADA_ROUTING_KEY, FilaEsperaAtualizadaPayload.class);
+        matriculaEvento =
+                capturar(OutboxRabbitConfig.MATRICULA_ATUALIZADA_ROUTING_KEY, MatriculaAtualizadaPayload.class);
+        LocalDateTime instante = matricula.getDataConvocacao();
+        assertThat(vaga.ocorridoEm()).isEqualTo(instante);
+        assertThat(fila.ocorridoEm()).isEqualTo(instante);
+        assertThat(matriculaEvento.ocorridoEm()).isEqualTo(instante);
+        assertThat(fila.dataSaida()).isEqualTo(instante.toLocalDate());
+        assertThat(matriculaEvento.dataConvocacao()).isEqualTo(instante.toLocalDate());
+    }
+
     static List<Object[]> cenariosSemCoordenadas() {
         Endereco comCoordenadas = new Endereco("Rua", 1, "Centro", "01000-000", "Sao Paulo", "SP", -23.5, -46.6);
         Endereco semLatitude = new Endereco("Rua", 1, "Centro", "01000-000", "Sao Paulo", "SP", null, -46.6);
@@ -315,7 +345,7 @@ class AlocacaoVagaTransacionalTest {
     @Test
     @DisplayName("fila vazia lanca ConflitoException sem estado nem evento")
     void filaVaziaLancaConflito() {
-        when(filaEsperaRepository.findByTurmaIdOrderByPosicaoAsc(TURMA_ID)).thenReturn(List.of());
+        when(filaEsperaRepository.findFirstByTurmaIdOrderByPosicaoAsc(TURMA_ID)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> alocacao.executar(TURMA_ID)).isInstanceOf(ConflitoException.class);
 
