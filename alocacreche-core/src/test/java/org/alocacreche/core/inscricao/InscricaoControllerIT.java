@@ -30,6 +30,7 @@ import org.alocacreche.core.notificacao.Municipio;
 import org.alocacreche.core.notificacao.MunicipioRepository;
 import org.alocacreche.core.outbox.OutboxEvent;
 import org.alocacreche.core.outbox.OutboxEventRepository;
+import org.assertj.core.data.Offset;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -52,9 +53,9 @@ import org.springframework.transaction.support.TransactionTemplate;
 import org.testcontainers.containers.PostgreSQLContainer;
 
 /**
- * Prova ponta a ponta o {@code POST /api/v1/inscricao/inscricoes} com Postgres real (PROD-01,
- * PROD-02, PROD-04, PROD-05, PROD-06, PROD-07, PROD-18): criacao e posicao, evento na Outbox, erros
- * 400, 404 e 409, 401, 403 e isolamento entre municipios.
+ * Prova ponta a ponta o unico {@code POST /api/v1/inscricao/inscricoes} com Postgres real: os dois
+ * modos de identificar a crianca (criancaId ou cadastro inline), score de prioridade, posicao na
+ * fila, evento na Outbox, erros 400, 404 e 409, 401, 403 e isolamento entre municipios (RLS).
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -353,6 +354,129 @@ class InscricaoControllerIT {
         assertThat(outboxEventRepository.findAll()).isEmpty();
     }
 
+    @Test
+    @DisplayName("com criancaId devolve 201 com score 0,7, posicao 1 e persiste renda, vulnerabilidade e score")
+    void inscricaoPorCriancaIdDevolve201ComScore() throws Exception {
+        Long criancaId = criarCrianca(municipioA);
+
+        ResponseEntity<String> resposta =
+                postar(
+                        corpoPorCrianca(criancaId, turmaDoMunicipioA, "400.00", true),
+                        tokenCom(municipioA, List.of(PERMISSAO)));
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        JsonNode json = objectMapper.readTree(resposta.getBody());
+        long inscricaoId = json.get("inscricaoId").asLong();
+        assertThat(json.get("posicao").asInt()).isEqualTo(1);
+        assertThat(json.get("scorePrioridade").asDouble()).isCloseTo(0.7, Offset.offset(1e-9));
+        assertThat(json.get("status").asText()).isEqualTo("AGUARDANDO");
+        assertThat(json.has("municipio")).isFalse();
+        assertThat(json.has("crianca")).isFalse();
+        emTenant(municipioA, () -> {
+            Inscricao salva = inscricaoRepository.findById(inscricaoId).orElseThrow();
+            assertThat(salva.getScorePrioridade()).isCloseTo(0.7, Offset.offset(1e-9));
+            assertThat(salva.getCriterioVulnerabilidade()).isTrue();
+            assertThat(salva.getRendaPerCapita()).isEqualByComparingTo("400.00");
+            return null;
+        });
+    }
+
+    @Test
+    @DisplayName("renda 1200 sem vulnerabilidade soma so o fator de renda 0,5 x 0,4")
+    void rendaMediaSemVulnerabilidade() throws Exception {
+        Long criancaId = criarCrianca(municipioA);
+
+        ResponseEntity<String> resposta =
+                postar(
+                        corpoPorCrianca(criancaId, turmaDoMunicipioA, "1200.00", false),
+                        tokenCom(municipioA, List.of("*")));
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertThat(objectMapper.readTree(resposta.getBody()).get("scorePrioridade").asDouble())
+                .isCloseTo(0.2, Offset.offset(1e-9));
+    }
+
+    @Test
+    @DisplayName("municipioId do corpo diferente do do token responde 403 e nada e gravado")
+    void municipioDoCorpoDiferenteDoTokenResponde403() {
+        Long criancaId = criarCrianca(municipioA);
+        Map<String, Object> corpo = corpoPorCrianca(criancaId, turmaDoMunicipioA, "400.00", true);
+        corpo.put("municipioId", municipioB);
+
+        ResponseEntity<String> resposta = postar(corpo, tokenCom(municipioA, List.of("*")));
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(outboxEventRepository.findAll()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("crianca inexistente responde 404 sem evento")
+    void criancaInexistenteResponde404() {
+        ResponseEntity<String> resposta =
+                postar(
+                        corpoPorCrianca(999_999L, turmaDoMunicipioA, "400.00", true),
+                        tokenCom(municipioA, List.of("*")));
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(outboxEventRepository.findAll()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("crianca de outro municipio e invisivel pela RLS e responde 404")
+    void criancaDeOutroMunicipioResponde404() {
+        Long criancaDoB = criarCrianca(municipioB);
+
+        ResponseEntity<String> resposta =
+                postar(
+                        corpoPorCrianca(criancaDoB, turmaDoMunicipioA, "400.00", true),
+                        tokenCom(municipioA, List.of("*")));
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(outboxEventRepository.findAll()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("sem criancaId e sem cadastro inline responde 400 com corpo erro")
+    void semNenhumModoResponde400() throws Exception {
+        Map<String, Object> corpo = corpoPorCrianca(1L, turmaDoMunicipioA, "400.00", true);
+        corpo.remove("criancaId");
+
+        ResponseEntity<String> resposta = postar(corpo, tokenCom(municipioA, List.of("*")));
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(objectMapper.readTree(resposta.getBody()).get("erro").asText()).isNotBlank();
+    }
+
+    @Test
+    @DisplayName("criancaId junto com cadastro inline responde 400 e nada e gravado")
+    void osDoisModosResponde400() throws Exception {
+        String cpf = novoCpf();
+        Map<String, Object> corpo = corpo(cpf, turmaDoMunicipioA);
+        corpo.put("criancaId", criarCrianca(municipioA));
+
+        ResponseEntity<String> resposta = postar(corpo, tokenCom(municipioA, List.of("*")));
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(objectMapper.readTree(resposta.getBody()).get("erro").asText()).isNotBlank();
+        assertThat(outboxEventRepository.findAll()).isEmpty();
+        emTenant(municipioA, () -> {
+            assertThat(responsavelRepository.findByCpf(cpf)).isEmpty();
+            return null;
+        });
+    }
+
+    @Test
+    @DisplayName("turmaId ausente responde 400 apontando o campo")
+    void turmaIdAusenteResponde400() throws Exception {
+        Map<String, Object> corpo = corpoPorCrianca(criarCrianca(municipioA), turmaDoMunicipioA, "400.00", true);
+        corpo.remove("turmaId");
+
+        ResponseEntity<String> resposta = postar(corpo, tokenCom(municipioA, List.of("*")));
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(objectMapper.readTree(resposta.getBody()).get("campos").toString()).contains("turmaId");
+    }
+
     private ResponseEntity<String> postar(Map<String, Object> corpo, String token) {
         try {
             return restTemplate.exchange(
@@ -402,6 +526,32 @@ class InscricaoControllerIT {
         corpo.put("rendaPerCapita", 1234.56);
         corpo.put("criterioVulnerabilidade", true);
         return corpo;
+    }
+
+    private Map<String, Object> corpoPorCrianca(
+            Long criancaId, Long turmaId, String renda, boolean vulnerabilidade) {
+        Map<String, Object> corpo = new HashMap<>();
+        corpo.put("criancaId", criancaId);
+        corpo.put("turmaId", turmaId);
+        corpo.put("rendaPerCapita", renda);
+        corpo.put("criterioVulnerabilidade", vulnerabilidade);
+        return corpo;
+    }
+
+    private Long criarCrianca(Long municipioId) {
+        return emTenant(municipioId, () -> {
+            Responsavel responsavel = new Responsavel();
+            responsavel.setMunicipioId(municipioId);
+            responsavel.setNome("Responsavel de Teste");
+            responsavel.setCpf(novoCpf());
+            responsavel.setEndereco(new Endereco("Rua A", 10, "Centro", "01000-000", "Sao Paulo", "SP", -23.55, -46.63));
+            Crianca crianca = new Crianca();
+            crianca.setMunicipioId(municipioId);
+            crianca.setNome("Crianca de Teste");
+            crianca.setDataNascimento(LocalDate.of(2024, 3, 10));
+            responsavel.adicionarCrianca(crianca);
+            return responsavelRepository.saveAndFlush(responsavel).getCriancas().get(0).getId();
+        });
     }
 
     private static List<String> nomesDosCampos(JsonNode json) {

@@ -3,13 +3,13 @@ package org.alocacreche.core.inscricao.controller;
 import java.util.Map;
 import org.alocacreche.core.comum.excecao.ConflitoException;
 import org.alocacreche.core.comum.excecao.RecursoNaoEncontradoException;
+import org.alocacreche.core.inscricao.InscricaoController;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-@RestControllerAdvice(
-        assignableTypes = {InscricaoController.class, org.alocacreche.core.inscricao.InscricaoController.class})
+@RestControllerAdvice(assignableTypes = InscricaoController.class)
 public class TratadorErroInscricao {
 
     @ExceptionHandler(RecursoNaoEncontradoException.class)

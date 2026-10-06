@@ -175,7 +175,10 @@ curl -s -X POST "$CORE/api/v1/inscricao/inscricoes" \
   -d "{\"responsavel\":{\"nome\":\"Ana Responsavel\",\"cpf\":\"222.222.222-22\",\"telefone\":\"11999990002\",\"email\":\"ana@example.com\",\"endereco\":{\"rua\":\"Rua C\",\"numero\":30,\"bairro\":\"Centro\",\"latitude\":-23.57,\"longitude\":-46.65}},\"crianca\":{\"nome\":\"Lia Crianca\",\"dataNascimento\":\"2024-05-20\"},\"turmaId\":$TURMA_ID,\"rendaPerCapita\":800.00,\"criterioVulnerabilidade\":false}"
 ```
 
-Esperado: `{"inscricaoId":N,"posicao":1}` e depois `{"inscricaoId":M,"posicao":2}`.
+Esperado: `{"inscricaoId":N,"posicao":1,"scorePrioridade":...,"status":"AGUARDANDO"}` e depois
+`{"inscricaoId":M,"posicao":2,...}`. A mesma rota aceita, no lugar de `responsavel` + `crianca`, um
+`criancaId` de criança já cadastrada (nunca os dois modos juntos, senão 400); `municipioId` no corpo
+é opcional e, se informado, precisa ser o do token (senão 403).
 
 ### 8.4 Alocar a vaga ao primeiro da fila (HTTP 201, três eventos)
 
