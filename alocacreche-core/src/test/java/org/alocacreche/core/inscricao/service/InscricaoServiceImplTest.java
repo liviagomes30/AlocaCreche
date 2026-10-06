@@ -7,6 +7,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -16,7 +17,9 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.Query;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.alocacreche.core.comum.Endereco;
 import org.alocacreche.core.comum.seguranca.SessaoTenantResolver;
 import org.alocacreche.core.inscricao.FilaEspera;
@@ -41,6 +44,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 import org.mockito.Mock;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
@@ -192,6 +197,26 @@ class InscricaoServiceImplTest {
         assertThat(evento.dataEntrada()).isBetween(antes, LocalDate.now());
         assertThat(evento.dataSaida()).isNull();
         assertThat(evento.ocorridoEm()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("dataEntrada e ocorridoEm do evento derivam do mesmo instante, mesmo com o relogio avancando a cada leitura")
+    void dataEntradaEOcorridoEmUsamOMesmoInstante() {
+        LocalDateTime base = LocalDateTime.of(2020, 1, 1, 23, 59, 59);
+        AtomicInteger leituras = new AtomicInteger();
+        try (MockedStatic<LocalDateTime> relogio =
+                mockStatic(LocalDateTime.class, Mockito.CALLS_REAL_METHODS)) {
+            relogio.when(LocalDateTime::now)
+                    .thenAnswer(invocacao -> base.plusSeconds(leituras.incrementAndGet()));
+
+            service.registrarInscricao(requisicao());
+        }
+
+        ArgumentCaptor<Object> payload = ArgumentCaptor.forClass(Object.class);
+        verify(outboxEventWriter)
+                .registrar(eq(OutboxRabbitConfig.FILA_ATUALIZADA_ROUTING_KEY), payload.capture());
+        FilaEsperaAtualizadaPayload evento = (FilaEsperaAtualizadaPayload) payload.getValue();
+        assertThat(evento.dataEntrada()).isEqualTo(evento.ocorridoEm().toLocalDate());
     }
 
     @Test

@@ -1,7 +1,6 @@
 package org.alocacreche.core.inscricao.service;
 
 import jakarta.persistence.EntityManager;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -53,6 +52,7 @@ public class InscricaoServiceImpl implements InscricaoService {
         Responsavel responsavel = salvarResponsavel(request, municipioId);
         Inscricao inscricao = salvarInscricao(request, municipioId, responsavel.getCriancas().get(0));
         int posicao = salvarNaFila(inscricao, turma.getId(), municipioId);
+        LocalDateTime agora = LocalDateTime.now();
 
         outboxEventWriter.registrar(
                 OutboxRabbitConfig.FILA_ATUALIZADA_ROUTING_KEY,
@@ -62,9 +62,9 @@ public class InscricaoServiceImpl implements InscricaoService {
                         turma.getId(),
                         turma.getCreche().getId(),
                         inscricao.getId(),
-                        LocalDate.now(),
+                        agora.toLocalDate(),
                         null,
-                        LocalDateTime.now()));
+                        agora));
 
         log.info(
                 "Inscricao {} registrada na turma {} do municipio {} na posicao {}",
