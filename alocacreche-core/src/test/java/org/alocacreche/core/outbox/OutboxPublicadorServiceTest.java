@@ -4,7 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -12,6 +14,7 @@ import static org.mockito.Mockito.when;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -19,16 +22,19 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
+import org.mockito.invocation.InvocationOnMock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.amqp.AmqpException;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.core.MessageProperties;
+import org.springframework.amqp.core.ReturnedMessage;
+import org.springframework.amqp.rabbit.connection.CorrelationData;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.data.domain.PageRequest;
 
 /**
  * Cobre a logica de decisao de OutboxPublicadorService (sucesso, injecao do eventId, payload
- * invalido, tipoEvento desconhecido, falha de broker) - o fluxo fim a fim real (RabbitMQ/Postgres reais, @Scheduled disparando sozinho) e
+ * invalido, tipoEvento desconhecido, falha de broker, confirmacao, retorno de mensagem nao roteada, nack e timeout) - o fluxo fim a fim real (RabbitMQ/Postgres reais, @Scheduled disparando sozinho) e
  * coberto por OutboxPublicadorConsumerIT.
  */
 @ExtendWith(MockitoExtension.class)
@@ -38,13 +44,27 @@ class OutboxPublicadorServiceTest {
     @Mock private OutboxEventRepository repository;
     @Mock private RabbitTemplate rabbitTemplate;
 
+    private static final long TIMEOUT_CONFIRMACAO_MS = 5_000;
+
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     private OutboxPublicadorService service;
 
     @BeforeEach
     void setUp() {
-        service = new OutboxPublicadorService(repository, rabbitTemplate, objectMapper);
+        service =
+                new OutboxPublicadorService(
+                        repository, rabbitTemplate, objectMapper, TIMEOUT_CONFIRMACAO_MS);
+        lenient()
+                .doAnswer(this::confirmarComAck)
+                .when(rabbitTemplate)
+                .send(anyString(), anyString(), any(Message.class), any(CorrelationData.class));
+    }
+
+    private Object confirmarComAck(InvocationOnMock invocacao) {
+        CorrelationData correlacao = invocacao.getArgument(3);
+        correlacao.getFuture().complete(new CorrelationData.Confirm(true, null));
+        return null;
     }
 
     @Test
@@ -116,7 +136,8 @@ class OutboxPublicadorServiceTest {
 
         service.publicarEvento(evento);
 
-        verify(rabbitTemplate, never()).send(anyString(), anyString(), any(Message.class));
+        verify(rabbitTemplate, never())
+                .send(anyString(), anyString(), any(Message.class), any(CorrelationData.class));
         assertThat(evento.getStatus()).isEqualTo("ERRO");
         verify(repository).save(evento);
     }
@@ -129,7 +150,8 @@ class OutboxPublicadorServiceTest {
 
         service.publicarEvento(evento);
 
-        verify(rabbitTemplate, never()).send(anyString(), anyString(), any(Message.class));
+        verify(rabbitTemplate, never())
+                .send(anyString(), anyString(), any(Message.class), any(CorrelationData.class));
         assertThat(evento.getStatus()).isEqualTo("ERRO");
         verify(repository).save(evento);
     }
@@ -141,7 +163,8 @@ class OutboxPublicadorServiceTest {
 
         service.publicarEvento(evento);
 
-        verify(rabbitTemplate, never()).send(anyString(), anyString(), any(Message.class));
+        verify(rabbitTemplate, never())
+                .send(anyString(), anyString(), any(Message.class), any(CorrelationData.class));
         assertThat(evento.getStatus()).isEqualTo("ERRO");
         verify(repository).save(evento);
     }
@@ -154,7 +177,8 @@ class OutboxPublicadorServiceTest {
 
         service.publicarEvento(evento);
 
-        verify(rabbitTemplate, never()).send(anyString(), anyString(), any(Message.class));
+        verify(rabbitTemplate, never())
+                .send(anyString(), anyString(), any(Message.class), any(CorrelationData.class));
         assertThat(evento.getStatus()).isEqualTo("ERRO");
         verify(repository).save(evento);
     }
@@ -165,12 +189,130 @@ class OutboxPublicadorServiceTest {
         OutboxEvent evento = new OutboxEvent("vaga.liberada", "{}");
         doThrow(new AmqpException("broker indisponivel"))
                 .when(rabbitTemplate)
-                .send(anyString(), anyString(), any(Message.class));
+                .send(anyString(), anyString(), any(Message.class), any(CorrelationData.class));
 
         service.publicarEvento(evento);
 
         assertThat(evento.getStatus()).isEqualTo("PENDENTE");
         verify(repository, never()).save(evento);
+    }
+
+    @Test
+    @DisplayName("envia com CorrelationData cujo id e o id da Outbox")
+    void enviaComCorrelationDataComIdDaOutbox() {
+        OutboxEvent evento = new OutboxEvent("vaga.liberada", "{}");
+        evento.setId(77L);
+
+        service.publicarEvento(evento);
+
+        ArgumentCaptor<CorrelationData> correlacao = ArgumentCaptor.forClass(CorrelationData.class);
+        verify(rabbitTemplate)
+                .send(anyString(), anyString(), any(Message.class), correlacao.capture());
+        assertThat(correlacao.getValue().getId()).isEqualTo("77");
+    }
+
+    @Test
+    @DisplayName("mensagem devolvida pelo broker mantem PENDENTE e nao salva")
+    void mensagemDevolvidaMantemPendenteSemSalvar() {
+        OutboxEvent evento = new OutboxEvent("vaga.liberada", "{}");
+        evento.setId(10L);
+        brokerResponde(true, true);
+
+        service.publicarEvento(evento);
+
+        assertThat(evento.getStatus()).isEqualTo("PENDENTE");
+        verify(repository, never()).save(evento);
+    }
+
+    @Test
+    @DisplayName("nack do broker mantem PENDENTE e nao salva")
+    void nackMantemPendenteSemSalvar() {
+        OutboxEvent evento = new OutboxEvent("vaga.liberada", "{}");
+        evento.setId(11L);
+        brokerResponde(false, false);
+
+        service.publicarEvento(evento);
+
+        assertThat(evento.getStatus()).isEqualTo("PENDENTE");
+        verify(repository, never()).save(evento);
+    }
+
+    @Test
+    @DisplayName("sem confirmacao dentro do timeout mantem PENDENTE e nao salva")
+    void timeoutDaConfirmacaoMantemPendenteSemSalvar() {
+        OutboxEvent evento = new OutboxEvent("vaga.liberada", "{}");
+        evento.setId(12L);
+        doAnswer(invocacao -> null)
+                .when(rabbitTemplate)
+                .send(anyString(), anyString(), any(Message.class), any(CorrelationData.class));
+        OutboxPublicadorService comTimeoutCurto =
+                new OutboxPublicadorService(repository, rabbitTemplate, objectMapper, 50);
+
+        comTimeoutCurto.publicarEvento(evento);
+
+        assertThat(evento.getStatus()).isEqualTo("PENDENTE");
+        verify(repository, never()).save(evento);
+    }
+
+    @Test
+    @DisplayName("confirmacao que falha com excecao mantem PENDENTE e nao salva")
+    void confirmacaoComExcecaoMantemPendenteSemSalvar() {
+        OutboxEvent evento = new OutboxEvent("vaga.liberada", "{}");
+        evento.setId(13L);
+        doAnswer(
+                        invocacao -> {
+                            CorrelationData correlacao = invocacao.getArgument(3);
+                            correlacao
+                                    .getFuture()
+                                    .completeExceptionally(new IllegalStateException("falha"));
+                            return null;
+                        })
+                .when(rabbitTemplate)
+                .send(anyString(), anyString(), any(Message.class), any(CorrelationData.class));
+
+        service.publicarEvento(evento);
+
+        assertThat(evento.getStatus()).isEqualTo("PENDENTE");
+        verify(repository, never()).save(evento);
+    }
+
+    @Test
+    @DisplayName("thread interrompida durante a espera mantem PENDENTE e restaura a flag")
+    void interrupcaoMantemPendenteERestauraFlag() {
+        OutboxEvent evento = new OutboxEvent("vaga.liberada", "{}");
+        evento.setId(14L);
+        doAnswer(invocacao -> null)
+                .when(rabbitTemplate)
+                .send(anyString(), anyString(), any(Message.class), any(CorrelationData.class));
+        Thread.currentThread().interrupt();
+
+        boolean flagRestaurada;
+        try {
+            service.publicarEvento(evento);
+        } finally {
+            flagRestaurada = Thread.interrupted();
+        }
+
+        assertThat(flagRestaurada).isTrue();
+        assertThat(evento.getStatus()).isEqualTo("PENDENTE");
+        verify(repository, never()).save(evento);
+    }
+
+    @Test
+    @DisplayName("lote inteiro devolvido pelo broker permanece PENDENTE sem lancar excecao")
+    void loteInteiroDevolvidoPermanecePendente() {
+        brokerResponde(true, true);
+        List<OutboxEvent> eventos = new ArrayList<>();
+        for (long id = 1; id <= OutboxPublicadorService.TAMANHO_LOTE; id++) {
+            OutboxEvent evento = new OutboxEvent("fila.atualizada", "{}");
+            evento.setId(id);
+            eventos.add(evento);
+        }
+
+        eventos.forEach(service::publicarEvento);
+
+        assertThat(eventos).allSatisfy(e -> assertThat(e.getStatus()).isEqualTo("PENDENTE"));
+        verify(repository, never()).save(any(OutboxEvent.class));
     }
 
     private JsonNode payloadPublicado(String routingKey) throws Exception {
@@ -181,7 +323,32 @@ class OutboxPublicadorServiceTest {
     private Message mensagemPublicada(String routingKey) {
         ArgumentCaptor<Message> mensagem = ArgumentCaptor.forClass(Message.class);
         verify(rabbitTemplate)
-                .send(eq(OutboxRabbitConfig.DOMINIO_EXCHANGE), eq(routingKey), mensagem.capture());
+                .send(
+                        eq(OutboxRabbitConfig.DOMINIO_EXCHANGE),
+                        eq(routingKey),
+                        mensagem.capture(),
+                        any(CorrelationData.class));
         return mensagem.getValue();
+    }
+
+    private void brokerResponde(boolean ack, boolean devolvida) {
+        doAnswer(
+                        invocacao -> {
+                            Message mensagem = invocacao.getArgument(2);
+                            CorrelationData correlacao = invocacao.getArgument(3);
+                            if (devolvida) {
+                                correlacao.setReturned(
+                                        new ReturnedMessage(
+                                                mensagem,
+                                                312,
+                                                "NO_ROUTE",
+                                                OutboxRabbitConfig.DOMINIO_EXCHANGE,
+                                                invocacao.getArgument(1)));
+                            }
+                            correlacao.getFuture().complete(new CorrelationData.Confirm(ack, null));
+                            return null;
+                        })
+                .when(rabbitTemplate)
+                .send(anyString(), anyString(), any(Message.class), any(CorrelationData.class));
     }
 }

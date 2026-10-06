@@ -52,6 +52,10 @@ spring:
     port: ${SPRING_RABBITMQ_PORT:5672}
     username: ${SPRING_RABBITMQ_USERNAME:guest}
     password: ${SPRING_RABBITMQ_PASSWORD:guest}
+    publisher-confirm-type: correlated
+    publisher-returns: true
+    template:
+      mandatory: true
 
 server:
   port: ${SERVER_PORT:8081}
@@ -61,6 +65,8 @@ alocacreche:
     publicador:
       # Liga/desliga o OutboxPublicadorScheduler (ligado por padrao; os testes o desligam).
       habilitado: ${ALOCACRECHE_OUTBOX_PUBLICADOR_HABILITADO:true}
+      # Quanto esperar (em ms) pela confirmacao do broker antes de manter o evento PENDENTE.
+      confirmacao-timeout-ms: ${ALOCACRECHE_OUTBOX_CONFIRMACAO_TIMEOUT_MS:5000}
     purga:
       # Quantos dias um evento PROCESSADO fica na tabela outbox antes de ser apagado.
       retencao-dias: ${ALOCACRECHE_OUTBOX_RETENCAO_DIAS:7}

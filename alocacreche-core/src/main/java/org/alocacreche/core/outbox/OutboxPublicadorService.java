@@ -7,20 +7,23 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
-import lombok.RequiredArgsConstructor;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.AmqpException;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.core.MessageBuilder;
 import org.springframework.amqp.core.MessageProperties;
+import org.springframework.amqp.rabbit.connection.CorrelationData;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class OutboxPublicadorService {
 
     static final int TAMANHO_LOTE = 100;
@@ -30,6 +33,19 @@ public class OutboxPublicadorService {
     private final OutboxEventRepository repository;
     private final RabbitTemplate rabbitTemplate;
     private final ObjectMapper objectMapper;
+    private final long confirmacaoTimeoutMs;
+
+    public OutboxPublicadorService(
+            OutboxEventRepository repository,
+            RabbitTemplate rabbitTemplate,
+            ObjectMapper objectMapper,
+            @Value("${alocacreche.outbox.publicador.confirmacao-timeout-ms:5000}")
+                    long confirmacaoTimeoutMs) {
+        this.repository = repository;
+        this.rabbitTemplate = rabbitTemplate;
+        this.objectMapper = objectMapper;
+        this.confirmacaoTimeoutMs = confirmacaoTimeoutMs;
+    }
 
     public List<OutboxEvent> buscarPendentes() {
         return repository.findByStatusOrderByIdAsc(
@@ -58,18 +74,58 @@ public class OutboxPublicadorService {
         }
 
         try {
+            CorrelationData correlacao = new CorrelationData(String.valueOf(evento.getId()));
             rabbitTemplate.send(
                     OutboxRabbitConfig.DOMINIO_EXCHANGE,
                     evento.getTipoEvento(),
-                    mensagemJson(payloadComEventId));
-            evento.marcarProcessado();
-            repository.save(evento);
+                    mensagemJson(payloadComEventId),
+                    correlacao);
+            if (aceitoPorUmaFila(evento, correlacao)) {
+                evento.marcarProcessado();
+                repository.save(evento);
+            }
         } catch (AmqpException e) {
             log.error(
                     "Falha ao publicar OutboxEvent id={}, permanece PENDENTE para nova tentativa",
                     evento.getId(),
                     e);
         }
+    }
+
+    private boolean aceitoPorUmaFila(OutboxEvent evento, CorrelationData correlacao) {
+        try {
+            CorrelationData.Confirm confirmacao =
+                    correlacao.getFuture().get(confirmacaoTimeoutMs, TimeUnit.MILLISECONDS);
+            if (!confirmacao.isAck()) {
+                log.warn(
+                        "OutboxEvent id={} recusado (nack) pelo broker, permanece PENDENTE",
+                        evento.getId());
+                return false;
+            }
+            if (correlacao.getReturned() != null) {
+                log.warn(
+                        "OutboxEvent id={} devolvido pelo broker por nao haver fila ligada a routing key, permanece PENDENTE",
+                        evento.getId());
+                return false;
+            }
+            return true;
+        } catch (TimeoutException e) {
+            log.warn(
+                    "OutboxEvent id={} sem confirmacao do broker em {} ms, permanece PENDENTE",
+                    evento.getId(),
+                    confirmacaoTimeoutMs);
+        } catch (ExecutionException e) {
+            log.warn(
+                    "OutboxEvent id={} com confirmacao falha ({}), permanece PENDENTE",
+                    evento.getId(),
+                    e.getCause() == null ? e.getClass().getSimpleName() : e.getCause().getClass().getSimpleName());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.warn(
+                    "OutboxEvent id={} com espera da confirmacao interrompida, permanece PENDENTE",
+                    evento.getId());
+        }
+        return false;
     }
 
     private Message mensagemJson(String payload) {
