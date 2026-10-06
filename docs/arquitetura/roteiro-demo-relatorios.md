@@ -56,6 +56,13 @@ bytes em UTF-8. O usuário criado tem o perfil `ADMIN`, cuja permissão `*` cobr
 Os relatórios usam os padrões do `application.yml` deles (porta 8082, Postgres em `localhost:5433`,
 RabbitMQ em `localhost:5672`) e só precisam do `SA_TOKEN_JWT_SECRET` acima.
 
+**Atenção:** `SERVER_PORT`, `SPRING_DATASOURCE_URL` e `SPRING_JPA_HIBERNATE_DDL_AUTO` valem **só para o
+core**. Se os relatórios forem iniciados no mesmo shell em que essas variáveis foram exportadas, eles herdam
+`SERVER_PORT=8083` (falha com `Port 8083 was already in use`) e o Postgres do core (falha com
+`relation "ocupacao_turma" does not exist`). Abra um terminal separado para os relatórios e exporte nele
+apenas `SA_TOKEN_JWT_SECRET`, ou rode `unset SERVER_PORT SPRING_DATASOURCE_URL SPRING_JPA_HIBERNATE_DDL_AUTO`
+antes de subi-los.
+
 ## 4. Primeira subida do core (cria as tabelas)
 
 O município precisa existir antes do usuário inicial, e a tabela `municipio` só nasce quando o core sobe
