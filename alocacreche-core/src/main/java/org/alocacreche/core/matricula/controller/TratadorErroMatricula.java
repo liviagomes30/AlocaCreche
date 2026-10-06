@@ -1,21 +1,16 @@
 package org.alocacreche.core.matricula.controller;
 
-import java.util.List;
 import java.util.Map;
 import org.alocacreche.core.matricula.service.ConflitoException;
 import org.alocacreche.core.matricula.service.DadoInvalidoException;
 import org.alocacreche.core.matricula.service.RecursoNaoEncontradoException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.http.converter.HttpMessageNotReadableException;
-import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 @RestControllerAdvice(basePackages = "org.alocacreche.core.matricula.controller")
 public class TratadorErroMatricula {
-
-    static final String MENSAGEM_REQUISICAO_INVALIDA = "Requisição inválida";
 
     @ExceptionHandler(RecursoNaoEncontradoException.class)
     public ResponseEntity<Map<String, String>> tratarNaoEncontrado(RecursoNaoEncontradoException excecao) {
@@ -30,21 +25,5 @@ public class TratadorErroMatricula {
     @ExceptionHandler(DadoInvalidoException.class)
     public ResponseEntity<Map<String, String>> tratarDadoInvalido(DadoInvalidoException excecao) {
         return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(Map.of("erro", excecao.getMessage()));
-    }
-
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<Map<String, Object>> tratarValidacao(MethodArgumentNotValidException excecao) {
-        List<String> campos = excecao.getBindingResult().getFieldErrors().stream()
-                .map(erro -> erro.getField())
-                .distinct()
-                .sorted()
-                .toList();
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(Map.of("erro", MENSAGEM_REQUISICAO_INVALIDA, "campos", campos));
-    }
-
-    @ExceptionHandler(HttpMessageNotReadableException.class)
-    public ResponseEntity<Map<String, String>> tratarJsonIlegivel(HttpMessageNotReadableException excecao) {
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("erro", MENSAGEM_REQUISICAO_INVALIDA));
     }
 }

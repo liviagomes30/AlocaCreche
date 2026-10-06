@@ -210,6 +210,17 @@ class AuthControllerIT {
     }
 
     @Test
+    @DisplayName("JSON ilegivel devolve o corpo padrao do tratador de requisicao unico")
+    void jsonIlegivelDevolveCorpoPadrao() throws Exception {
+        ResponseEntity<String> resposta = enviarJson("{isto nao e json");
+
+        JsonNode corpo = objectMapper.readTree(resposta.getBody());
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(corpo.get("erro").asText()).isEqualTo("Requisição inválida");
+        assertThat(corpo.has("campos")).isFalse();
+    }
+
+    @Test
     @DisplayName("endpoint de teste sem anotacao responde 401 sem token")
     void endpointSemAnotacaoResponde401SemToken() {
         ResponseEntity<String> resposta = restTemplate.getForEntity("/teste-auth/sem-anotacao", String.class);

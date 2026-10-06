@@ -297,6 +297,21 @@ class InscricaoControllerIT {
     }
 
     @Test
+    @DisplayName("JSON ilegivel devolve o corpo padrao do tratador de requisicao unico")
+    void jsonIlegivelDevolveCorpoPadrao() throws Exception {
+        HttpHeaders headers = cabecalhos(tokenCom(municipioA, List.of("*")));
+
+        ResponseEntity<String> resposta =
+                restTemplate.exchange(
+                        CAMINHO, HttpMethod.POST, new HttpEntity<>("{isto nao e json", headers), String.class);
+
+        JsonNode corpo = objectMapper.readTree(resposta.getBody());
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(corpo.get("erro").asText()).isEqualTo("Requisição inválida");
+        assertThat(corpo.has("campos")).isFalse();
+    }
+
+    @Test
     @DisplayName("sem token responde 401 e nada e gravado")
     void semTokenResponde401() {
         ResponseEntity<String> resposta = postar(corpo(novoCpf(), turmaDoMunicipioA), null);

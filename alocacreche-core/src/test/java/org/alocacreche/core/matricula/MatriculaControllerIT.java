@@ -243,6 +243,24 @@ class MatriculaControllerIT {
     }
 
     @Test
+    @DisplayName("JSON ilegivel devolve o corpo padrao do tratador de requisicao unico")
+    void jsonIlegivelDevolveCorpoPadrao() throws Exception {
+        String token = tokenCom(municipioA, List.of("*"));
+
+        ResponseEntity<String> resposta =
+                restTemplate.exchange(
+                        CAMINHO_ALOCAR,
+                        HttpMethod.POST,
+                        new HttpEntity<>("{isto nao e json", cabecalhos(token)),
+                        String.class);
+
+        JsonNode corpo = objectMapper.readTree(resposta.getBody());
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(corpo.get("erro").asText()).isEqualTo("Requisição inválida");
+        assertThat(corpo.has("campos")).isFalse();
+    }
+
+    @Test
     @DisplayName("confirmar com id nao numerico responde 400 sem consultar matricula nem inscricao")
     void confirmarComIdNaoNumericoResponde400() {
         String token = tokenCom(municipioA, List.of("*"));
