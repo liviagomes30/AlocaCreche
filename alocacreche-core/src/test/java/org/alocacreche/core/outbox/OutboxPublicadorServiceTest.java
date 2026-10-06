@@ -11,6 +11,10 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.charset.StandardCharsets;
@@ -24,6 +28,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.slf4j.LoggerFactory;
 import org.springframework.amqp.AmqpException;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.core.MessageProperties;
@@ -222,6 +227,30 @@ class OutboxPublicadorServiceTest {
 
         assertThat(evento.getStatus()).isEqualTo("PENDENTE");
         verify(repository, never()).save(evento);
+    }
+
+    @Test
+    @DisplayName("mensagem devolvida emite aviso WARN com o id do evento e sem o payload")
+    void mensagemDevolvidaEmiteAvisoSemPayload() {
+        OutboxEvent evento = new OutboxEvent("vaga.liberada", "{\"segredo\":\"valor-sensivel-123\"}");
+        evento.setId(10L);
+        brokerResponde(true, true);
+        Logger logger = (Logger) LoggerFactory.getLogger(OutboxPublicadorService.class);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        logger.addAppender(appender);
+        try {
+            service.publicarEvento(evento);
+        } finally {
+            logger.detachAppender(appender);
+        }
+
+        List<ILoggingEvent> avisos =
+                appender.list.stream().filter(e -> e.getLevel() == Level.WARN).toList();
+        assertThat(avisos).hasSize(1);
+        String mensagem = avisos.get(0).getFormattedMessage();
+        assertThat(mensagem).contains("id=10").contains("devolvido");
+        assertThat(mensagem).doesNotContain("valor-sensivel-123").doesNotContain("segredo");
     }
 
     @Test

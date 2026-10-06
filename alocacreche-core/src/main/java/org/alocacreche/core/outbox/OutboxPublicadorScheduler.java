@@ -20,6 +20,7 @@ public class OutboxPublicadorScheduler {
 
     @Scheduled(fixedDelay = 1000)
     public void executar() {
+        // TODO: sem teto de tempo por ciclo (ate lote x timeout de confirmacao) e sem recuo para evento devolvido por falta de fila; exige coluna de tentativas na tabela outbox
         List<OutboxEvent> pendentes = outboxPublicadorService.buscarPendentes();
         for (OutboxEvent evento : pendentes) {
             publicarIsolandoFalhaInesperada(evento);
