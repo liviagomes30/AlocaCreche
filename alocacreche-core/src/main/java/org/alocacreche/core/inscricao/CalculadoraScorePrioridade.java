@@ -2,7 +2,9 @@ package org.alocacreche.core.inscricao;
 
 import java.math.BigDecimal;
 import org.alocacreche.core.notificacao.ConfiguracaoPriorizacao;
+import org.springframework.stereotype.Component;
 
+@Component
 public class CalculadoraScorePrioridade {
 
     public double calcular(
