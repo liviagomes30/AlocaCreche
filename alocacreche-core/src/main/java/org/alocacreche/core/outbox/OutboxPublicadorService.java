@@ -7,7 +7,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
-import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.AmqpException;
@@ -23,12 +22,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 public class OutboxPublicadorService {
-
-    private static final Set<String> ROUTING_KEYS_CONHECIDAS =
-            Set.of(
-                    OutboxRabbitConfig.VAGA_LIBERADA_ROUTING_KEY,
-                    OutboxRabbitConfig.FILA_ATUALIZADA_ROUTING_KEY,
-                    OutboxRabbitConfig.MATRICULA_ATUALIZADA_ROUTING_KEY);
 
     static final int TAMANHO_LOTE = 100;
 
@@ -46,7 +39,7 @@ public class OutboxPublicadorService {
     @Transactional
     public void publicarEvento(OutboxEvent evento) {
         if (evento.getTipoEvento() == null
-                || !ROUTING_KEYS_CONHECIDAS.contains(evento.getTipoEvento())) {
+                || !OutboxRabbitConfig.ROUTING_KEYS_CONHECIDAS.contains(evento.getTipoEvento())) {
             log.warn(
                     "OutboxEvent id={} com tipoEvento sem routing key conhecida: {}",
                     evento.getId(),
