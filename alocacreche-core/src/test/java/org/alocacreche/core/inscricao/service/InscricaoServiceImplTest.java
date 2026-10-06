@@ -18,6 +18,7 @@ import jakarta.persistence.Query;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.alocacreche.core.comum.Endereco;
@@ -209,7 +210,7 @@ class InscricaoServiceImplTest {
         try (MockedStatic<LocalDateTime> relogio =
                 mockStatic(LocalDateTime.class, Mockito.CALLS_REAL_METHODS)) {
             relogio.when(LocalDateTime::now)
-                    .thenAnswer(invocacao -> base.plusSeconds(leituras.incrementAndGet()));
+                    .thenAnswer(invocacao -> base.plusDays(leituras.incrementAndGet()));
 
             service.registrarInscricao(requisicao());
         }
@@ -218,6 +219,9 @@ class InscricaoServiceImplTest {
         verify(outboxEventWriter)
                 .registrar(eq(OutboxRabbitConfig.FILA_ATUALIZADA_ROUTING_KEY), payload.capture());
         FilaEsperaAtualizadaPayload evento = (FilaEsperaAtualizadaPayload) payload.getValue();
+        long leituraDoServico = ChronoUnit.DAYS.between(base.toLocalDate(), evento.dataEntrada());
+        assertThat(leituraDoServico).isPositive();
+        assertThat(evento.ocorridoEm()).isEqualTo(base.plusDays(leituraDoServico));
         assertThat(evento.dataEntrada()).isEqualTo(evento.ocorridoEm().toLocalDate());
     }
 
