@@ -10,6 +10,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.Collections;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -18,7 +19,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
+import org.springframework.test.util.ReflectionTestUtils;
 
 /**
  * Cobre so a orquestracao do loop (chama o service uma vez por evento pendente, via bean externo -
@@ -90,5 +93,32 @@ class OutboxPublicadorSchedulerTest {
                 .run(contexto -> assertThat(contexto).hasSingleBean(OutboxPublicadorScheduler.class));
         runner.withPropertyValues("alocacreche.outbox.publicador.habilitado=false")
                 .run(contexto -> assertThat(contexto).doesNotHaveBean(OutboxPublicadorScheduler.class));
+    }
+
+    @Test
+    @DisplayName("timeout de confirmacao do publicador vem da propriedade, com padrao de 5000 ms")
+    void timeoutDeConfirmacaoVemDaPropriedade() {
+        ApplicationContextRunner runner =
+                new ApplicationContextRunner()
+                        .withBean(OutboxEventRepository.class, () -> mock(OutboxEventRepository.class))
+                        .withBean(RabbitTemplate.class, () -> mock(RabbitTemplate.class))
+                        .withBean(ObjectMapper.class, ObjectMapper::new)
+                        .withUserConfiguration(OutboxPublicadorService.class);
+
+        runner.run(
+                contexto ->
+                        assertThat(
+                                        ReflectionTestUtils.getField(
+                                                contexto.getBean(OutboxPublicadorService.class),
+                                                "confirmacaoTimeoutMs"))
+                                .isEqualTo(5000L));
+        runner.withPropertyValues("alocacreche.outbox.publicador.confirmacao-timeout-ms=1234")
+                .run(
+                        contexto ->
+                                assertThat(
+                                                ReflectionTestUtils.getField(
+                                                        contexto.getBean(OutboxPublicadorService.class),
+                                                        "confirmacaoTimeoutMs"))
+                                        .isEqualTo(1234L));
     }
 }
