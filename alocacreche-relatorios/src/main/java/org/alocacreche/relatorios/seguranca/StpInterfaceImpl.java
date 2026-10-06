@@ -17,6 +17,9 @@ public class StpInterfaceImpl implements StpInterface {
     @Override
     public List<String> getPermissionList(Object loginId, String loginType) {
         try {
+            if (!String.valueOf(loginId).equals(String.valueOf(StpUtil.getLoginIdDefaultNull()))) {
+                return List.of();
+            }
             Object permissoes = StpUtil.getExtra(CLAIM_PERMISSOES);
             if (permissoes instanceof Collection<?> colecao) {
                 return colecao.stream().map(String::valueOf).toList();
