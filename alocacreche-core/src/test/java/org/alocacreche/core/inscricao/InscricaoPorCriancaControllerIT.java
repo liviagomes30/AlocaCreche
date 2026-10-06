@@ -101,6 +101,8 @@ class InscricaoPorCriancaControllerIT {
         emTenant(municipioA, () -> {
             Inscricao salva = inscricaoRepository.findById(inscricaoId).orElseThrow();
             assertThat(salva.getScorePrioridade()).isCloseTo(0.7, org.assertj.core.data.Offset.offset(1e-9));
+            assertThat(salva.getCriterioVulnerabilidade()).isTrue();
+            assertThat(salva.getRendaPerCapita()).isEqualByComparingTo("400.00");
             return null;
         });
     }
