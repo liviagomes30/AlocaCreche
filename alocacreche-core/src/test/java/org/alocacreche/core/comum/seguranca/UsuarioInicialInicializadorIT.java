@@ -1,12 +1,18 @@
 package org.alocacreche.core.comum.seguranca;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import cn.dev33.satoken.secure.BCrypt;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Stream;
 import org.alocacreche.core.comum.tenant.TenantContext;
 import org.alocacreche.core.notificacao.ConfiguracaoPriorizacao;
 import org.alocacreche.core.notificacao.Municipio;
@@ -14,11 +20,15 @@ import org.alocacreche.core.notificacao.MunicipioRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.core.env.Environment;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -122,6 +132,58 @@ class UsuarioInicialInicializadorIT {
         assertThat(environment.getProperty("alocacreche.seguranca.usuario-inicial.senha")).isNull();
         assertThat(environment.getProperty("alocacreche.seguranca.usuario-inicial.email")).isNull();
         assertThat(environment.getProperty("alocacreche.seguranca.usuario-inicial.municipio-id")).isNull();
+    }
+
+    @ParameterizedTest(name = "senha com {1} bytes e rejeitada")
+    @MethodSource("senhasAcimaDoLimite")
+    @DisplayName("senha com mais de 72 bytes em UTF-8 falha a subida citando o limite")
+    void senhaAcimaDe72BytesFalhaASubida(String senha, int bytes) {
+        Long municipioId = criarMunicipio();
+
+        assertThatThrownBy(() -> inicializador(EMAIL, senha, municipioId).run(null))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("72 bytes");
+        assertThat(contar(municipioId)).isZero();
+    }
+
+    @Test
+    @DisplayName("senha com exatamente 72 bytes e aceita")
+    void senhaComExatamente72BytesEAceita() {
+        Long municipioId = criarMunicipio();
+
+        inicializador(EMAIL, "a".repeat(72), municipioId).run(null);
+
+        assertThat(contar(municipioId)).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("violacao de unicidade na criacao concorrente registra que ja existe e a subida continua")
+    void criacaoConcorrenteNaoDerrubaASubida(CapturedOutput saida) {
+        Long municipioId = criarMunicipio();
+        UsuarioRepository repositorioComCorrida = mock(UsuarioRepository.class);
+        when(repositorioComCorrida.findByEmail(EMAIL)).thenReturn(Optional.empty());
+        when(repositorioComCorrida.saveAndFlush(any(Usuario.class)))
+                .thenThrow(new DataIntegrityViolationException("uk_usuario_municipio_email"));
+        UsuarioInicialInicializador inicializadorComCorrida = new UsuarioInicialInicializador(
+                new UsuarioInicialProperties(EMAIL, SENHA, municipioId),
+                municipioRepository,
+                repositorioComCorrida,
+                entityManager,
+                transactionManager);
+
+        assertThatCode(() -> inicializadorComCorrida.run(null)).doesNotThrowAnyException();
+
+        assertThat(saida.getAll())
+                .contains("ja criado por outra instancia no municipio " + municipioId)
+                .doesNotContain(EMAIL)
+                .doesNotContain(SENHA);
+    }
+
+    private static Stream<Arguments> senhasAcimaDoLimite() {
+        return Stream.of(
+                Arguments.of("a".repeat(73), 73),
+                Arguments.of("é".repeat(37), 74),
+                Arguments.of("a".repeat(71) + "é", 73));
     }
 
     private UsuarioInicialInicializador inicializador(String email, String senha, Long municipioId) {
