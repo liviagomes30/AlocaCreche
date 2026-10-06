@@ -86,7 +86,8 @@ class AutenticacaoServiceImplTest {
         when(consultaDoTenant.setParameter(anyInt(), any())).thenReturn(consultaDoTenant);
         when(municipioRepository.existsById(MUNICIPIO_ID)).thenReturn(true);
         servico = new AutenticacaoServiceImpl(
-                usuarioRepository, municipioRepository, entityManager, new StpLogicJwtForStateless());
+                usuarioRepository, municipioRepository, entityManager, new StpLogicJwtForStateless(),
+                new LimitadorTentativasLogin(3, 900));
     }
 
     @AfterEach
@@ -243,6 +244,35 @@ class AutenticacaoServiceImplTest {
             }
         }
         return linhas;
+    }
+
+    @Test
+    @DisplayName("apos 3 falhas seguidas o login e bloqueado mesmo com a senha correta")
+    void aposFalhasSeguidasBloqueiaMesmoComSenhaCorreta() {
+        when(usuarioRepository.findByEmail(EMAIL)).thenReturn(Optional.of(usuario(PerfilUsuario.GESTOR, true)));
+        LoginRequest errado = new LoginRequest(EMAIL, "senha-errada", MUNICIPIO_ID);
+        for (int i = 0; i < 3; i++) {
+            assertThatThrownBy(() -> servico.autenticar(errado)).isInstanceOf(CredenciaisInvalidasException.class);
+        }
+
+        assertThatThrownBy(() -> servico.autenticar(new LoginRequest(EMAIL, SENHA, MUNICIPIO_ID)))
+                .isInstanceOf(TentativasExcedidasException.class);
+    }
+
+    @Test
+    @DisplayName("login correto zera as falhas anteriores")
+    void loginCorretoZeraAsFalhas() {
+        when(usuarioRepository.findByEmail(EMAIL)).thenReturn(Optional.of(usuario(PerfilUsuario.GESTOR, true)));
+        LoginRequest errado = new LoginRequest(EMAIL, "senha-errada", MUNICIPIO_ID);
+        for (int i = 0; i < 2; i++) {
+            assertThatThrownBy(() -> servico.autenticar(errado)).isInstanceOf(CredenciaisInvalidasException.class);
+        }
+        servico.autenticar(new LoginRequest(EMAIL, SENHA, MUNICIPIO_ID));
+        for (int i = 0; i < 2; i++) {
+            assertThatThrownBy(() -> servico.autenticar(errado)).isInstanceOf(CredenciaisInvalidasException.class);
+        }
+
+        assertThat(servico.autenticar(new LoginRequest(EMAIL, SENHA, MUNICIPIO_ID)).token()).isNotBlank();
     }
 
     private static Usuario usuario(PerfilUsuario perfil, boolean ativo) {

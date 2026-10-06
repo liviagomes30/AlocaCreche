@@ -29,25 +29,30 @@ public class AutenticacaoServiceImpl implements AutenticacaoService {
     private final MunicipioRepository municipioRepository;
     private final EntityManager entityManager;
     private final StpLogicJwtForStateless stpLogic;
+    private final LimitadorTentativasLogin limitador;
 
     @Override
     @Transactional(readOnly = true)
     public LoginResponse autenticar(LoginRequest request) {
         Long municipioId = request.municipioId();
+        String email = normalizar(request.email());
+        limitador.verificarBloqueio(municipioId, email);
         TenantContext.aplicar(entityManager, municipioId);
 
-        Optional<Usuario> usuario = buscarUsuario(municipioId, normalizar(request.email()));
+        Optional<Usuario> usuario = buscarUsuario(municipioId, email);
         String hashParaConferir = usuario.map(Usuario::getSenhaHash).orElse(hashFicticio);
         boolean senhaConfere = BCrypt.checkpw(request.senha(), hashParaConferir);
 
         Usuario autenticado = usuario
                 .filter(Usuario::isAtivo)
                 .filter(candidato -> senhaConfere)
-                .orElseThrow(() -> falhaDeLogin(municipioId));
+                .orElseThrow(() -> falhaDeLogin(municipioId, email));
+        limitador.registrarSucesso(municipioId, email);
         return emitirToken(autenticado, municipioId);
     }
 
-    private CredenciaisInvalidasException falhaDeLogin(Long municipioId) {
+    private CredenciaisInvalidasException falhaDeLogin(Long municipioId, String email) {
+        limitador.registrarFalha(municipioId, email);
         log.warn("Falha de login no municipio {}: credenciais invalidas", municipioId);
         return new CredenciaisInvalidasException();
     }

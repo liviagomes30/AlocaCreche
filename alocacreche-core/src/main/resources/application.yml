@@ -61,6 +61,11 @@ server:
   port: ${SERVER_PORT:8081}
 
 alocacreche:
+  seguranca:
+    login:
+      # Falhas de login por municipio+email dentro da janela antes de responder 429.
+      max-falhas: ${ALOCACRECHE_LOGIN_MAX_FALHAS:5}
+      janela-segundos: ${ALOCACRECHE_LOGIN_JANELA_SEGUNDOS:900}
   outbox:
     publicador:
       # Liga/desliga o OutboxPublicadorScheduler (ligado por padrao; os testes o desligam).
