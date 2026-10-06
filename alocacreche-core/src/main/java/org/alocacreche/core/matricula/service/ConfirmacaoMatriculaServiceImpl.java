@@ -38,7 +38,7 @@ public class ConfirmacaoMatriculaServiceImpl implements ConfirmacaoMatriculaServ
 
         Matricula matricula =
                 matriculaRepository
-                        .findById(matriculaId)
+                        .buscarParaConfirmar(matriculaId)
                         .orElseThrow(() -> new RecursoNaoEncontradoException("Matricula nao encontrada"));
         LocalDateTime agora = LocalDateTime.now();
         validarConfirmavel(matricula, agora);

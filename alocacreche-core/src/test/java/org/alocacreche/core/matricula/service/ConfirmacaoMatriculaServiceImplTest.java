@@ -105,7 +105,7 @@ class ConfirmacaoMatriculaServiceImplTest {
         lenient().when(sessaoTenantResolver.municipioIdAtual()).thenReturn(MUNICIPIO_ID);
         lenient().when(entityManager.createNativeQuery(anyString())).thenReturn(consultaTenant);
         lenient().when(consultaTenant.setParameter(eq(1), any())).thenReturn(consultaTenant);
-        lenient().when(matriculaRepository.findById(MATRICULA_ID)).thenReturn(Optional.of(matricula));
+        lenient().when(matriculaRepository.buscarParaConfirmar(MATRICULA_ID)).thenReturn(Optional.of(matricula));
         lenient().when(inscricaoRepository.findById(INSCRICAO_ID)).thenReturn(Optional.of(inscricao));
     }
 
@@ -178,7 +178,7 @@ class ConfirmacaoMatriculaServiceImplTest {
     @Test
     @DisplayName("matricula inexistente no municipio lanca RecursoNaoEncontradoException sem evento")
     void matriculaInexistenteLancaNaoEncontrado() {
-        when(matriculaRepository.findById(MATRICULA_ID)).thenReturn(Optional.empty());
+        when(matriculaRepository.buscarParaConfirmar(MATRICULA_ID)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.confirmar(MATRICULA_ID))
                 .isInstanceOf(RecursoNaoEncontradoException.class);
@@ -206,7 +206,7 @@ class ConfirmacaoMatriculaServiceImplTest {
         InOrder ordem = inOrder(entityManager, consultaTenant, matriculaRepository);
         ordem.verify(entityManager).createNativeQuery(contains("set_config"));
         ordem.verify(consultaTenant).setParameter(1, MUNICIPIO_ID.toString());
-        ordem.verify(matriculaRepository).findById(MATRICULA_ID);
+        ordem.verify(matriculaRepository).buscarParaConfirmar(MATRICULA_ID);
     }
 
     @Test
