@@ -40,11 +40,16 @@ public class AutenticacaoServiceImpl implements AutenticacaoService {
         String hashParaConferir = usuario.map(Usuario::getSenhaHash).orElse(hashFicticio);
         boolean senhaConfere = BCrypt.checkpw(request.senha(), hashParaConferir);
 
-        if (usuario.isEmpty() || !usuario.get().isAtivo() || !senhaConfere) {
-            log.warn("Falha de login no municipio {}: credenciais invalidas", municipioId);
-            throw new CredenciaisInvalidasException();
-        }
-        return emitirToken(usuario.get(), municipioId);
+        Usuario autenticado = usuario
+                .filter(Usuario::isAtivo)
+                .filter(candidato -> senhaConfere)
+                .orElseThrow(() -> falhaDeLogin(municipioId));
+        return emitirToken(autenticado, municipioId);
+    }
+
+    private CredenciaisInvalidasException falhaDeLogin(Long municipioId) {
+        log.warn("Falha de login no municipio {}: credenciais invalidas", municipioId);
+        return new CredenciaisInvalidasException();
     }
 
     private Optional<Usuario> buscarUsuario(Long municipioId, String email) {
