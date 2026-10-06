@@ -281,3 +281,21 @@ Esperado: `401`.
 ## 12. Encerrar
 
 `Ctrl+C` nos dois serviços e `docker compose down` (acrescente `-v` para apagar os dados).
+
+## 13. Interface web de demonstração (opcional)
+
+O Gateway serve duas páginas estáticas, na mesma origem das APIs (sem CORS), que fazem o fluxo das
+seções 7 a 10 pelo navegador: `login.html` (autenticação) e `index.html` (criar creche e turma, inscrever,
+alocar, confirmar e acompanhar os relatórios e o painel público). Depois de subir o core (8083) e os
+relatórios (8082) como nas seções 2 a 6, suba o Gateway em outro terminal:
+
+```bash
+cd alocacreche-gateway
+ALOCACRECHE_CORE_URL=http://localhost:8083 SERVER_PORT=8090 mvn spring-boot:run
+```
+
+Abra `http://localhost:8090/login.html` (a porta padrão do Gateway é a 8080; use outra se ela estiver
+ocupada). Entre com o usuário inicial da seção 3. O token fica só no `sessionStorage` da aba e some ao
+fechá-la; o botão **Sair** o apaga e uma resposta 401 volta ao login. Cinco falhas seguidas de login
+mostram o bloqueio de 15 minutos (429). As páginas são só para demonstração e teste: não têm senha nem
+token fixos no código.
