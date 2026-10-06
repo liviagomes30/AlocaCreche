@@ -21,6 +21,8 @@ import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.alocacreche.core.comum.Endereco;
+import org.alocacreche.core.comum.excecao.ConflitoException;
+import org.alocacreche.core.comum.excecao.RecursoNaoEncontradoException;
 import org.alocacreche.core.comum.seguranca.SessaoTenantResolver;
 import org.alocacreche.core.inscricao.FilaEspera;
 import org.alocacreche.core.inscricao.FilaEsperaRepository;

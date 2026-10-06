@@ -1,9 +1,9 @@
 package org.alocacreche.core.matricula.controller;
 
 import java.util.Map;
-import org.alocacreche.core.matricula.service.ConflitoException;
+import org.alocacreche.core.comum.excecao.ConflitoException;
+import org.alocacreche.core.comum.excecao.RecursoNaoEncontradoException;
 import org.alocacreche.core.matricula.service.DadoInvalidoException;
-import org.alocacreche.core.matricula.service.RecursoNaoEncontradoException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;

@@ -19,6 +19,7 @@ import java.lang.reflect.Method;
 import java.time.LocalDateTime;
 import java.util.Optional;
 import org.alocacreche.core.comum.Endereco;
+import org.alocacreche.core.comum.excecao.RecursoNaoEncontradoException;
 import org.alocacreche.core.comum.seguranca.SessaoTenantResolver;
 import org.alocacreche.core.matricula.Creche;
 import org.alocacreche.core.matricula.CrecheRepository;

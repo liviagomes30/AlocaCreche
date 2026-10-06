@@ -1,4 +1,4 @@
-package org.alocacreche.core.matricula.service;
+package org.alocacreche.core.comum.excecao;
 
 public class RecursoNaoEncontradoException extends RuntimeException {
 

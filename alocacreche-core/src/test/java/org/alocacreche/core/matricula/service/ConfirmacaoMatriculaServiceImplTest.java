@@ -20,6 +20,8 @@ import java.lang.reflect.Method;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Optional;
+import org.alocacreche.core.comum.excecao.ConflitoException;
+import org.alocacreche.core.comum.excecao.RecursoNaoEncontradoException;
 import org.alocacreche.core.comum.seguranca.SessaoTenantResolver;
 import org.alocacreche.core.inscricao.Inscricao;
 import org.alocacreche.core.inscricao.InscricaoRepository;
