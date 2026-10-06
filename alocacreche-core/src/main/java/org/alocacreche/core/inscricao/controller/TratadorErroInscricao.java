@@ -8,7 +8,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-@RestControllerAdvice(assignableTypes = InscricaoController.class)
+@RestControllerAdvice(
+        assignableTypes = {InscricaoController.class, org.alocacreche.core.inscricao.InscricaoController.class})
 public class TratadorErroInscricao {
 
     @ExceptionHandler(RecursoNaoEncontradoException.class)

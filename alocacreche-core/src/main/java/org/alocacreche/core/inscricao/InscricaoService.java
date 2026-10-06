@@ -1,7 +1,12 @@
 package org.alocacreche.core.inscricao;
 
+import cn.dev33.satoken.exception.NotPermissionException;
+import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.alocacreche.core.comum.excecao.RecursoNaoEncontradoException;
+import org.alocacreche.core.comum.seguranca.SessaoTenantResolver;
+import org.alocacreche.core.comum.tenant.TenantContext;
 import org.alocacreche.core.notificacao.Municipio;
 import org.alocacreche.core.notificacao.MunicipioRepository;
 import org.springframework.stereotype.Service;
@@ -10,6 +15,8 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class InscricaoService {
 
+    private final SessaoTenantResolver sessaoTenantResolver;
+    private final EntityManager entityManager;
     private final InscricaoRepository inscricaoRepository;
     private final CriancaRepository criancaRepository;
     private final MunicipioRepository municipioRepository;
@@ -17,14 +24,20 @@ public class InscricaoService {
     private final CalculadoraScorePrioridade calculadoraScorePrioridade;
 
     @Transactional
-    public Inscricao registrarInscricao(InscricaoDTO dto) {
+    public InscricaoRegistradaResponse registrarInscricao(InscricaoDTO dto) {
 
-        Municipio municipio = municipioRepository.findById(dto.municipioId())
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "Município não encontrado: " + dto.municipioId()));
+        Long municipioId = sessaoTenantResolver.municipioIdAtual();
+        if (!municipioId.equals(dto.municipioId())) {
+            throw new NotPermissionException("municipioId");
+        }
+        TenantContext.aplicar(entityManager, municipioId);
+
+        Municipio municipio = municipioRepository.findById(municipioId)
+                .orElseThrow(() -> new RecursoNaoEncontradoException(
+                        "Município não encontrado: " + municipioId));
 
         Crianca crianca = criancaRepository.findById(dto.criancaId())
-                .orElseThrow(() -> new IllegalArgumentException(
+                .orElseThrow(() -> new RecursoNaoEncontradoException(
                         "Criança não encontrada: " + dto.criancaId()));
 
         boolean irmaoMatriculado = verificarIrmaoMatriculado(crianca);
@@ -44,7 +57,9 @@ public class InscricaoService {
                 Boolean.TRUE.equals(dto.criterioVulnerabilidade()));
         inscricao.setScorePrioridade(score);
 
-        return inscricaoRepository.save(inscricao);
+        // TODO: esta rota registra a inscricao mas nao a coloca na fila de espera nem grava o evento fila.atualizada para os relatorios
+        Inscricao salva = inscricaoRepository.save(inscricao);
+        return new InscricaoRegistradaResponse(salva.getId(), salva.getScorePrioridade(), salva.getStatus());
     }
 
     private boolean verificarIrmaoMatriculado(Crianca crianca) {

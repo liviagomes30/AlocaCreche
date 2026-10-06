@@ -22,9 +22,8 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 
 /**
  * Prova a convivencia, no mesmo contexto Spring, do InscricaoController da Stack A (pacote
- * inscricao, sem permissao propria) com o InscricaoController desta entrega (pacote
- * inscricao.controller): os dois sobem e a rota da Stack A continua protegida pela negacao por
- * padrao do Sa-Token.
+ * inscricao) com o InscricaoController desta entrega (pacote inscricao.controller): os dois sobem
+ * e a rota da Stack A exige autenticacao.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Testcontainers
@@ -59,14 +58,14 @@ class IntegracaoStackAIT {
     }
 
     @Test
-    @DisplayName("a rota da Stack A sem token responde 401 (negacao por padrao)")
+    @DisplayName("a rota da Stack A sem token responde 401")
     void aRotaDaStackASemTokenResponde401() {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
 
         ResponseEntity<String> resposta =
                 restTemplate.exchange(
-                        "/inscricoes", HttpMethod.POST, new HttpEntity<>("{}", headers), String.class);
+                        "/api/v1/inscricao/inscricoes/por-crianca", HttpMethod.POST, new HttpEntity<>("{}", headers), String.class);
 
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
     }
