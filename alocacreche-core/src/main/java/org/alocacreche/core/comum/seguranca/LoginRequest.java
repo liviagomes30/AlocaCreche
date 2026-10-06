@@ -20,6 +20,11 @@ public record LoginRequest(
         @NotBlank @MaximoBytesUtf8(72) String senha,
         @NotNull @Positive Long municipioId) {
 
+    @Override
+    public String toString() {
+        return "LoginRequest[municipioId=" + municipioId + ", email=<omitido>, senha=<omitida>]";
+    }
+
     @Target({ElementType.FIELD, ElementType.PARAMETER, ElementType.RECORD_COMPONENT, ElementType.METHOD})
     @Retention(RetentionPolicy.RUNTIME)
     @Constraint(validatedBy = MaximoBytesUtf8Validator.class)

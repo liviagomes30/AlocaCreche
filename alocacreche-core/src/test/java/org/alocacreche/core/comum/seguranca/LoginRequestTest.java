@@ -120,6 +120,30 @@ class LoginRequestTest {
                 .containsExactlyInAnyOrder("email", "senha", "municipioId");
     }
 
+    @Test
+    @DisplayName("toString nao expoe a senha")
+    void toStringNaoExpoeSenha() {
+        String texto = new LoginRequest(EMAIL_VALIDO, SENHA_VALIDA, 7L).toString();
+
+        assertThat(texto).doesNotContain(SENHA_VALIDA);
+    }
+
+    @Test
+    @DisplayName("toString nao expoe o email")
+    void toStringNaoExpoeEmail() {
+        String texto = new LoginRequest(EMAIL_VALIDO, SENHA_VALIDA, 7L).toString();
+
+        assertThat(texto).doesNotContain(EMAIL_VALIDO);
+    }
+
+    @Test
+    @DisplayName("toString continua util: mostra o municipioId")
+    void toStringMostraMunicipioId() {
+        String texto = new LoginRequest(EMAIL_VALIDO, SENHA_VALIDA, 7L).toString();
+
+        assertThat(texto).contains("municipioId=7");
+    }
+
     private static Set<String> camposInvalidos(LoginRequest request) {
         Set<ConstraintViolation<LoginRequest>> violacoes = validator.validate(request);
         return violacoes.stream()
