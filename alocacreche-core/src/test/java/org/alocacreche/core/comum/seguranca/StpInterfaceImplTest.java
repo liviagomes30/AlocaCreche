@@ -31,6 +31,25 @@ class StpInterfaceImplTest {
     }
 
     @Test
+    @DisplayName("loginId igual ao do token (comparado como texto) devolve as permissoes")
+    void loginIdIgualComparadoComoTextoDevolvePermissoes() {
+        ContextoSaTokenExtension.requisicaoComToken(
+                ContextoSaTokenExtension.emitirToken(7L, List.of("relatorios:ocupacao:list")));
+
+        assertThat(stpInterface.getPermissionList("1", "login")).containsExactly("relatorios:ocupacao:list");
+    }
+
+    @Test
+    @DisplayName("loginId diferente do token da requisicao devolve lista vazia sem excecao")
+    void loginIdDiferenteDevolveListaVazia() {
+        ContextoSaTokenExtension.requisicaoComToken(
+                ContextoSaTokenExtension.emitirToken(7L, List.of("relatorios:ocupacao:list")));
+
+        assertThatCode(() -> assertThat(stpInterface.getPermissionList(2L, "login")).isEmpty())
+                .doesNotThrowAnyException();
+    }
+
+    @Test
     @DisplayName("sem a claim perms, devolve lista vazia")
     void semAClaimPermsDevolveListaVazia() {
         ContextoSaTokenExtension.requisicaoComToken(ContextoSaTokenExtension.emitirTokenSemClaims());
