@@ -6,6 +6,10 @@ import java.io.IOException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.amqp.core.BindingBuilder;
+import org.springframework.amqp.core.Queue;
+import org.springframework.amqp.core.TopicExchange;
+import org.springframework.amqp.rabbit.core.RabbitAdmin;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -53,12 +57,21 @@ class OutboxPublicadorBrokerIndisponivelIT {
 
     @Autowired private OutboxEventRepository repository;
     @Autowired private PlatformTransactionManager transactionManager;
+    @Autowired private RabbitAdmin rabbitAdmin;
+    @Autowired private TopicExchange dominioExchange;
 
     private TransactionTemplate transactionTemplate;
 
     @BeforeEach
     void setUp() {
         transactionTemplate = new TransactionTemplate(transactionManager);
+
+        Queue filaTeste = new Queue("relatorios.ocupacao.indisponivel", true);
+        rabbitAdmin.declareQueue(filaTeste);
+        rabbitAdmin.declareBinding(
+                BindingBuilder.bind(filaTeste)
+                        .to(dominioExchange)
+                        .with(OutboxRabbitConfig.VAGA_LIBERADA_ROUTING_KEY));
     }
 
     @Test

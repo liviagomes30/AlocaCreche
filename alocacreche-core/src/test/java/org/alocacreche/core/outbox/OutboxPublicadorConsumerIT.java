@@ -54,6 +54,8 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 class OutboxPublicadorConsumerIT {
 
     private static final String FILA_TESTE_OCUPACAO = "relatorios.ocupacao";
+    private static final String FILA_TESTE_FILA_ATUALIZADA = "relatorios.fila.teste";
+    private static final long ESPERA_SEM_FILA_MS = 3_000;
     /**
      * 2x o intervalo do poll (fixedDelay=1000ms) - margem para jitter de agendamento sob teste,
      * mas ainda apertado o suficiente para reprovar se o poll real ficar muito mais lento que o
@@ -105,6 +107,7 @@ class OutboxPublicadorConsumerIT {
 
     @AfterEach
     void tearDown() {
+        rabbitAdmin.deleteQueue(FILA_TESTE_FILA_ATUALIZADA);
         drenarFila(FILA_TESTE_OCUPACAO);
         transactionTemplate.executeWithoutResult(status -> repository.deleteAll());
     }
@@ -170,6 +173,41 @@ class OutboxPublicadorConsumerIT {
 
         Message mensagemInesperada = rabbitTemplate.receive(FILA_TESTE_OCUPACAO, 500);
         assertThat(mensagemInesperada).isNull();
+    }
+
+    @Test
+    @DisplayName("sem fila ligada a routing key o evento permanece PENDENTE por mais de dois ciclos do poll")
+    void semFilaLigadaEventoPermanecePendente() throws InterruptedException {
+        Long id = inserirPendente("matricula.atualizada", "{\"turmaId\":307}");
+
+        Thread.sleep(ESPERA_SEM_FILA_MS);
+
+        assertThat(buscarStatus(id)).isEqualTo("PENDENTE");
+    }
+
+    @Test
+    @DisplayName("evento que esperava sem fila e entregue uma unica vez quando a fila e ligada")
+    void eventoQueEsperavaEhEntregueUmaVezQuandoFilaELigada()
+            throws InterruptedException, IOException {
+        Long id = inserirPendente("fila.atualizada", "{\"turmaId\":306}");
+
+        Thread.sleep(ESPERA_SEM_FILA_MS);
+
+        assertThat(buscarStatus(id)).isEqualTo("PENDENTE");
+
+        Queue filaTeste = new Queue(FILA_TESTE_FILA_ATUALIZADA, true);
+        rabbitAdmin.declareQueue(filaTeste);
+        rabbitAdmin.declareBinding(
+                BindingBuilder.bind(filaTeste)
+                        .to(dominioExchange)
+                        .with(OutboxRabbitConfig.FILA_ATUALIZADA_ROUTING_KEY));
+
+        assertThat(buscarStatusComRetry(id, 5_000)).isEqualTo("PROCESSADO");
+        Message mensagem = rabbitTemplate.receive(FILA_TESTE_FILA_ATUALIZADA, 1_000);
+        assertThat(mensagem).isNotNull();
+        assertJsonEquivalente(mensagem.getBody(), "{\"turmaId\":306,\"eventId\":" + id + "}");
+        Thread.sleep(2_500);
+        assertThat(rabbitTemplate.receive(FILA_TESTE_FILA_ATUALIZADA, 500)).isNull();
     }
 
     @Test
