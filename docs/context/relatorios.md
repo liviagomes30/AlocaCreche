@@ -5,12 +5,15 @@
 
 > **Enquanto a equipe for de 3 integrantes** (`docs/adr/0004-divisao-equipe-tres-integrantes.md`): além
 > do que está descrito abaixo, esta integrante também é dona do **Publicador da Outbox**
-> (`core/outbox` → RabbitMQ), do **Gateway**, da **autenticação básica** (Sa-Token) e da implementação
-> de `GeolocalizacaoService` — mecânica de cada peça em `docs/context/notificacao-plataforma.md`. Como
-> o contrato dos três eventos (`VagaLiberadaEvent`, `FilaEsperaAtualizadaEvent`,
-> `MatriculaAtualizadaEvent`) já está fixado neste módulo, é possível construir e testar o publicador
-> inserindo eventos sintéticos direto na tabela `outbox`, sem esperar Inscrição/Matrícula gravarem
-> eventos reais — só confira conformidade de contrato quando essas stacks entregarem.
+> (`core/outbox` → RabbitMQ), do **Gateway** e da **autenticação básica** (Sa-Token) — mecânica de cada
+> peça em `docs/context/notificacao-plataforma.md` e as garantias implementadas em
+> `docs/adr/0005-seguranca-stateless-e-outbox-confiavel.md`. O contrato dos três eventos
+> (`VagaLiberadaEvent`, `FilaEsperaAtualizadaEvent`, `MatriculaAtualizadaEvent`) é fixado neste módulo e
+> já é gravado de verdade pelas Stacks A e B via `OutboxEventWriter`.
+>
+> **Escopo reduzido** (`docs/adr/0006-escopo-reduzido-da-proposta.md`): a Stack C entrega o Publicador
+> Outbox → RabbitMQ, o painel público de ocupação e os relatórios de fila de espera e confirmação de
+> matrícula. `GeolocalizacaoService` e a geocodificação externa estão fora do escopo.
 
 ## Este é o único serviço realmente separado do grupo
 
@@ -75,11 +78,13 @@ Gateway só roteia, não valida token.
 
 ## Pendências adiadas (TODO)
 
-- **TODO — rate limit no login.** Não há bloqueio nem limite de tentativas de login; exige estado
-  compartilhado (Redis) e uma política de bloqueio ainda não decidida.
-- **TODO — segredo JWT placeholder.** O `sa-token.jwt-secret-key` tem um valor padrão de
-  desenvolvimento no `application.yml` (`SA_TOKEN_JWT_SECRET`); trocá-lo fora do ambiente local é
-  responsabilidade de deploy, e a aplicação não falha ao subir com o valor padrão.
+- **Limite de login por instância.** O bloqueio de 5 falhas em 15 minutos (429) vale por instância do
+  core, porque o contador fica em memória. Com várias instâncias, mover o contador para o Redis.
+- **Segredo JWT.** No perfil `prod` a aplicação não sobe com o valor padrão do `application.yml` nem
+  com menos de 32 caracteres (`SA_TOKEN_JWT_SECRET`); fora de `prod` o padrão de desenvolvimento
+  continua valendo.
+- **TODO — reenvio de eventos devolvidos pelo broker.** Sem backoff nem teto por ciclo; exige coluna
+  de tentativas na `outbox` (ver `OutboxPublicadorScheduler`).
 
 ## Aspecto técnico de destaque
 

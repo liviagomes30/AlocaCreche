@@ -3,6 +3,14 @@
 > Material de apoio à `ADR 0001` (`docs/adr/0001-fundacao-arquitetural.md`). Descreve a arquitetura
 > ALVO combinada na proposta do Workshop de Práticas — o scaffold Maven (`docs/adr/0002-...md`)
 > existe, mas nenhuma entidade de domínio ou regra de negócio foi implementada ainda.
+>
+> **Escopo atual:** a proposta foi reduzida a 3 funcionalidades por stack
+> (`docs/adr/0006-escopo-reduzido-da-proposta.md`). Neste documento, o motor de priorização
+> configurável (Strategy, versão de configuração) e a geocodificação externa (`GeolocalizacaoService`,
+> `calcularDistancia` via API) descrevem a arquitetura alvo original e estão fora do escopo entregue:
+> o score usa pesos fixos e a distância usa coordenadas cadastradas (Haversine). As garantias de
+> segurança e de Outbox implementadas estão em
+> `docs/adr/0005-seguranca-stateless-e-outbox-confiavel.md`.
 
 ## Diagrama de classes (domínio)
 
