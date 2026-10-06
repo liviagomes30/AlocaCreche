@@ -17,4 +17,6 @@ public interface MatriculaRepository extends JpaRepository<Matricula, Long> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select m from Matricula m where m.id = :id")
     Optional<Matricula> buscarParaConfirmar(@Param("id") Long id);
+
+    boolean existsByInscricaoId(Long inscricaoId);
 }
