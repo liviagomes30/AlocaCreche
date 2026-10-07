@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AlocaCreche - Painel de demonstração</title>
+<style>
+  :root { --borda: #d0d7de; --fundo: #f6f8fa; --azul: #0b5fff; --ok: #1a7f37; --erro: #cf222e; }
+  * { box-sizing: border-box; }
+  body { font-family: system-ui, sans-serif; margin: 0; background: var(--fundo); color: #1f2328; }
+  header { background: #0b2a5b; color: #fff; padding: 12px 24px; display: flex; flex-wrap: wrap; gap: 8px 12px; justify-content: space-between; align-items: center; }
+  .sessao { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  header h1 { font-size: 18px; margin: 0; }
+  main { max-width: 1200px; margin: 16px auto; padding: 0 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  section { min-width: 0; background: #fff; border: 1px solid var(--borda); border-radius: 8px; padding: 14px 16px; }
+  section.larga { grid-column: 1 / -1; }
+  h2 { font-size: 15px; margin: 0 0 10px; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; }
+  h2 label { margin: 0; }
+  label { display: block; font-size: 12px; margin: 6px 0 2px; color: #57606a; }
+  input, select { width: 100%; padding: 6px 8px; border: 1px solid var(--borda); border-radius: 6px; font-size: 14px; }
+  .linha { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  button { margin-top: 10px; padding: 7px 14px; border: 0; border-radius: 6px; background: var(--azul); color: #fff; font-size: 14px; cursor: pointer; }
+  button.sec { background: #57606a; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  .estado { font-size: 12px; padding: 3px 8px; border-radius: 10px; background: #ddf4ff; }
+  .estado.logado { background: #dafbe1; color: var(--ok); }
+  .cartoes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  .cartao { border: 1px solid var(--borda); border-radius: 8px; padding: 10px; text-align: center; }
+  .cartao b { display: block; font-size: 24px; color: var(--azul); }
+  .cartao span { font-size: 12px; color: #57606a; }
+  pre { background: #0d1117; color: #e6edf3; padding: 10px; border-radius: 6px; max-height: 260px; overflow: auto; font-size: 12px; margin: 8px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+  pre .ok { color: #7ee787; } pre .erro { color: #ff7b72; }
+  .aviso { font-size: 12px; color: #57606a; margin-top: 6px; }
+  @media (max-width: 800px) { main { grid-template-columns: 1fr; } .cartoes { grid-template-columns: repeat(2, 1fr); } }
+</style>
+</head>
+<body>
+<header>
+  <h1>AlocaCreche - painel de demonstração</h1>
+  <span class="sessao">
+    <span id="estado" class="estado">verificando sessão...</span>
+    <button id="btnSair" class="sec" style="margin:0">Sair</button>
+  </span>
+</header>
+
+<main>
+  <section>
+    <h2>1. Creche e turma</h2>
+    <div class="linha">
+      <div><label>Nome da creche</label><input id="crecheNome" value="Creche Sol"></div>
+      <div><label>Capacidade</label><input id="crecheCapacidade" type="number" value="50"></div>
+      <div><label>Latitude</label><input id="crecheLat" type="number" step="any" value="-23.56"></div>
+      <div><label>Longitude</label><input id="crecheLon" type="number" step="any" value="-46.64"></div>
+      <div><label>Faixa etária</label>
+        <select id="faixa"><option>BERCARIO</option><option selected>MATERNAL</option><option>PRE_ESCOLA</option></select></div>
+      <div><label>Vagas da turma</label><input id="vagas" type="number" value="3"></div>
+    </div>
+    <button id="btnCreche">Criar creche e turma</button>
+    <p class="aviso">Turma atual: <b id="turmaAtual">-</b></p>
+  </section>
+
+  <section>
+    <h2>2. Inscrição</h2>
+    <div class="linha">
+      <div><label>Responsável</label><input id="respNome" value="Maria Responsavel"></div>
+      <div><label>CPF (único no banco)</label><input id="respCpf"></div>
+      <div><label>Criança</label><input id="criNome" value="Joao Crianca"></div>
+      <div><label>Nascimento</label><input id="criNasc" type="date" value="2024-03-10"></div>
+      <div><label>Latitude do responsável</label><input id="respLat" type="number" step="any" value="-23.55"></div>
+      <div><label>Longitude do responsável</label><input id="respLon" type="number" step="any" value="-46.63"></div>
+      <div><label>Renda per capita</label><input id="renda" type="number" step="0.01" value="1234.56"></div>
+      <div><label>Vulnerabilidade</label>
+        <select id="vuln"><option value="true">Sim</option><option value="false">Não</option></select></div>
+    </div>
+    <button id="btnInscrever">Inscrever na turma atual</button>
+    <p class="aviso">O CPF é gerado automaticamente se ficar em branco.</p>
+  </section>
+
+  <section>
+    <h2>3. Alocar e confirmar</h2>
+    <button id="btnAlocar">Alocar vaga ao primeiro da fila</button>
+    <p class="aviso">Matrícula atual: <b id="matriculaAtual">-</b></p>
+    <button id="btnConfirmar" class="sec">Confirmar matrícula</button>
+  </section>
+
+  <section class="larga">
+    <h2>4. Relatórios (via RabbitMQ, consistência eventual)
+      <label style="display:inline"><input id="auto" type="checkbox" style="width:auto"> atualizar a cada 3 s</label></h2>
+    <div class="cartoes">
+      <div class="cartao"><b id="kVagas">-</b><span>vagas disponíveis (ocupação)</span></div>
+      <div class="cartao"><b id="kFila">-</b><span>aguardando na fila</span></div>
+      <div class="cartao"><b id="kTaxa">-</b><span>taxa de confirmação</span></div>
+      <div class="cartao"><b id="kDist">-</b><span>distância média (km)</span></div>
+    </div>
+    <div class="cartoes" style="margin-top:10px">
+      <div class="cartao"><b id="pVagas">-</b><span>painel público: vagas</span></div>
+      <div class="cartao"><b id="pCreches">-</b><span>painel público: creches com vaga</span></div>
+      <div class="cartao"><b id="pTurmas">-</b><span>painel público: turmas</span></div>
+      <div class="cartao"><button id="btnAtualizar" style="margin:0">Atualizar agora</button></div>
+    </div>
+  </section>
+
+  <section class="larga">
+    <h2>Registro das chamadas</h2>
+    <pre id="log"></pre>
+  </section>
+</main>
+
+<script>
+  // Sessão criada pela página /login.html (sessionStorage some ao fechar a aba)
+  var token = sessionStorage.getItem('alocacreche.token');
+  var municipioId = Number(sessionStorage.getItem('alocacreche.municipioId'));
+  // Turma e matrícula atuais sobrevivem a um recarregamento da página (somem junto com a sessão)
+  var turmaId = Number(sessionStorage.getItem('alocacreche.turmaId')) || null;
+  var matriculaId = Number(sessionStorage.getItem('alocacreche.matriculaId')) || null;
+
+  function $(id) { return document.getElementById(id); }
+
+  function registrar(mensagem, ehErro) {
+    var linha = document.createElement('div');
+    linha.textContent = new Date().toLocaleTimeString() + '  ' + mensagem;
+    linha.className = ehErro ? 'erro' : 'ok';
+    var log = $('log');
+    log.insertBefore(linha, log.firstChild);
+    while (log.children.length > 200) { log.removeChild(log.lastChild); }
+  }
+
+  // Esconde o JWT do registro: a página é demonstração, mas o token não deve aparecer na tela
+  function ocultarToken(texto) {
+    return texto.replace(/("token"\s*:\s*")[^"]+(")/g, '$1***$2');
+  }
+
+  // Chamadas silenciosas (polling dos relatórios) só entram no registro quando falham
+  async function chamar(metodo, caminho, corpo, comToken, silencioso) {
+    var cabecalhos = {};
+    if (corpo) { cabecalhos['Content-Type'] = 'application/json'; }
+    if (comToken !== false && token) { cabecalhos['Authorization'] = 'Bearer ' + token; }
+    var resposta;
+    try {
+      resposta = await fetch(caminho, { method: metodo, headers: cabecalhos, body: corpo ? JSON.stringify(corpo) : undefined });
+    } catch (e) {
+      registrar(metodo + ' ' + caminho + ' -> falha de rede (gateway ou backend indisponível)', true);
+      return { ok: false, status: 0, dados: null };
+    }
+    if (resposta.status === 401 && comToken !== false) {
+      registrar('Sessão expirada ou inválida; voltando ao login.', true);
+      irParaLogin();
+    }
+    var texto = await resposta.text();
+    var dados = null;
+    try { dados = texto ? JSON.parse(texto) : null; } catch (e) { dados = texto; }
+    if (!silencioso || !resposta.ok) { registrar(metodo + ' ' + caminho + ' -> ' + resposta.status + (texto ? '  ' + ocultarToken(texto).slice(0, 300) : ''), !resposta.ok); }
+    return { ok: resposta.ok, status: resposta.status, dados: dados };
+  }
+
+  function irParaLogin() {
+    sessionStorage.removeItem('alocacreche.token');
+    sessionStorage.removeItem('alocacreche.municipioId');
+    sessionStorage.removeItem('alocacreche.expiraEm');
+    sessionStorage.removeItem('alocacreche.turmaId');
+    sessionStorage.removeItem('alocacreche.matriculaId');
+    window.location.replace('/login.html');
+  }
+
+  function exigirLogin() {
+    if (!token) { irParaLogin(); return false; }
+    return true;
+  }
+
+  if (!token) {
+    irParaLogin();
+  } else {
+    $('estado').textContent = 'autenticado (município ' + municipioId + ')';
+    $('estado').className = 'estado logado';
+    if (turmaId) { $('turmaAtual').textContent = turmaId; }
+    if (matriculaId) { $('matriculaAtual').textContent = matriculaId; }
+  }
+
+  $('btnSair').onclick = irParaLogin;
+
+  // Página restaurada do cache de navegação (botão Voltar) sem reexecutar o script: revalida a sessão
+  window.addEventListener('pageshow', function (evento) {
+    if (evento.persisted && !sessionStorage.getItem('alocacreche.token')) { irParaLogin(); }
+  });
+
+  function cpfAleatorio() {
+    var n = '';
+    for (var i = 0; i < 11; i++) { n += Math.floor(Math.random() * 10); }
+    return n.slice(0, 3) + '.' + n.slice(3, 6) + '.' + n.slice(6, 9) + '-' + n.slice(9);
+  }
+
+  $('btnCreche').onclick = async function () {
+    if (!exigirLogin()) { return; }
+    var creche = await chamar('POST', '/api/v1/matricula/creches', {
+      nome: $('crecheNome').value, capacidade: Number($('crecheCapacidade').value),
+      endereco: { rua: 'Rua B', numero: 20, bairro: 'Centro', cidade: 'Sao Paulo', estado: 'SP',
+        latitude: Number($('crecheLat').value), longitude: Number($('crecheLon').value) } });
+    if (!creche.ok) { return; }
+    var turma = await chamar('POST', '/api/v1/matricula/turmas', {
+      crecheId: creche.dados.crecheId, faixaEtaria: $('faixa').value, vagasTotais: Number($('vagas').value) });
+    if (turma.ok) {
+      turmaId = turma.dados.turmaId;
+      sessionStorage.setItem('alocacreche.turmaId', String(turmaId));
+      $('turmaAtual').textContent = turmaId;
+    }
+  };
+
+  $('btnInscrever').onclick = async function () {
+    if (!exigirLogin()) { return; }
+    if (!turmaId) { registrar('Crie a creche e a turma primeiro.', true); return; }
+    var cpf = $('respCpf').value || cpfAleatorio();
+    await chamar('POST', '/api/v1/inscricao/inscricoes', {
+      responsavel: { nome: $('respNome').value, cpf: cpf, telefone: '11999990000', email: 'responsavel@example.com',
+        endereco: { rua: 'Rua A', numero: 10, bairro: 'Centro',
+          latitude: Number($('respLat').value), longitude: Number($('respLon').value) } },
+      crianca: { nome: $('criNome').value, dataNascimento: $('criNasc').value },
+      turmaId: turmaId, rendaPerCapita: Number($('renda').value), criterioVulnerabilidade: $('vuln').value === 'true' });
+    $('respCpf').value = '';
+  };
+
+  $('btnAlocar').onclick = async function () {
+    if (!exigirLogin()) { return; }
+    if (!turmaId) { registrar('Crie a creche e a turma primeiro.', true); return; }
+    var r = await chamar('POST', '/api/v1/matricula/vagas/alocar', { turmaId: turmaId });
+    if (r.ok) {
+      matriculaId = r.dados.matriculaId;
+      sessionStorage.setItem('alocacreche.matriculaId', String(matriculaId));
+      $('matriculaAtual').textContent = matriculaId;
+    }
+  };
+
+  $('btnConfirmar').onclick = async function () {
+    if (!exigirLogin()) { return; }
+    if (!matriculaId) { registrar('Aloque uma vaga primeiro.', true); return; }
+    await chamar('POST', '/api/v1/matricula/matriculas/' + matriculaId + '/confirmar');
+  };
+
+  function periodoAtual() {
+    var d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-01';
+  }
+
+  function mostrar(id, valor) { $(id).textContent = (valor === undefined || valor === null) ? '-' : valor; }
+
+  async function atualizar() {
+    if (!token) { return; }
+    var base = '/api/v1/relatorios/';
+    var filtroTurma = turmaId ? '&turmaId=' + turmaId : '';
+    var ocup = await chamar('GET', base + 'ocupacao?municipioId=' + municipioId + filtroTurma, null, undefined, true);
+    var fila = await chamar('GET', base + 'fila-espera?municipioId=' + municipioId + filtroTurma, null, undefined, true);
+    var taxa = await chamar('GET', base + 'matricula/taxa-confirmacao?municipioId=' + municipioId + '&periodo=' + periodoAtual(), null, undefined, true);
+    var dist = await chamar('GET', base + 'matricula/distancia-media?municipioId=' + municipioId + '&periodo=' + periodoAtual(), null, undefined, true);
+    var painel = await chamar('GET', base + 'painel-publico?municipioId=' + municipioId, null, false, true);
+
+    var turmas = ocup.ok && Array.isArray(ocup.dados) ? ocup.dados : [];
+    mostrar('kVagas', turmas.length ? turmas[0].vagasDisponiveis : null);
+    var filas = fila.ok && Array.isArray(fila.dados) ? fila.dados : (fila.ok ? [fila.dados] : []);
+    mostrar('kFila', filas.length && filas[0] ? filas[0].quantidadeAguardando : null);
+    mostrar('kTaxa', taxa.ok && taxa.dados && taxa.dados.taxaConfirmacao != null ? Number(taxa.dados.taxaConfirmacao).toFixed(2) : null);
+    mostrar('kDist', dist.ok && dist.dados && dist.dados.distanciaMediaKm != null ? Number(dist.dados.distanciaMediaKm).toFixed(2) : null);
+    mostrar('pVagas', painel.ok && painel.dados ? painel.dados.totalVagasDisponiveis : null);
+    mostrar('pCreches', painel.ok && painel.dados ? painel.dados.totalCrechesComVaga : null);
+    mostrar('pTurmas', painel.ok && painel.dados ? painel.dados.totalTurmas : null);
+  }
+
+  $('btnAtualizar').onclick = function () { if (exigirLogin()) { atualizar(); } };
+
+  var temporizador = null;
+  $('auto').onchange = function () {
+    if (temporizador) { clearInterval(temporizador); temporizador = null; }
+    if ($('auto').checked) { temporizador = setInterval(atualizar, 3000); }
+  };
+</script>
+</body>
+</html>

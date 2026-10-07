@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AlocaCreche - Entrar</title>
+<style>
+  :root { --borda: #d0d7de; --azul: #0b5fff; --ok: #1a7f37; --erro: #cf222e; --aviso: #9a6700; }
+  * { box-sizing: border-box; }
+  body { font-family: system-ui, sans-serif; margin: 0; min-height: 100vh; display: grid; place-items: center;
+         background: linear-gradient(160deg, #0b2a5b, #1d4ed8); color: #1f2328; }
+  .caixa { background: #fff; width: 100%; max-width: 380px; border-radius: 12px; padding: 28px 28px 22px; box-shadow: 0 10px 30px rgba(0,0,0,.25); }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .sub { color: #57606a; font-size: 13px; margin: 0 0 18px; }
+  label { display: block; font-size: 12px; margin: 12px 0 4px; color: #57606a; }
+  input { width: 100%; padding: 9px 10px; border: 1px solid var(--borda); border-radius: 6px; font-size: 14px; }
+  input:focus { outline: 2px solid #b6d0ff; border-color: var(--azul); }
+  button { width: 100%; margin-top: 18px; padding: 10px; border: 0; border-radius: 6px; background: var(--azul); color: #fff; font-size: 15px; cursor: pointer; }
+  button:disabled { opacity: .6; cursor: wait; }
+  .msg { margin-top: 14px; padding: 9px 11px; border-radius: 6px; font-size: 13px; display: none; }
+  .msg.erro { display: block; background: #ffebe9; color: var(--erro); }
+  .msg.aviso { display: block; background: #fff8c5; color: var(--aviso); }
+  .msg.ok { display: block; background: #dafbe1; color: var(--ok); }
+  .rodape { margin-top: 16px; font-size: 11px; color: #6e7781; text-align: center; }
+</style>
+</head>
+<body>
+<form class="caixa" id="formulario" autocomplete="off">
+  <h1>AlocaCreche</h1>
+  <p class="sub">Entre com a sua conta da secretaria municipal.</p>
+
+  <label for="email">Email</label>
+  <input id="email" type="email" required autocomplete="off">
+
+  <label for="senha">Senha</label>
+  <input id="senha" type="password" required autocomplete="off">
+
+  <label for="municipio">Município (id)</label>
+  <input id="municipio" type="number" min="1" value="1" required>
+
+  <button id="entrar" type="submit">Entrar</button>
+  <div id="mensagem" class="msg" role="alert"></div>
+  <p class="rodape">Após 5 falhas seguidas o acesso é bloqueado por 15 minutos.</p>
+</form>
+
+<script>
+  var CHAVE_TOKEN = 'alocacreche.token';
+  var CHAVE_MUNICIPIO = 'alocacreche.municipioId';
+  var CHAVE_EXPIRA = 'alocacreche.expiraEm';
+
+  function $(id) { return document.getElementById(id); }
+
+  function mostrar(tipo, texto) {
+    var caixa = $('mensagem');
+    caixa.className = 'msg ' + tipo;
+    caixa.textContent = texto;
+  }
+
+  function descreverBloqueio(resposta) {
+    var segundos = Number(resposta.headers.get('Retry-After'));
+    if (!segundos) { return 'Muitas tentativas de login. Tente novamente mais tarde.'; }
+    var minutos = Math.ceil(segundos / 60);
+    return 'Muitas tentativas de login. Tente novamente em cerca de ' + minutos + ' min.';
+  }
+
+  $('formulario').onsubmit = async function (evento) {
+    evento.preventDefault();
+    $('entrar').disabled = true;
+    mostrar('aviso', 'Entrando...');
+    try {
+      var municipioId = Number($('municipio').value);
+      var resposta = await fetch('/api/v1/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: $('email').value, senha: $('senha').value, municipioId: municipioId })
+      });
+      if (resposta.ok) {
+        var dados = await resposta.json();
+        sessionStorage.setItem(CHAVE_TOKEN, dados.token);
+        sessionStorage.setItem(CHAVE_MUNICIPIO, String(municipioId));
+        sessionStorage.setItem(CHAVE_EXPIRA, dados.expiraEm);
+        $('senha').value = '';
+        mostrar('ok', 'Login realizado. Redirecionando...');
+        window.location.href = '/index.html';
+        return;
+      }
+      if (resposta.status === 401) {
+        mostrar('erro', 'Credenciais inválidas.');
+      } else if (resposta.status === 429) {
+        mostrar('aviso', descreverBloqueio(resposta));
+      } else if (resposta.status === 400) {
+        mostrar('erro', 'Preencha email, senha e município corretamente.');
+      } else {
+        mostrar('erro', 'Erro inesperado (HTTP ' + resposta.status + ').');
+      }
+    } catch (erro) {
+      mostrar('erro', 'Não foi possível falar com o servidor. Os serviços estão no ar?');
+    } finally {
+      $('entrar').disabled = false;
+    }
+  };
+</script>
+</body>
+</html>
