@@ -22,4 +22,17 @@ class ConfiguracaoAplicacaoTest {
         assertThat(propriedades).isNotNull();
         assertThat(propriedades.getProperty("spring.jpa.hibernate.ddl-auto")).isEqualTo("update");
     }
+
+    @Test
+    @DisplayName("Redis tem timeouts curtos por padrao: o cache da fila nao pode prender o banco")
+    void redisTemTimeoutsCurtos() {
+        YamlPropertiesFactoryBean yaml = new YamlPropertiesFactoryBean();
+        yaml.setResources(new ClassPathResource("application.yml"));
+        Properties propriedades = yaml.getObject();
+
+        assertThat(propriedades).isNotNull();
+        assertThat(propriedades.getProperty("spring.data.redis.connect-timeout"))
+                .contains("500ms");
+        assertThat(propriedades.getProperty("spring.data.redis.timeout")).contains("500ms");
+    }
 }
