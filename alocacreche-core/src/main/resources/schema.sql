@@ -77,3 +77,10 @@ ALTER TABLE usuario FORCE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS usuario_tenant_isolation ON usuario;
 CREATE POLICY usuario_tenant_isolation ON usuario
     USING (municipio_id = current_setting('app.current_tenant')::bigint);
+
+-- Uma crianca so pode ter uma inscricao ativa por vez (sem dupla inscricao, mesmo com duas
+-- requisicoes simultaneas). Indice parcial porque inscricao CANCELADA/EXPIRADA nao impede uma
+-- nova; JPA nao expressa indice parcial, por isso fica aqui e nao na entidade. A lista de status
+-- e a mesma de InscricaoService.STATUS_ATIVOS.
+CREATE UNIQUE INDEX IF NOT EXISTS uk_inscricao_crianca_ativa ON inscricao (crianca_id)
+    WHERE status IN ('AGUARDANDO', 'CONVOCADA', 'MATRICULADA');

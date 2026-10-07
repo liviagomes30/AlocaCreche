@@ -28,6 +28,7 @@ import org.alocacreche.core.outbox.OutboxPayloads.MatriculaAtualizadaPayload;
 import org.alocacreche.core.outbox.OutboxPayloads.VagaLiberadaPayload;
 import org.alocacreche.core.outbox.OutboxRabbitConfig;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
@@ -44,7 +45,13 @@ public class AlocacaoVagaTransacional {
     private final GeolocalizacaoService geolocalizacaoService;
     private final OutboxEventWriter outboxEventWriter;
 
-    @Transactional
+    /**
+     * REQUIRES_NEW porque {@link AlocacaoAutomaticaListener} chama esta alocacao depois do commit da
+     * desistencia: nessa fase a transacao anterior ainda esta vinculada a thread, e um REQUIRED se
+     * juntaria a ela sem nunca gravar nada. Para a chamada HTTP, que nao tem transacao aberta, o
+     * efeito e o mesmo de REQUIRED.
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public MatriculaAlocadaResponse executar(Long turmaId) {
         Long municipioId = sessaoTenantResolver.municipioIdAtual();
         TenantContext.aplicar(entityManager, municipioId);
@@ -91,6 +98,9 @@ public class AlocacaoVagaTransacional {
         return new MatriculaAlocadaResponse(salva.getId());
     }
 
+    // TODO: se a geocodificacao externa voltar ao escopo (ADR 0006), envolver a chamada com Circuit
+    // Breaker (Resilience4j) e gravar a matricula com distancia nula quando o circuito abrir - a
+    // distancia e side-channel e nao pode travar a alocacao. Hoje usa coordenadas cadastradas.
     private Double calcularDistancia(Endereco origem, Endereco destino) {
         if (!temCoordenadas(origem) || !temCoordenadas(destino)) {
             throw new DadoInvalidoException("Responsavel e creche precisam ter latitude e longitude para a alocacao");

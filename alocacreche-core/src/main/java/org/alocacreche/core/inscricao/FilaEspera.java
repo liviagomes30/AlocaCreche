@@ -6,6 +6,7 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import java.time.LocalDateTime;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -13,7 +14,10 @@ import lombok.Setter;
 import org.alocacreche.core.comum.EntidadeMultiTenant;
 
 @Entity
-@Table(name = "fila_espera")
+@Table(
+        name = "fila_espera",
+        uniqueConstraints =
+                @UniqueConstraint(name = "uk_fila_espera_turma_posicao", columnNames = {"turma_id", "posicao"}))
 @Getter
 @Setter
 @NoArgsConstructor
@@ -23,12 +27,7 @@ public class FilaEspera extends EntidadeMultiTenant {
     @JoinColumn(name = "inscricao_id", nullable = false, unique = true)
     private Inscricao inscricao;
 
-    /**
-     * ID cru, nao @ManyToOne - Turma vive no pacote matricula, dono de outro integrante.
-     * Referencia por objeto criaria dependencia de pacote em ambas as direcoes (inscricao ->
-     * matricula e matricula -> inscricao via Matricula.inscricaoId), o que junta os dois pacotes
-     * num ciclo. Ver docs/adr/0004-divisao-equipe-tres-integrantes.md (revisao de arquitetura).
-     */
+
     @Column(name = "turma_id", nullable = false)
     private Long turmaId;
 

@@ -116,7 +116,7 @@ class InscricaoServiceTest {
         lenient().when(entityManager.createNativeQuery(anyString())).thenReturn(query);
         lenient().when(query.setParameter(eq(1), any())).thenReturn(query);
         lenient().when(municipioRepository.findById(MUNICIPIO_ID)).thenReturn(Optional.of(municipio));
-        lenient().when(turmaRepository.findById(TURMA_ID)).thenReturn(Optional.of(turma));
+        lenient().when(turmaRepository.buscarParaEnfileirar(TURMA_ID)).thenReturn(Optional.of(turma));
         lenient().when(criancaRepository.findById(CRIANCA_ID)).thenReturn(Optional.of(crianca));
         lenient().when(criancaRepository.findByResponsavelId(5L)).thenReturn(List.of(crianca));
         lenient().when(responsavelRepository.findByCpf(CPF)).thenReturn(Optional.empty());
@@ -144,7 +144,7 @@ class InscricaoServiceTest {
         ordem.verify(query).setParameter(1, MUNICIPIO_ID.toString());
         ordem.verify(query).getSingleResult();
         ordem.verify(municipioRepository).findById(MUNICIPIO_ID);
-        ordem.verify(turmaRepository).findById(TURMA_ID);
+        ordem.verify(turmaRepository).buscarParaEnfileirar(TURMA_ID);
         ordem.verify(criancaRepository).findById(CRIANCA_ID);
     }
 
@@ -203,7 +203,7 @@ class InscricaoServiceTest {
     @Test
     @DisplayName("turma inexistente lanca RecursoNaoEncontradoException sem salvar nada nem gravar evento")
     void turmaInexistenteLancaNaoEncontrado() {
-        when(turmaRepository.findById(TURMA_ID)).thenReturn(Optional.empty());
+        when(turmaRepository.buscarParaEnfileirar(TURMA_ID)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.registrarInscricao(dtoPorId("400.00", true)))
                 .isInstanceOf(RecursoNaoEncontradoException.class);
@@ -306,7 +306,7 @@ class InscricaoServiceTest {
 
         assertThat(resposta.posicao()).isEqualTo(1);
         ArgumentCaptor<FilaEspera> filaSalva = ArgumentCaptor.forClass(FilaEspera.class);
-        verify(filaEsperaRepository).save(filaSalva.capture());
+        verify(filaEsperaRepository).saveAndFlush(filaSalva.capture());
         FilaEspera fila = filaSalva.getValue();
         assertThat(fila.getInscricao().getId()).isEqualTo(INSCRICAO_ID);
         assertThat(fila.getTurmaId()).isEqualTo(TURMA_ID);
@@ -323,8 +323,66 @@ class InscricaoServiceTest {
 
         assertThat(resposta.posicao()).isEqualTo(4);
         ArgumentCaptor<FilaEspera> filaSalva = ArgumentCaptor.forClass(FilaEspera.class);
-        verify(filaEsperaRepository).save(filaSalva.capture());
+        verify(filaEsperaRepository).saveAndFlush(filaSalva.capture());
         assertThat(filaSalva.getValue().getPosicao()).isEqualTo(4);
+    }
+
+    @Test
+    @DisplayName("crianca com inscricao ativa lanca ConflitoException sem salvar, enfileirar nem gravar evento")
+    void criancaComInscricaoAtivaLancaConflito() {
+        when(inscricaoRepository.existsByCriancaIdAndStatusIn(CRIANCA_ID, InscricaoService.STATUS_ATIVOS))
+                .thenReturn(true);
+
+        assertThatThrownBy(() -> service.registrarInscricao(dtoPorId("400.00", true)))
+                .isInstanceOf(ConflitoException.class)
+                .hasMessage("Crianca ja possui inscricao ativa");
+
+        verify(inscricaoRepository, never()).saveAndFlush(any());
+        verifyNoInteractions(filaEsperaRepository, filaRedisService, outboxEventWriter);
+    }
+
+    @Test
+    @DisplayName("inscricao ativa conta AGUARDANDO, CONVOCADA e MATRICULADA, nao CANCELADA nem EXPIRADA")
+    void statusAtivosDeixamCanceladaEExpiradaDeFora() {
+        assertThat(InscricaoService.STATUS_ATIVOS)
+                .containsExactlyInAnyOrder(
+                        StatusInscricao.AGUARDANDO, StatusInscricao.CONVOCADA, StatusInscricao.MATRICULADA);
+    }
+
+    @Test
+    @DisplayName("inscricao simultanea barrada pelo indice unico vira ConflitoException sem fila nem evento")
+    void indiceUnicoDaCriancaViraConflito() {
+        when(inscricaoRepository.saveAndFlush(any(Inscricao.class)))
+                .thenThrow(new DataIntegrityViolationException("uk_inscricao_crianca_ativa"));
+
+        assertThatThrownBy(() -> service.registrarInscricao(dtoPorId("400.00", true)))
+                .isInstanceOf(ConflitoException.class)
+                .hasMessage("Crianca ja possui inscricao ativa");
+
+        verifyNoInteractions(filaEsperaRepository, filaRedisService, outboxEventWriter);
+    }
+
+    @Test
+    @DisplayName("posicao repetida na turma barrada pelo unico vira ConflitoException sem Redis nem evento")
+    void posicaoRepetidaViraConflito() {
+        when(filaEsperaRepository.saveAndFlush(any(FilaEspera.class)))
+                .thenThrow(new DataIntegrityViolationException("uk_fila_espera_turma_posicao"));
+
+        assertThatThrownBy(() -> service.registrarInscricao(dtoPorId("400.00", true)))
+                .isInstanceOf(ConflitoException.class);
+
+        verifyNoInteractions(filaRedisService, outboxEventWriter);
+    }
+
+    @Test
+    @DisplayName("trava a turma antes de ler a maior posicao da fila")
+    void travaATurmaAntesDeLerAPosicao() {
+        service.registrarInscricao(dtoPorId("400.00", true));
+
+        InOrder ordem = inOrder(turmaRepository, filaEsperaRepository);
+        ordem.verify(turmaRepository).buscarParaEnfileirar(TURMA_ID);
+        ordem.verify(filaEsperaRepository).findMaiorPosicaoByTurmaId(TURMA_ID);
+        verify(turmaRepository, never()).findById(any());
     }
 
     @Test

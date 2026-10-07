@@ -3,6 +3,7 @@ package org.alocacreche.core.inscricao;
 import cn.dev33.satoken.exception.NotPermissionException;
 import jakarta.persistence.EntityManager;
 import java.time.LocalDateTime;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.alocacreche.core.comum.excecao.ConflitoException;
@@ -24,6 +25,11 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 public class InscricaoService {
+
+    static final Set<StatusInscricao> STATUS_ATIVOS =
+            Set.of(StatusInscricao.AGUARDANDO, StatusInscricao.CONVOCADA, StatusInscricao.MATRICULADA);
+
+    private static final String MENSAGEM_INSCRICAO_ATIVA = "Crianca ja possui inscricao ativa";
 
     private final SessaoTenantResolver sessaoTenantResolver;
     private final EntityManager entityManager;
@@ -49,7 +55,7 @@ public class InscricaoService {
         Municipio municipio = municipioRepository.findById(municipioId)
                 .orElseThrow(() -> new RecursoNaoEncontradoException(
                         "Município não encontrado: " + municipioId));
-        Turma turma = turmaRepository.findById(dto.turmaId())
+        Turma turma = turmaRepository.buscarParaEnfileirar(dto.turmaId())
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Turma nao encontrada"));
         Crianca crianca = resolverCrianca(dto, municipioId);
 
@@ -68,7 +74,7 @@ public class InscricaoService {
         inscricao.setCriterioVulnerabilidade(criterioVulnerabilidade);
         inscricao.setScorePrioridade(score);
         // TODO: Responsavel.cpf e unico no banco inteiro, nao por municipio, entao o 409 vale entre municipios (Stack A)
-        Inscricao salva = inscricaoRepository.saveAndFlush(inscricao);
+        Inscricao salva = salvarInscricao(inscricao);
 
         int posicao = enfileirar(salva, turma.getId(), municipioId);
 
@@ -91,11 +97,27 @@ public class InscricaoService {
 
     private Crianca resolverCrianca(InscricaoDTO dto, Long municipioId) {
         if (dto.criancaId() != null) {
-            return criancaRepository.findById(dto.criancaId())
+            Crianca crianca = criancaRepository.findById(dto.criancaId())
                     .orElseThrow(() -> new RecursoNaoEncontradoException(
                             "Criança não encontrada: " + dto.criancaId()));
+            if (inscricaoRepository.existsByCriancaIdAndStatusIn(crianca.getId(), STATUS_ATIVOS)) {
+                throw new ConflitoException(MENSAGEM_INSCRICAO_ATIVA);
+            }
+            return crianca;
         }
         return cadastrarResponsavelECrianca(dto, municipioId);
+    }
+
+    /**
+     * A consulta em resolverCrianca recusa o caso comum; duas requisicoes simultaneas para a mesma
+     * crianca passam pelas duas consultas, e quem barra a segunda e o indice parcial unico.
+     */
+    private Inscricao salvarInscricao(Inscricao inscricao) {
+        try {
+            return inscricaoRepository.saveAndFlush(inscricao);
+        } catch (DataIntegrityViolationException excecao) {
+            throw new ConflitoException(MENSAGEM_INSCRICAO_ATIVA, excecao);
+        }
     }
 
     private Crianca cadastrarResponsavelECrianca(InscricaoDTO dto, Long municipioId) {
@@ -141,15 +163,23 @@ public class InscricaoService {
                                                 .existeMatriculaParaInscricao(inscricao.getId())));
     }
 
+    /**
+     * A turma ja esta travada (buscarParaEnfileirar), entao inscricoes simultaneas na mesma turma
+     * leem a maior posicao uma de cada vez. O unico (turma_id, posicao) em FilaEspera e a ultima
+     * barreira caso algum caminho enfileire sem o lock.
+     */
     private int enfileirar(Inscricao inscricao, Long turmaId, Long municipioId) {
-        // TODO: a posicao na fila pode colidir sob inscricoes simultaneas na mesma turma (Stack A)
         int posicao = filaEsperaRepository.findMaiorPosicaoByTurmaId(turmaId).orElse(0) + 1;
         FilaEspera fila = new FilaEspera();
         fila.setMunicipioId(municipioId);
         fila.setInscricao(inscricao);
         fila.setTurmaId(turmaId);
         fila.setPosicao(posicao);
-        filaEsperaRepository.save(fila);
+        try {
+            filaEsperaRepository.saveAndFlush(fila);
+        } catch (DataIntegrityViolationException excecao) {
+            throw new ConflitoException("Posicao na fila disputada por outra inscricao, tente novamente", excecao);
+        }
         return posicao;
     }
 
