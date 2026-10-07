@@ -19,6 +19,37 @@ diretamente.
 - Motor de score de prioridade configurável por município (`calcularScorePrioridade`).
 - Consulta de posição na fila em tempo real (`consultarPosicaoFila`).
 
+## Endpoints (prefixo `/api/v1/inscricao`)
+
+| Rota | Permissão | Resposta |
+| --- | --- | --- |
+| `POST /responsaveis` | `inscricao:responsavel:add` | 201 `{"responsavelId":N}` |
+| `POST /criancas` | `inscricao:crianca:add` | 201 `{"criancaId":N}` |
+| `POST /inscricoes` | `inscricao:inscricao:add` | 201 `{inscricaoId, posicao, scorePrioridade, status}` |
+| `GET /inscricoes/{inscricaoId}/posicao?turmaId=` | `inscricao:fila:detail` | 200 `{inscricaoId, turmaId, posicao}` |
+
+- Nenhuma resposta devolve a entidade JPA nem dado sensível (CPF, renda, vulnerabilidade).
+- Erros: 400 (JSON com a lista de campos), 401 sem token, 403 sem permissão, 404 (responsável, criança,
+  inscrição ou turma inexistente, **inclusive de outro município, via RLS**) e 409 (CPF já cadastrado
+  em qualquer município, pois `responsavel.cpf` é único no banco inteiro).
+- O município vem sempre do token; o tenant é aplicado (`TenantContext.aplicar`) antes de qualquer
+  leitura. O cadastro inline de `POST /inscricoes` delega a `ResponsavelService`/`CriancaService`
+  (`cadastrarNoMunicipio`), então a regra de CPF único existe em um único lugar. `ResponsavelDTO`
+  aceita `endereco` opcional, mas a alocação exige latitude e longitude do responsável.
+
+## Fila de espera no Redis
+
+- Chave: ZSET `fila:{municipioId}:turma:{turmaId}`, membro = `inscricaoId`, score = posição. Os ids são
+  globais, mas o município é a fronteira de isolamento, por isso entra na chave.
+- **Redis é cache de leitura; a fonte da verdade é `fila_espera`.** A escrita (`adicionarAposCommit`) e a
+  remoção na alocação (`removerAposCommit`, chamada por `AlocacaoVagaTransacional`) só acontecem
+  **depois do commit**: rollback não deixa entrada fantasma. São fail-open: falha do Redis vira log de
+  aviso (sem dados sensíveis) e nunca derruba a inscrição nem a alocação.
+- Consulta de posição: lê do Redis; sem a chave (cache frio, expirado ou Redis fora) cai para
+  `FilaEspera.posicao` no banco. Inscrição que já saiu da fila (alocada) responde 404 com mensagem clara.
+- A posição é o número de entrada na fila (não é renumerada quando alguém é alocado), igual no Redis e
+  no banco.
+
 ## Regras específicas deste módulo
 
 - **O score é configurável por município** (`ConfiguracaoPriorizacao`, Value Object embutido em

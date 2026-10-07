@@ -42,7 +42,6 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.test.util.ReflectionTestUtils;
 
 /**
@@ -68,7 +67,8 @@ class InscricaoServiceTest {
     @Mock private Query query;
     @Mock private InscricaoRepository inscricaoRepository;
     @Mock private CriancaRepository criancaRepository;
-    @Mock private ResponsavelRepository responsavelRepository;
+    @Mock private ResponsavelService responsavelService;
+    @Mock private CriancaService criancaService;
     @Mock private MunicipioRepository municipioRepository;
     @Mock private TurmaRepository turmaRepository;
     @Mock private FilaEsperaRepository filaEsperaRepository;
@@ -90,7 +90,8 @@ class InscricaoServiceTest {
                         entityManager,
                         inscricaoRepository,
                         criancaRepository,
-                        responsavelRepository,
+                        responsavelService,
+                        criancaService,
                         municipioRepository,
                         turmaRepository,
                         filaEsperaRepository,
@@ -119,10 +120,12 @@ class InscricaoServiceTest {
         lenient().when(turmaRepository.findById(TURMA_ID)).thenReturn(Optional.of(turma));
         lenient().when(criancaRepository.findById(CRIANCA_ID)).thenReturn(Optional.of(crianca));
         lenient().when(criancaRepository.findByResponsavelId(5L)).thenReturn(List.of(crianca));
-        lenient().when(responsavelRepository.findByCpf(CPF)).thenReturn(Optional.empty());
         lenient()
-                .when(responsavelRepository.saveAndFlush(any(Responsavel.class)))
-                .thenAnswer(invocacao -> invocacao.getArgument(0));
+                .when(responsavelService.cadastrarNoMunicipio(eq(MUNICIPIO_ID), any(ResponsavelDTO.class)))
+                .thenReturn(responsavel);
+        lenient()
+                .when(criancaService.cadastrarNoMunicipio(eq(MUNICIPIO_ID), eq(responsavel), any(CriancaDTO.class)))
+                .thenReturn(crianca);
         lenient()
                 .when(inscricaoRepository.saveAndFlush(any(Inscricao.class)))
                 .thenAnswer(
@@ -209,7 +212,7 @@ class InscricaoServiceTest {
                 .isInstanceOf(RecursoNaoEncontradoException.class);
 
         verifyNoInteractions(
-                criancaRepository, responsavelRepository, inscricaoRepository, filaEsperaRepository, outboxEventWriter);
+                criancaRepository, responsavelService, inscricaoRepository, filaEsperaRepository, outboxEventWriter);
     }
 
     @Test
@@ -252,51 +255,43 @@ class InscricaoServiceTest {
     }
 
     @Test
-    @DisplayName("modo inline cadastra Responsavel e Crianca e nao consulta criancaId")
-    void modoInlineCadastraResponsavelECrianca() {
-        ArgumentCaptor<Responsavel> responsavelSalvo = ArgumentCaptor.forClass(Responsavel.class);
+    @DisplayName("modo inline delega o cadastro aos servicos de Responsavel e Crianca e nao consulta criancaId")
+    void modoInlineDelegaOCadastro() {
+        InscricaoDTO dto = dtoInline();
 
-        InscricaoRegistradaResponse resposta = service.registrarInscricao(dtoInline());
+        InscricaoRegistradaResponse resposta = service.registrarInscricao(dto);
 
         assertThat(resposta.inscricaoId()).isEqualTo(INSCRICAO_ID);
-        verify(responsavelRepository).saveAndFlush(responsavelSalvo.capture());
-        Responsavel salvo = responsavelSalvo.getValue();
-        assertThat(salvo.getMunicipioId()).isEqualTo(MUNICIPIO_ID);
-        assertThat(salvo.getCpf()).isEqualTo(CPF);
-        assertThat(salvo.getNome()).isEqualTo("Maria Responsavel");
-        assertThat(salvo.getCriancas()).hasSize(1);
-        assertThat(salvo.getCriancas().get(0).getNome()).isEqualTo("Joao Crianca");
-        assertThat(salvo.getCriancas().get(0).getDataNascimento()).isEqualTo(LocalDate.of(2024, 3, 10));
-        assertThat(salvo.getCriancas().get(0).getMunicipioId()).isEqualTo(MUNICIPIO_ID);
-        assertThat(salvo.getCriancas().get(0).getResponsavel()).isSameAs(salvo);
+        InOrder ordem = inOrder(responsavelService, criancaService);
+        ordem.verify(responsavelService).cadastrarNoMunicipio(MUNICIPIO_ID, dto.responsavel());
+        ordem.verify(criancaService).cadastrarNoMunicipio(MUNICIPIO_ID, responsavel, dto.crianca());
         verify(criancaRepository, never()).findById(any());
-
         ArgumentCaptor<Inscricao> inscricaoSalva = ArgumentCaptor.forClass(Inscricao.class);
         verify(inscricaoRepository).saveAndFlush(inscricaoSalva.capture());
-        assertThat(inscricaoSalva.getValue().getCrianca()).isSameAs(salvo.getCriancas().get(0));
+        assertThat(inscricaoSalva.getValue().getCrianca()).isSameAs(crianca);
         assertThat(inscricaoSalva.getValue().getMunicipio()).isSameAs(municipio);
     }
 
     @Test
-    @DisplayName("CPF ja cadastrado lanca ConflitoException sem salvar nada nem gravar evento")
-    void cpfRepetidoLancaConflito() {
-        when(responsavelRepository.findByCpf(CPF)).thenReturn(Optional.of(new Responsavel()));
+    @DisplayName("CPF repetido (ConflitoException do ResponsavelService) propaga sem salvar inscricao nem evento")
+    void cpfRepetidoPropagaConflito() {
+        when(responsavelService.cadastrarNoMunicipio(eq(MUNICIPIO_ID), any(ResponsavelDTO.class)))
+                .thenThrow(new ConflitoException("CPF ja cadastrado"));
 
         assertThatThrownBy(() -> service.registrarInscricao(dtoInline())).isInstanceOf(ConflitoException.class);
 
-        verify(responsavelRepository, never()).saveAndFlush(any());
-        verifyNoInteractions(inscricaoRepository, filaEsperaRepository, outboxEventWriter);
+        verifyNoInteractions(
+                criancaService, inscricaoRepository, filaEsperaRepository, outboxEventWriter, filaRedisService);
     }
 
     @Test
-    @DisplayName("CPF que ja existe em outro municipio (violacao de unicidade) vira ConflitoException sem evento")
-    void cpfRepetidoEmOutroMunicipioLancaConflito() {
-        when(responsavelRepository.saveAndFlush(any(Responsavel.class)))
-                .thenThrow(new DataIntegrityViolationException("responsavel_cpf_key"));
+    @DisplayName("agenda a escrita no Redis com municipio, turma, inscricao e posicao")
+    void agendaEscritaNoRedis() {
+        when(filaEsperaRepository.findMaiorPosicaoByTurmaId(TURMA_ID)).thenReturn(Optional.of(1));
 
-        assertThatThrownBy(() -> service.registrarInscricao(dtoInline())).isInstanceOf(ConflitoException.class);
+        service.registrarInscricao(dtoPorId("400.00", true));
 
-        verifyNoInteractions(inscricaoRepository, filaEsperaRepository, outboxEventWriter);
+        verify(filaRedisService).adicionarAposCommit(MUNICIPIO_ID, TURMA_ID, INSCRICAO_ID, 2);
     }
 
     @Test
@@ -360,6 +355,83 @@ class InscricaoServiceTest {
                 .hasMessage("falha na outbox");
     }
 
+    @Test
+    @DisplayName("posicao vem do Redis e o tenant e aplicado antes de ler a inscricao")
+    void posicaoVemDoRedis() {
+        when(inscricaoRepository.findById(INSCRICAO_ID)).thenReturn(Optional.of(inscricaoAguardando()));
+        when(filaRedisService.consultarPosicao(MUNICIPIO_ID, TURMA_ID, INSCRICAO_ID)).thenReturn(Optional.of(3L));
+
+        PosicaoFilaResponse resposta = service.consultarPosicaoNaFila(TURMA_ID, INSCRICAO_ID);
+
+        assertThat(resposta).isEqualTo(new PosicaoFilaResponse(INSCRICAO_ID, TURMA_ID, 3L));
+        InOrder ordem = inOrder(query, inscricaoRepository);
+        ordem.verify(query).getSingleResult();
+        ordem.verify(inscricaoRepository).findById(INSCRICAO_ID);
+        verifyNoInteractions(filaEsperaRepository);
+    }
+
+    @Test
+    @DisplayName("sem a chave no Redis cai para a posicao persistida em FilaEspera")
+    void posicaoCaiParaOBanco() {
+        when(inscricaoRepository.findById(INSCRICAO_ID)).thenReturn(Optional.of(inscricaoAguardando()));
+        when(filaRedisService.consultarPosicao(MUNICIPIO_ID, TURMA_ID, INSCRICAO_ID)).thenReturn(Optional.empty());
+        FilaEspera fila = new FilaEspera();
+        fila.setTurmaId(TURMA_ID);
+        fila.setPosicao(2);
+        when(filaEsperaRepository.findByInscricaoId(INSCRICAO_ID)).thenReturn(Optional.of(fila));
+
+        PosicaoFilaResponse resposta = service.consultarPosicaoNaFila(TURMA_ID, INSCRICAO_ID);
+
+        assertThat(resposta.posicao()).isEqualTo(2L);
+    }
+
+    @Test
+    @DisplayName("inscricao inexistente ou de outro municipio (RLS) lanca RecursoNaoEncontradoException")
+    void posicaoDeInscricaoInvisivelLanca404() {
+        when(inscricaoRepository.findById(INSCRICAO_ID)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.consultarPosicaoNaFila(TURMA_ID, INSCRICAO_ID))
+                .isInstanceOf(RecursoNaoEncontradoException.class);
+
+        verifyNoInteractions(filaRedisService, filaEsperaRepository);
+    }
+
+    @Test
+    @DisplayName("inscricao ja alocada (fora da fila) lanca RecursoNaoEncontradoException com mensagem clara")
+    void posicaoDeInscricaoAlocadaLanca404() {
+        Inscricao inscricao = inscricaoAguardando();
+        inscricao.setStatus(StatusInscricao.CONVOCADA);
+        when(inscricaoRepository.findById(INSCRICAO_ID)).thenReturn(Optional.of(inscricao));
+
+        assertThatThrownBy(() -> service.consultarPosicaoNaFila(TURMA_ID, INSCRICAO_ID))
+                .isInstanceOf(RecursoNaoEncontradoException.class)
+                .hasMessageContaining("não está na fila");
+
+        verifyNoInteractions(filaRedisService);
+    }
+
+    @Test
+    @DisplayName("sem Redis e sem linha de fila na turma pedida lanca RecursoNaoEncontradoException")
+    void posicaoSemRedisESemFilaNaTurmaLanca404() {
+        when(inscricaoRepository.findById(INSCRICAO_ID)).thenReturn(Optional.of(inscricaoAguardando()));
+        when(filaRedisService.consultarPosicao(MUNICIPIO_ID, TURMA_ID, INSCRICAO_ID)).thenReturn(Optional.empty());
+        FilaEspera deOutraTurma = new FilaEspera();
+        deOutraTurma.setTurmaId(999L);
+        deOutraTurma.setPosicao(1);
+        when(filaEsperaRepository.findByInscricaoId(INSCRICAO_ID)).thenReturn(Optional.of(deOutraTurma));
+
+        assertThatThrownBy(() -> service.consultarPosicaoNaFila(TURMA_ID, INSCRICAO_ID))
+                .isInstanceOf(RecursoNaoEncontradoException.class)
+                .hasMessageContaining("não está na fila");
+    }
+
+    private Inscricao inscricaoAguardando() {
+        Inscricao inscricao = new Inscricao();
+        inscricao.setId(INSCRICAO_ID);
+        inscricao.setStatus(StatusInscricao.AGUARDANDO);
+        return inscricao;
+    }
+
     private void prepararIrma(boolean matriculada) {
         Crianca irma = novaCrianca(31L);
         irma.setResponsavel(responsavel);
@@ -380,9 +452,9 @@ class InscricaoServiceTest {
         return new InscricaoDTO(
                 null,
                 null,
-                new InscricaoDTO.ResponsavelDTO(
+                new ResponsavelDTO(
                         "Maria Responsavel", CPF, "11999990000", "maria@example.com", endereco),
-                new InscricaoDTO.CriancaDTO("Joao Crianca", LocalDate.of(2024, 3, 10)),
+                new CriancaDTO("Joao Crianca", LocalDate.of(2024, 3, 10)),
                 TURMA_ID,
                 new BigDecimal("1234.56"),
                 true);

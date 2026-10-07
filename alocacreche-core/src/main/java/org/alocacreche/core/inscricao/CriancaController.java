@@ -1,20 +1,27 @@
 package org.alocacreche.core.inscricao;
 
+import cn.dev33.satoken.annotation.SaCheckPermission;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/criancas")
+@RequestMapping("/api/v1/inscricao/criancas")
 @RequiredArgsConstructor
 public class CriancaController {
 
     private final CriancaService criancaService;
 
+    @SaCheckPermission("inscricao:crianca:add")
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public Crianca cadastrar(@Valid @RequestBody CriancaDTO dto) {
-        return criancaService.cadastrar(dto);
+    public CriancaCadastradaResponse cadastrar(@Valid @RequestBody CadastroCriancaRequest requisicao) {
+        return new CriancaCadastradaResponse(
+                criancaService.cadastrar(requisicao.responsavelId(), requisicao.dados()).getId());
     }
 }

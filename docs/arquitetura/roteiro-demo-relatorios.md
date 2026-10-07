@@ -180,6 +180,18 @@ Esperado: `{"inscricaoId":N,"posicao":1,"scorePrioridade":...,"status":"AGUARDAN
 `criancaId` de criança já cadastrada (nunca os dois modos juntos, senão 400); `municipioId` no corpo
 é opcional e, se informado, precisa ser o do token (senão 403).
 
+Para consultar a posição de uma inscrição na fila (lida do Redis, com fallback para o banco), use o
+`inscricaoId` devolvido acima:
+
+```bash
+curl -s "$CORE/api/v1/inscricao/inscricoes/$INSCRICAO_ID/posicao?turmaId=$TURMA_ID"   -H "Authorization: Bearer $TOKEN"
+```
+
+Esperado: `{"inscricaoId":N,"turmaId":T,"posicao":1}`. Depois da alocação (seção 8.4) a inscrição sai
+da fila e a mesma consulta responde 404. Responsável e criança também podem ser cadastrados antes, em
+`POST /api/v1/inscricao/responsaveis` (`{"responsavelId":N}`) e `POST /api/v1/inscricao/criancas`
+(`{"criancaId":N}`), e a inscrição usa o `criancaId`.
+
 ### 8.4 Alocar a vaga ao primeiro da fila (HTTP 201, três eventos)
 
 ```bash

@@ -4,8 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import org.alocacreche.core.inscricao.InscricaoDTO.CriancaDTO;
-import org.alocacreche.core.inscricao.InscricaoDTO.ResponsavelDTO;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 

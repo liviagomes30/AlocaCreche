@@ -1,0 +1,25 @@
+package org.alocacreche.core.inscricao;
+
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Past;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
+import java.time.LocalDate;
+
+/** Corpo de {@code POST /api/v1/inscricao/criancas}: a crianca e o responsavel ao qual pertence. */
+public record CadastroCriancaRequest(
+        @NotNull @Positive Long responsavelId,
+        @NotBlank @Size(max = 200) String nome,
+        @NotNull @Past LocalDate dataNascimento) {
+
+    /** Dados da crianca no formato reaproveitado pelo cadastro inline da inscricao. */
+    public CriancaDTO dados() {
+        return new CriancaDTO(nome, dataNascimento);
+    }
+
+    @Override
+    public String toString() {
+        return "CadastroCriancaRequest[responsavelId=" + responsavelId + "]";
+    }
+}

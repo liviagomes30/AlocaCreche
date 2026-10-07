@@ -27,8 +27,9 @@ public class InscricaoController {
         return inscricaoService.registrarInscricao(dto);
     }
 
+    @SaCheckPermission("inscricao:fila:detail")
     @GetMapping("/{inscricaoId}/posicao")
-    public Long consultarPosicao(
+    public PosicaoFilaResponse consultarPosicao(
             @PathVariable Long inscricaoId,
             @RequestParam Long turmaId) {
 
