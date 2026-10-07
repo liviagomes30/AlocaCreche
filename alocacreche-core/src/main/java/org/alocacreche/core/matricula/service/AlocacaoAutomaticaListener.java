@@ -13,14 +13,10 @@ import org.springframework.transaction.event.TransactionalEventListener;
  * {@code @Transactional(REQUIRES_NEW)} de {@link AlocacaoVagaTransacional} valem (self-invocation,
  * docs/arquitetura/notas-tecnicas.md).
  *
- * <p>Roda depois do commit da desistencia, na mesma thread da requisicao - por isso o municipio
- * ainda vem do token. Uma falha aqui nao desfaz a desistencia, ja confirmada: so e registrada.
- *
- * <p>TODO: job {@code @Scheduled} de reconciliacao ({@code reconciliarVagasDisponiveis} junto de
- * {@code verificarPrazosVencidos}, a cada 2 minutos - ADR 0001, decisoes 3 e 19), iterando por
- * municipio com {@code SET LOCAL} num bean separado. Adiado pela ADR 0004: sem ele, se este
- * evento se perder (queda entre o commit e o listener) ou a alocacao falhar, a vaga fica livre
- * ate alguem chamar {@code POST /api/v1/matricula/vagas/alocar} manualmente.
+ * <p>Roda depois do commit da desistencia, com o municipio que veio no evento (nao depende do
+ * token). Uma falha aqui nao desfaz a desistencia, ja confirmada: so e registrada. Se este evento
+ * se perder (queda entre o commit e o listener) ou a alocacao falhar, a proxima rodada de
+ * {@link ManutencaoMatriculaScheduler} encontra a turma com vaga livre e fila nao vazia.
  */
 @Slf4j
 @Component
@@ -32,7 +28,7 @@ public class AlocacaoAutomaticaListener {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void aoLiberarVaga(VagaLiberadaInternalEvent evento) {
         try {
-            MatriculaAlocadaResponse alocada = alocacaoVagaService.alocarProximoElegivel(evento.turmaId());
+            MatriculaAlocadaResponse alocada = alocacaoVagaService.alocarProximoElegivelNoMunicipio(evento.municipioId(), evento.turmaId());
             log.info(
                     "Vaga liberada na turma {} do municipio {} realocada na matricula {}",
                     evento.turmaId(),

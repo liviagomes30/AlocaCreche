@@ -1,6 +1,7 @@
 package org.alocacreche.core.matricula;
 
 import jakarta.persistence.LockModeType;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -19,4 +20,7 @@ public interface MatriculaRepository extends JpaRepository<Matricula, Long> {
     Optional<Matricula> buscarParaConfirmar(@Param("id") Long id);
 
     boolean existsByInscricaoId(Long inscricaoId);
+
+    @Query("select m.id from Matricula m where m.status = :status and m.prazoConfirmacao < :agora order by m.id")
+    List<Long> buscarIdsComPrazoVencido(@Param("status") StatusMatricula status, @Param("agora") LocalDateTime agora);
 }

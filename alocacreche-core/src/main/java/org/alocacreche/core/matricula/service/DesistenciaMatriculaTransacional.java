@@ -16,11 +16,6 @@ import org.alocacreche.core.matricula.Matricula;
 import org.alocacreche.core.matricula.MatriculaRepository;
 import org.alocacreche.core.matricula.StatusMatricula;
 import org.alocacreche.core.matricula.Turma;
-import org.alocacreche.core.matricula.TurmaRepository;
-import org.alocacreche.core.outbox.OutboxEventWriter;
-import org.alocacreche.core.outbox.OutboxPayloads.MatriculaAtualizadaPayload;
-import org.alocacreche.core.outbox.OutboxPayloads.VagaLiberadaPayload;
-import org.alocacreche.core.outbox.OutboxRabbitConfig;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,9 +36,8 @@ public class DesistenciaMatriculaTransacional {
     private final SessaoTenantResolver sessaoTenantResolver;
     private final EntityManager entityManager;
     private final MatriculaRepository matriculaRepository;
-    private final TurmaRepository turmaRepository;
     private final InscricaoRepository inscricaoRepository;
-    private final OutboxEventWriter outboxEventWriter;
+    private final LiberacaoVaga liberacaoVaga;
     private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
@@ -62,51 +56,12 @@ public class DesistenciaMatriculaTransacional {
                 inscricaoRepository
                         .findById(matricula.getInscricaoId())
                         .orElseThrow(() -> new RecursoNaoEncontradoException("Inscricao nao encontrada"));
-        Turma turma = matricula.getTurma();
-        if (turma.getVagasDisponiveis() >= turma.getVagasTotais()) {
-            throw new ConflitoException("Turma ja esta com todas as vagas livres");
-        }
 
-        LocalDateTime agora = LocalDateTime.now();
-        turma.setVagasDisponiveis(turma.getVagasDisponiveis() + 1);
-        turmaRepository.saveAndFlush(turma);
-
-        matricula.setStatus(StatusMatricula.CANCELADA);
-        matricula.setDataConfirmacao(null);
-        matriculaRepository.saveAndFlush(matricula);
+        Turma turma = liberacaoVaga.liberar(municipioId, matricula, StatusMatricula.CANCELADA, LocalDateTime.now());
         inscricao.setStatus(StatusInscricao.CANCELADA);
-
-        registrarEventos(municipioId, turma, matricula, agora);
         eventPublisher.publishEvent(new VagaLiberadaInternalEvent(municipioId, turma.getId()));
 
         log.info("Matricula {} cancelada e vaga devolvida a turma {} do municipio {}", matriculaId, turma.getId(), municipioId);
         return new MatriculaCanceladaResponse(matricula.getId(), turma.getId(), turma.getVagasDisponiveis());
-    }
-
-    private void registrarEventos(Long municipioId, Turma turma, Matricula matricula, LocalDateTime agora) {
-        Long crecheId = turma.getCreche().getId();
-        outboxEventWriter.registrar(
-                OutboxRabbitConfig.VAGA_LIBERADA_ROUTING_KEY,
-                new VagaLiberadaPayload(
-                        OutboxRabbitConfig.VAGA_LIBERADA_ROUTING_KEY,
-                        municipioId,
-                        turma.getId(),
-                        crecheId,
-                        turma.getVagasDisponiveis(),
-                        agora));
-        outboxEventWriter.registrar(
-                OutboxRabbitConfig.MATRICULA_ATUALIZADA_ROUTING_KEY,
-                new MatriculaAtualizadaPayload(
-                        OutboxRabbitConfig.MATRICULA_ATUALIZADA_ROUTING_KEY,
-                        municipioId,
-                        turma.getId(),
-                        crecheId,
-                        matricula.getInscricaoId(),
-                        matricula.getId(),
-                        matricula.getStatus().name(),
-                        matricula.getDistanciaKm(),
-                        matricula.getDataConvocacao().toLocalDate(),
-                        null,
-                        agora));
     }
 }

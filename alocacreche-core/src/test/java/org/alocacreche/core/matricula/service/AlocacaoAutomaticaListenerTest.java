@@ -33,19 +33,19 @@ class AlocacaoAutomaticaListenerTest {
     @InjectMocks private AlocacaoAutomaticaListener listener;
 
     @Test
-    @DisplayName("aloca o proximo elegivel da turma liberada")
+    @DisplayName("aloca o proximo elegivel da turma liberada no municipio do evento, sem depender do token")
     void alocaOProximoDaTurma() {
-        when(alocacaoVagaService.alocarProximoElegivel(30L)).thenReturn(new MatriculaAlocadaResponse(99L));
+        when(alocacaoVagaService.alocarProximoElegivelNoMunicipio(7L, 30L)).thenReturn(new MatriculaAlocadaResponse(99L));
 
         listener.aoLiberarVaga(EVENTO);
 
-        verify(alocacaoVagaService).alocarProximoElegivel(30L);
+        verify(alocacaoVagaService).alocarProximoElegivelNoMunicipio(7L, 30L);
     }
 
     @Test
     @DisplayName("fila vazia (ConflitoException) nao propaga")
     void filaVaziaNaoPropaga() {
-        when(alocacaoVagaService.alocarProximoElegivel(30L))
+        when(alocacaoVagaService.alocarProximoElegivelNoMunicipio(7L, 30L))
                 .thenThrow(new ConflitoException("Fila de espera da turma esta vazia"));
 
         assertThatCode(() -> listener.aoLiberarVaga(EVENTO)).doesNotThrowAnyException();
@@ -54,7 +54,7 @@ class AlocacaoAutomaticaListenerTest {
     @Test
     @DisplayName("falha inesperada nao propaga para a desistencia ja confirmada")
     void falhaInesperadaNaoPropaga() {
-        when(alocacaoVagaService.alocarProximoElegivel(30L)).thenThrow(new IllegalStateException("banco fora"));
+        when(alocacaoVagaService.alocarProximoElegivelNoMunicipio(7L, 30L)).thenThrow(new IllegalStateException("banco fora"));
 
         assertThatCode(() -> listener.aoLiberarVaga(EVENTO)).doesNotThrowAnyException();
     }
@@ -72,8 +72,10 @@ class AlocacaoAutomaticaListenerTest {
     @Test
     @DisplayName("o retry fica no servico chamado e a transacao do alocador e nova (REQUIRES_NEW)")
     void retryEPropagacaoNoLugarCerto() throws NoSuchMethodException {
-        Method alocar = AlocacaoVagaService.class.getMethod("alocarProximoElegivel", Long.class);
-        Method executar = AlocacaoVagaTransacional.class.getMethod("executar", Long.class);
+        Method alocar =
+                AlocacaoVagaService.class.getMethod("alocarProximoElegivelNoMunicipio", Long.class, Long.class);
+        Method executar =
+                AlocacaoVagaTransacional.class.getMethod("executarNoMunicipio", Long.class, Long.class);
 
         assertThat(alocar.getAnnotation(Retryable.class)).isNotNull();
         assertThat(alocar.getAnnotation(Transactional.class)).isNull();

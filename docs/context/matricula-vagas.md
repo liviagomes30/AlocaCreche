@@ -91,9 +91,22 @@ commit, `AlocacaoVagaTransacional.executar` usa `REQUIRES_NEW`: com `REQUIRED` a
 transação já confirmada e nada seria gravado. Uma falha da realocação é só registrada em log e não
 desfaz a desistência.
 
-**TODO (ADR 0004):** o job de reconciliação/expiração (`reconciliarVagasDisponiveis` e
-`verificarPrazosVencidos`) e o Circuit Breaker na geocodificação. Sem o job, uma vaga cuja realocação
-falhou ou cujo evento interno se perdeu fica livre até alguém chamar `POST /vagas/alocar`.
+**Job de manutenção (expiração + reconciliação).** `ManutencaoMatriculaScheduler` roda a cada
+`alocacreche.matricula.manutencao.intervalo-ms` (padrão 2 minutos, o SLA da ADR 0001, decisão 19) e
+percorre os municípios um por vez. Para cada um, `ManutencaoMatriculaPorMunicipio` executa dois passos:
+1. `verificarPrazosVencidos`: cada matrícula `PENDENTE` com prazo vencido vira `EXPIRADA`, numa
+   transação própria (`ExpiracaoMatriculaTransacional`), com a vaga devolvida e os eventos gravados.
+2. `reconciliarVagasDisponiveis`: toda turma com vaga livre e fila não vazia é preenchida até acabar a
+   vaga ou a fila. Isso cobre as vagas que a expiração acabou de devolver e as que a realocação
+   automática perdeu.
+
+O job não tem token. Cada transação aplica o `SET LOCAL` do município que recebe, sem `BYPASSRLS`, e a
+alocação usa `AlocacaoVagaService.alocarProximoElegivelNoMunicipio`. Expiração e confirmação travam a
+mesma linha da matrícula, então nunca acontecem juntas. Desliga-se com
+`alocacreche.matricula.manutencao.habilitado=false`, como fazem os testes.
+
+**TODO (ADR 0004/0006):** Circuit Breaker na geocodificação. Hoje a distância usa coordenadas já
+cadastradas, sem chamada externa.
 
 **Contrato com MSRelatorios:** `StatusMatricula.CANCELADA` existe nos dois módulos; uma matrícula
 cancelada continua contando no total da taxa de confirmação, mas não como confirmada.

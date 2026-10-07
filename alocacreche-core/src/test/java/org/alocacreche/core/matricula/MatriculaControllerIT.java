@@ -91,6 +91,7 @@ class MatriculaControllerIT {
     @MockitoSpyBean private FilaEsperaRepository filaEsperaRepository;
     @MockitoSpyBean private OutboxEventRepository outboxEventRepository;
     @Autowired private PlatformTransactionManager transactionManager;
+    @Autowired private org.alocacreche.core.matricula.service.ManutencaoMatriculaPorMunicipio manutencaoPorMunicipio;
     @PersistenceContext private EntityManager entityManager;
 
     private final AtomicInteger sequenciaCpf = new AtomicInteger(100);
@@ -674,6 +675,71 @@ class MatriculaControllerIT {
             assertThat(filaEsperaRepository.findByTurmaIdOrderByPosicaoAsc(turmaId))
                     .extracting(FilaEspera::getPosicao)
                     .containsExactly(1, 2, 3, 4);
+            return null;
+        });
+    }
+
+    @Test
+    @DisplayName("job: matricula PENDENTE vencida vira EXPIRADA e a vaga vai para o proximo da fila")
+    void jobExpiraEConvocaOProximo() {
+        Long turmaId = criarTurmaPorHttp(municipioA, 1);
+        inscreverPorHttp(municipioA, turmaId, true);
+        Long segundaInscricao = inscreverPorHttp(municipioA, turmaId, true);
+        Long vencida = idDe(alocar(turmaId, tokenCom(municipioA, List.of("*"))), "matriculaId");
+        emTenant(municipioA, () -> {
+            Matricula matricula = matriculaRepository.findById(vencida).orElseThrow();
+            matricula.setPrazoConfirmacao(LocalDateTime.now().minusMinutes(1));
+            matriculaRepository.saveAndFlush(matricula);
+            return null;
+        });
+        outboxEventRepository.deleteAll();
+
+        manutencaoPorMunicipio.executar(municipioA);
+
+        emTenant(municipioA, () -> {
+            Matricula expirada = matriculaRepository.findById(vencida).orElseThrow();
+            assertThat(expirada.getStatus()).isEqualTo(StatusMatricula.EXPIRADA);
+            assertThat(inscricaoRepository.findById(expirada.getInscricaoId()).orElseThrow().getStatus())
+                    .isEqualTo(StatusInscricao.EXPIRADA);
+            assertThat(matriculaRepository.findByInscricaoId(segundaInscricao).orElseThrow().getStatus())
+                    .isEqualTo(StatusMatricula.PENDENTE);
+            assertThat(turmaRepository.findById(turmaId).orElseThrow().getVagasDisponiveis()).isZero();
+            return null;
+        });
+        assertThat(confirmar(vencida, tokenCom(municipioA, List.of("*"))).getStatusCode())
+                .isEqualTo(HttpStatus.CONFLICT);
+    }
+
+    @Test
+    @DisplayName("job: turma com vaga livre e fila sem ninguem convocado e preenchida ate acabar a vaga")
+    void jobReconciliaVagasLivres() {
+        Long turmaId = criarTurmaPorHttp(municipioA, 2);
+        inscreverPorHttp(municipioA, turmaId, true);
+        inscreverPorHttp(municipioA, turmaId, true);
+        inscreverPorHttp(municipioA, turmaId, true);
+
+        manutencaoPorMunicipio.executar(municipioA);
+
+        emTenant(municipioA, () -> {
+            assertThat(matriculaRepository.findByTurmaId(turmaId))
+                    .extracting(Matricula::getStatus)
+                    .containsExactly(StatusMatricula.PENDENTE, StatusMatricula.PENDENTE);
+            assertThat(turmaRepository.findById(turmaId).orElseThrow().getVagasDisponiveis()).isZero();
+            assertThat(filaEsperaRepository.findByTurmaIdOrderByPosicaoAsc(turmaId)).hasSize(1);
+            return null;
+        });
+    }
+
+    @Test
+    @DisplayName("job: matricula dentro do prazo nao e expirada")
+    void jobNaoExpiraDentroDoPrazo() {
+        Long matriculaId = alocarNovaMatricula(municipioA);
+
+        manutencaoPorMunicipio.executar(municipioA);
+
+        emTenant(municipioA, () -> {
+            assertThat(matriculaRepository.findById(matriculaId).orElseThrow().getStatus())
+                    .isEqualTo(StatusMatricula.PENDENTE);
             return null;
         });
     }

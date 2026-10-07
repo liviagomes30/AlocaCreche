@@ -21,6 +21,11 @@ public interface TurmaRepository extends JpaRepository<Turma, Long> {
     @Query("select t from Turma t where t.id = :id")
     Optional<Turma> buscarParaEnfileirar(@Param("id") Long id);
 
+    @Query(
+            "select t.id from Turma t where t.vagasDisponiveis > 0"
+                    + " and exists (select 1 from FilaEspera f where f.turmaId = t.id) order by t.id")
+    List<Long> buscarIdsComVagaEFila();
+
     @Query("select t from Turma t join fetch t.creche where t.faixaEtaria = :faixaEtaria")
     List<Turma> buscarPorFaixaEtariaComCreche(@Param("faixaEtaria") FaixaEtaria faixaEtaria);
 }

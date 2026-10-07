@@ -88,9 +88,8 @@ class DesistenciaMatriculaTransacionalTest {
                         sessaoTenantResolver,
                         entityManager,
                         matriculaRepository,
-                        turmaRepository,
                         inscricaoRepository,
-                        outboxEventWriter,
+                        new LiberacaoVaga(turmaRepository, matriculaRepository, outboxEventWriter),
                         eventPublisher);
 
         Creche creche = new Creche();
