@@ -307,7 +307,13 @@ ALOCACRECHE_CORE_URL=http://localhost:8083 SERVER_PORT=8090 mvn spring-boot:run
 ```
 
 Abra `http://localhost:8090/login.html` (a porta padrão do Gateway é a 8080; use outra se ela estiver
-ocupada). Entre com o usuário inicial da seção 3. O token fica só no `sessionStorage` da aba e some ao
+ocupada). Entre com o usuário inicial da seção 3 (ou com um usuário ATENDENTE ou GESTOR criado por SQL, para mostrar a matriz de permissões). O token fica só no `sessionStorage` da aba e some ao
 fechá-la; o botão **Sair** o apaga e uma resposta 401 volta ao login. Cinco falhas seguidas de login
 mostram o bloqueio de 15 minutos (429). As páginas são só para demonstração e teste: não têm senha nem
 token fixos no código.
+
+A página `index.html` é organizada em abas (Visão geral, Stack A, Stack B, Stack C, Segurança e resiliência,
+Eventos e Outbox, Roteiro) com um registro de chamadas fixo à direita (CPF e token mascarados, copiável como
+`curl` sem token). Os arquivos `estilo.css` e `*.js` ficam na mesma pasta. A aba **Roteiro** tem um passo a
+passo para duas pessoas e o botão que executa a demonstração completa automaticamente; a aba **Segurança**
+dispara por botão os cenários 401, 403, 404, 409, 400, 429 e a matriz de permissões do usuário logado.

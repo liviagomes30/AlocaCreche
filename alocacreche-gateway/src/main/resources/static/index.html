@@ -4,272 +4,465 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>AlocaCreche - Painel de demonstração</title>
-<style>
-  :root { --borda: #d0d7de; --fundo: #f6f8fa; --azul: #0b5fff; --ok: #1a7f37; --erro: #cf222e; }
-  * { box-sizing: border-box; }
-  body { font-family: system-ui, sans-serif; margin: 0; background: var(--fundo); color: #1f2328; }
-  header { background: #0b2a5b; color: #fff; padding: 12px 24px; display: flex; flex-wrap: wrap; gap: 8px 12px; justify-content: space-between; align-items: center; }
-  .sessao { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-  header h1 { font-size: 18px; margin: 0; }
-  main { max-width: 1200px; margin: 16px auto; padding: 0 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-  section { min-width: 0; background: #fff; border: 1px solid var(--borda); border-radius: 8px; padding: 14px 16px; }
-  section.larga { grid-column: 1 / -1; }
-  h2 { font-size: 15px; margin: 0 0 10px; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; }
-  h2 label { margin: 0; }
-  label { display: block; font-size: 12px; margin: 6px 0 2px; color: #57606a; }
-  input, select { width: 100%; padding: 6px 8px; border: 1px solid var(--borda); border-radius: 6px; font-size: 14px; }
-  .linha { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-  button { margin-top: 10px; padding: 7px 14px; border: 0; border-radius: 6px; background: var(--azul); color: #fff; font-size: 14px; cursor: pointer; }
-  button.sec { background: #57606a; }
-  button:disabled { opacity: .5; cursor: not-allowed; }
-  .estado { font-size: 12px; padding: 3px 8px; border-radius: 10px; background: #ddf4ff; }
-  .estado.logado { background: #dafbe1; color: var(--ok); }
-  .cartoes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
-  .cartao { border: 1px solid var(--borda); border-radius: 8px; padding: 10px; text-align: center; }
-  .cartao b { display: block; font-size: 24px; color: var(--azul); }
-  .cartao span { font-size: 12px; color: #57606a; }
-  pre { background: #0d1117; color: #e6edf3; padding: 10px; border-radius: 6px; max-height: 260px; overflow: auto; font-size: 12px; margin: 8px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
-  pre .ok { color: #7ee787; } pre .erro { color: #ff7b72; }
-  .aviso { font-size: 12px; color: #57606a; margin-top: 6px; }
-  @media (max-width: 800px) { main { grid-template-columns: 1fr; } .cartoes { grid-template-columns: repeat(2, 1fr); } }
-</style>
+<link rel="stylesheet" href="/estilo.css">
 </head>
 <body>
-<header>
-  <h1>AlocaCreche - painel de demonstração</h1>
-  <span class="sessao">
-    <span id="estado" class="estado">verificando sessão...</span>
-    <button id="btnSair" class="sec" style="margin:0">Sair</button>
-  </span>
+
+<header class="topo">
+  <h1>AlocaCreche <span style="font-weight:400;opacity:.8">| demonstração</span></h1>
+  <div class="grupo">
+    <span id="chipUsuario" class="chip perfil" title="Clique para ver as permissões do token">verificando sessão...</span>
+    <span class="chip">Atualização dos relatórios: <b id="topoUltima">-</b></span>
+  </div>
+  <div class="grupo">
+    <button id="btnModo" class="fantasma mini" style="background:transparent;color:#fff;border-color:#fff" title="Alterna entre o modo técnico e o modo apresentação">Modo: técnico</button>
+    <button id="btnReiniciar" class="sec mini" title="Limpa as listas locais desta tela; não apaga o banco">Reiniciar sessão local</button>
+    <button id="btnSair" class="sec mini">Trocar usuário / Sair</button>
+  </div>
+  <div id="painelPermissoes" class="permissoes">
+    <h3>Permissões lidas do token</h3>
+    <p class="dica" style="margin-top:0">Somente o payload do JWT é decodificado no navegador. O token em si nunca é exibido.</p>
+    <ul id="listaPermissoes"></ul>
+  </div>
 </header>
 
-<main>
-  <section>
-    <h2>1. Creche e turma</h2>
-    <div class="linha">
-      <div><label>Nome da creche</label><input id="crecheNome" value="Creche Sol"></div>
-      <div><label>Capacidade</label><input id="crecheCapacidade" type="number" value="50"></div>
-      <div><label>Latitude</label><input id="crecheLat" type="number" step="any" value="-23.56"></div>
-      <div><label>Longitude</label><input id="crecheLon" type="number" step="any" value="-46.64"></div>
-      <div><label>Faixa etária</label>
-        <select id="faixa"><option>BERCARIO</option><option selected>MATERNAL</option><option>PRE_ESCOLA</option></select></div>
-      <div><label>Vagas da turma</label><input id="vagas" type="number" value="3"></div>
+<div class="corpo" id="corpo">
+
+  <nav class="lateral" id="nav">
+    <button class="nav-item" data-aba="visao">1. Visão geral<small>painel ao vivo</small></button>
+    <button class="nav-item" data-aba="inscricao">2. Stack A<small>Inscrição e fila</small></button>
+    <button class="nav-item" data-aba="matricula">3. Stack B<small>Matrícula e vagas</small></button>
+    <button class="nav-item" data-aba="relatorios">4. Stack C<small>Relatórios e painel público</small></button>
+    <button class="nav-item" data-aba="seguranca">5. Segurança<small>e resiliência</small></button>
+    <button class="nav-item" data-aba="eventos">6. Eventos e Outbox<small>RabbitMQ e relatórios</small></button>
+    <button class="nav-item" data-aba="roteiro">7. Roteiro<small>apresentação e demo</small></button>
+  </nav>
+
+  <main class="conteudo" id="conteudo">
+
+    <div id="narrador" class="narrador" role="status" aria-live="polite">
+      <div class="titulo" id="narradorTitulo"></div>
+      <div class="detalhe" id="narradorDetalhe"></div>
+      <div class="progresso"><i id="narradorBarra" style="width:0"></i></div>
+      <ul id="narradorLista"></ul>
+      <button id="btnDemoPausa">Pausar</button>
+      <button id="btnDemoParar">Parar</button>
     </div>
-    <button id="btnCreche">Criar creche e turma</button>
-    <p class="aviso">Turma atual: <b id="turmaAtual">-</b></p>
-  </section>
 
-  <section>
-    <h2>2. Inscrição</h2>
-    <div class="linha">
-      <div><label>Responsável</label><input id="respNome" value="Maria Responsavel"></div>
-      <div><label>CPF (único no banco)</label><input id="respCpf"></div>
-      <div><label>Criança</label><input id="criNome" value="Joao Crianca"></div>
-      <div><label>Nascimento</label><input id="criNasc" type="date" value="2024-03-10"></div>
-      <div><label>Latitude do responsável</label><input id="respLat" type="number" step="any" value="-23.55"></div>
-      <div><label>Longitude do responsável</label><input id="respLon" type="number" step="any" value="-46.63"></div>
-      <div><label>Renda per capita</label><input id="renda" type="number" step="0.01" value="1234.56"></div>
-      <div><label>Vulnerabilidade</label>
-        <select id="vuln"><option value="true">Sim</option><option value="false">Não</option></select></div>
+    <!-- 1. VISÃO GERAL -->
+    <section class="aba" id="aba-visao">
+      <h2>Visão geral: painel ao vivo</h2>
+      <p class="lead">Os números abaixo vêm do MSRelatorios, que consome eventos pelo RabbitMQ (consistência eventual): depois de uma ação, o valor pode levar alguns segundos para mudar e fica destacado quando muda.</p>
+      <div class="painel"><div data-barra-relatorios></div></div>
+
+      <div class="cartoes" id="cartoesVisao">
+        <div class="cartao"><b data-k="vagas">-</b><span>vagas disponíveis (soma)</span></div>
+        <div class="cartao"><b data-k="turmas">-</b><span>turmas com ocupação</span></div>
+        <div class="cartao"><b data-k="fila">-</b><span>aguardando na fila</span></div>
+        <div class="cartao"><b data-k="taxa">-</b><span>taxa de confirmação</span></div>
+        <div class="cartao"><b data-k="dist">-</b><span>distância média (km)</span></div>
+        <div class="cartao publico"><b data-k="pVagas">-</b><span>painel público: vagas</span></div>
+        <div class="cartao publico"><b data-k="pCreches">-</b><span>painel público: creches com vaga</span></div>
+        <div class="cartao publico"><b data-k="pTurmas">-</b><span>painel público: turmas</span></div>
+      </div>
+
+      <div class="grade g2">
+        <div class="painel">
+          <h3>Ocupação por turma
+            <label style="display:inline;margin-left:10px"><input type="checkbox" id="soSessao" checked> somente turmas desta sessão</label></h3>
+          <div class="rolagem"><table class="tabela" id="tabelaOcupacaoVisao"></table></div>
+          <p class="dica">A barra mostra as vagas já ocupadas (total da turma menos vagas disponíveis). O total só é conhecido para turmas criadas nesta sessão.</p>
+        </div>
+        <div class="painel">
+          <h3>Atalhos de ação</h3>
+          <p class="dica" style="margin-top:0">Para acompanhar uma mudança nos números sem trocar de aba.</p>
+          <div class="linha-botoes">
+            <button id="vz_btnCrecheTurma">Criar creche + turma (3 vagas)</button>
+            <button id="vz_btnInscrever">Inscrever uma criança</button>
+            <button id="vz_btnAlocar">Alocar vaga</button>
+            <button id="vz_btnConfirmar" class="ok">Confirmar matrícula</button>
+          </div>
+          <p class="dica">Turma atual: <b id="vz_turma">-</b> &middot; matrícula atual: <b id="vz_matricula">-</b></p>
+          <h3 style="margin-top:14px">Resumo da sessão local</h3>
+          <div id="resumoSessao" class="dica"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. STACK A -->
+    <section class="aba" id="aba-inscricao">
+      <h2>Stack A: Inscrição e fila de espera</h2>
+      <p class="lead">Cadastre responsável e criança, inscreva na turma e veja o score de prioridade e a posição na fila (Redis com fallback para o banco).</p>
+
+      <div class="painel">
+        <h3>Como o score de prioridade é calculado</h3>
+        <div class="grade g2">
+          <div class="rolagem">
+            <table class="tabela">
+              <tr><th>Critério</th><th>Peso</th><th>Fator (0 a 1)</th></tr>
+              <tr><td>Renda per capita</td><td><b>0,4</b></td><td>até 500 = 1,00; até 1000 = 0,75; até 1500 = 0,50; até 2000 = 0,25; acima = 0</td></tr>
+              <tr><td>Vulnerabilidade social</td><td><b>0,3</b></td><td>sim = 1; não = 0</td></tr>
+              <tr><td>Distância residência-creche</td><td><b>0,2</b></td><td class="tecnico">fica em 0 na inscrição (a distância só é calculada na alocação)</td></tr>
+              <tr><td>Irmão já matriculado</td><td><b>0,1</b></td><td>outro filho do mesmo responsável com matrícula = 1; senão 0</td></tr>
+            </table>
+            <p class="dica">Score = renda x 0,4 + vulnerabilidade x 0,3 + distância x 0,2 + irmão x 0,1.</p>
+          </div>
+          <div class="explica">
+            <div>Estimativa com os valores do formulário de inscrição:</div>
+            <div class="score-grande" id="a_scoreEstimado">-</div>
+            <div id="a_scoreDetalhe" class="dica"></div>
+            <p class="dica tecnico">A fila é atendida pela posição (ordem de chegada); o score fica gravado na inscrição e é devolvido na resposta.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="grade g3">
+        <div class="painel">
+          <h3>1. Responsável <span class="selo info">POST /inscricao/responsaveis</span></h3>
+          <div class="campos">
+            <div class="cheio"><label for="a_rNome">Nome</label><input id="a_rNome" value="Maria Responsavel"></div>
+            <div><label for="a_rCpf">CPF (em branco gera um aleatório)</label><input id="a_rCpf" inputmode="numeric" autocomplete="off"></div>
+            <div><label for="a_rTel">Telefone</label><input id="a_rTel" value="11999990000"></div>
+            <div class="cheio"><label for="a_rEmail">E-mail</label><input id="a_rEmail" value="responsavel@example.com"></div>
+            <div><label for="a_rRua">Rua</label><input id="a_rRua" value="Rua A"></div>
+            <div><label for="a_rNum">Número</label><input id="a_rNum" type="number" value="10"></div>
+            <div><label for="a_rLat">Latitude</label><input id="a_rLat" type="number" step="any" value="-23.55"></div>
+            <div><label for="a_rLon">Longitude</label><input id="a_rLon" type="number" step="any" value="-46.63"></div>
+          </div>
+          <div class="linha-botoes">
+            <button id="a_btnResp">Cadastrar responsável</button>
+            <button id="a_btnNovaFamilia" class="fantasma">Gerar outro nome</button>
+          </div>
+          <p class="dica" id="a_respRes"></p>
+        </div>
+
+        <div class="painel">
+          <h3>2. Criança <span class="selo info">POST /inscricao/criancas</span></h3>
+          <div class="campos">
+            <div class="cheio"><label for="a_cResp">Responsável</label><select id="a_cResp"></select></div>
+            <div><label for="a_cNome">Nome da criança</label><input id="a_cNome" value="Joao Crianca"></div>
+            <div><label for="a_cNasc">Nascimento</label><input id="a_cNasc" type="date" value="2024-03-10"></div>
+          </div>
+          <div class="linha-botoes"><button id="a_btnCrianca">Cadastrar criança</button></div>
+          <p class="dica" id="a_criRes"></p>
+        </div>
+
+        <div class="painel">
+          <h3>3. Inscrição <span class="selo info">POST /inscricao/inscricoes</span></h3>
+          <div class="campos">
+            <div class="cheio"><label for="a_iModo">Modo</label>
+              <select id="a_iModo">
+                <option value="id">Criança já cadastrada (criancaId)</option>
+                <option value="inline">Cadastro inline (usa os cartões 1 e 2)</option>
+              </select></div>
+            <div class="cheio" id="a_iCriancaBox"><label for="a_iCrianca">Criança</label><select id="a_iCrianca"></select></div>
+            <div><label for="a_iTurma">Turma</label><select id="a_iTurma"></select></div>
+            <div><label for="a_iTurmaId">ou id da turma</label><input id="a_iTurmaId" type="number" placeholder="opcional"></div>
+            <div><label for="a_iRenda">Renda per capita (R$)</label><input id="a_iRenda" type="number" step="0.01" value="350"></div>
+            <div><label for="a_iVuln">Vulnerabilidade</label>
+              <select id="a_iVuln"><option value="true">Sim</option><option value="false">Não</option></select></div>
+          </div>
+          <div class="linha-botoes">
+            <button id="a_btnInscrever">Inscrever</button>
+          </div>
+          <p class="dica" style="margin-top:10px">Exemplos prontos:</p>
+          <div class="linha-botoes" style="margin-top:4px">
+            <button class="fantasma mini" data-exemplo="baixa">Renda baixa + vulnerável</button>
+            <button class="fantasma mini" data-exemplo="alta">Renda alta</button>
+            <button class="fantasma mini" data-exemplo="irmao" title="Roda um mini cenário completo: matricula o primeiro irmão e inscreve o segundo">Irmão matriculado</button>
+          </div>
+          <p class="dica" id="a_insRes"></p>
+        </div>
+      </div>
+
+      <div class="grade g2" style="margin-top:14px">
+        <div class="painel">
+          <h3>Posição na fila <span class="selo info">GET /inscricao/inscricoes/{id}/posicao?turmaId=</span></h3>
+          <div class="campos">
+            <div class="cheio"><label for="a_pInscricao">Inscrição desta sessão</label><select id="a_pInscricao"></select></div>
+          </div>
+          <div class="linha-botoes">
+            <button id="a_btnPos">Consultar posição</button>
+            <button id="a_btnPosTodas" class="fantasma">Atualizar todas as posições</button>
+          </div>
+          <p id="a_posRes" class="dica"></p>
+          <p class="dica tecnico">A posição é lida do Redis; sem a chave (cache frio ou Redis fora) o serviço cai para a posição gravada no banco. Quem já foi alocado sai da fila e a consulta responde 404.</p>
+        </div>
+        <div class="painel">
+          <h3>Fila da sessão (inscrições feitas nesta sessão)</h3>
+          <div class="rolagem"><table class="tabela" id="a_tabela"></table></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. STACK B -->
+    <section class="aba" id="aba-matricula">
+      <h2>Stack B: Matrícula e vagas</h2>
+      <p class="lead">Crie creches e turmas, aloque a vaga ao primeiro da fila, confirme a matrícula e prove que o lock otimista impede matrícula dupla.</p>
+
+      <div class="grade g3">
+        <div class="painel">
+          <h3>Creche <span class="selo info">POST /matricula/creches</span></h3>
+          <div class="campos">
+            <div class="cheio"><label for="b_cNome">Nome</label><input id="b_cNome" value="Creche Sol"></div>
+            <div><label for="b_cCap">Capacidade</label><input id="b_cCap" type="number" value="50"></div>
+            <div><label for="b_cRua">Rua</label><input id="b_cRua" value="Rua B"></div>
+            <div><label for="b_cLat">Latitude</label><input id="b_cLat" type="number" step="any" value="-23.56"></div>
+            <div><label for="b_cLon">Longitude</label><input id="b_cLon" type="number" step="any" value="-46.64"></div>
+          </div>
+          <div class="linha-botoes"><button id="b_btnCreche">Criar creche</button></div>
+        </div>
+        <div class="painel">
+          <h3>Turma <span class="selo info">POST /matricula/turmas</span></h3>
+          <div class="campos">
+            <div class="cheio"><label for="b_tCreche">Creche</label><select id="b_tCreche"></select></div>
+            <div><label for="b_tFaixa">Faixa etária</label>
+              <select id="b_tFaixa"><option>BERCARIO</option><option selected>MATERNAL</option><option>PRE_ESCOLA</option></select></div>
+            <div><label for="b_tVagas">Vagas</label><input id="b_tVagas" type="number" min="1" value="3"></div>
+          </div>
+          <div class="linha-botoes">
+            <button id="b_btnTurma">Criar turma</button>
+            <button id="b_btnAmbos" class="fantasma">Criar creche + turma</button>
+          </div>
+        </div>
+        <div class="painel">
+          <h3>Alocar e confirmar</h3>
+          <label for="b_aTurma">Turma</label><select id="b_aTurma"></select>
+          <div class="linha-botoes">
+            <button id="b_btnAlocar">Alocar vaga <span class="selo info tecnico" style="background:#fff">POST /vagas/alocar</span></button>
+          </div>
+          <p id="b_aRes" class="dica"></p>
+          <label for="b_mSel">Matrícula</label><select id="b_mSel"></select>
+          <div class="linha-botoes">
+            <button id="b_btnConfirmar" class="ok">Confirmar matrícula</button>
+            <button id="b_btnConfirmar2" class="fantasma" title="Confirma duas vezes seguidas: a segunda deve responder 409">Confirmar 2 vezes (409)</button>
+          </div>
+          <p id="b_mRes" class="dica"></p>
+        </div>
+      </div>
+
+      <div class="grade g2" style="margin-top:14px">
+        <div class="painel">
+          <h3>Creches e turmas desta sessão</h3>
+          <div class="rolagem"><table class="tabela" id="b_tabela"></table></div>
+          <h3 style="margin-top:12px">Matrículas desta sessão</h3>
+          <div class="rolagem"><table class="tabela" id="b_tabelaMat"></table></div>
+        </div>
+        <div class="painel">
+          <h3>Concorrência: alocações em paralelo (lock otimista)</h3>
+          <p class="dica" style="margin-top:0">Dispara N requisições simultâneas de alocação na mesma turma. Cada vaga só pode ser dada uma vez: quem perde a corrida recebe 409 e nenhuma criança é matriculada duas vezes.</p>
+          <div class="campos">
+            <div class="cheio"><label for="b_nPar">Requisições simultâneas: <b id="b_nParVal">3</b></label>
+              <input id="b_nPar" type="range" min="2" max="5" value="3"></div>
+          </div>
+          <div class="linha-botoes">
+            <button id="b_btnPrepara" class="fantasma" title="Cria creche, turma com 1 vaga e 3 inscrições para a corrida">Preparar corrida (1 vaga, 3 inscritos)</button>
+            <button id="b_btnParalelo">Disparar alocações em paralelo</button>
+          </div>
+          <div class="rolagem"><table class="tabela" id="b_parTabela" style="margin-top:10px"></table></div>
+          <p id="b_parVeredito" class="dica"></p>
+          <h3 style="margin-top:12px">Casos de erro</h3>
+          <div class="linha-botoes" style="margin-top:0">
+            <button id="b_btnFilaVazia" class="fantasma" title="Cria uma turma nova sem inscritos e tenta alocar">Alocar com fila vazia (409)</button>
+          </div>
+          <p id="b_erroRes" class="dica"></p>
+          <p class="dica tecnico">Fora da API atual: sugerir creche próxima, cancelar matrícula e liberar vaga (não há endpoint).</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. STACK C -->
+    <section class="aba" id="aba-relatorios">
+      <h2>Stack C: Relatórios e painel público</h2>
+      <p class="lead">Consulta de cada relatório do MSRelatorios, com filtros. O painel público não exige token.</p>
+      <div class="painel"><div data-barra-relatorios></div></div>
+
+      <div class="painel">
+        <h3>Filtros desta consulta</h3>
+        <div class="campos auto">
+          <div><label for="c_fTurma">Turma (opcional)</label><select id="c_fTurma"></select></div>
+          <div><label for="c_fCreche">Creche (opcional)</label><select id="c_fCreche"></select></div>
+          <div style="align-self:end"><button id="c_btnConsultar">Consultar relatórios</button></div>
+          <div style="align-self:end"><button id="c_btnOutroMun" class="fantasma" title="Consulta com um município diferente do token: deve responder 403">Outro município (403)</button></div>
+        </div>
+      </div>
+
+      <div class="grade g2">
+        <div class="painel"><h3>Ocupação <span class="selo info tecnico">GET /relatorios/ocupacao</span></h3><div class="rolagem" id="c_ocup"><span class="vazio">Clique em Consultar.</span></div></div>
+        <div class="painel"><h3>Fila de espera <span class="selo info tecnico">GET /relatorios/fila-espera</span></h3><div class="rolagem" id="c_fila"><span class="vazio">Clique em Consultar.</span></div></div>
+        <div class="painel"><h3>Taxa de confirmação <span class="selo info tecnico">GET /relatorios/matricula/taxa-confirmacao</span></h3><div id="c_taxa"><span class="vazio">Clique em Consultar.</span></div></div>
+        <div class="painel"><h3>Distância média <span class="selo info tecnico">GET /relatorios/matricula/distancia-media</span></h3><div id="c_dist"><span class="vazio">Clique em Consultar.</span></div></div>
+      </div>
+      <div class="painel">
+        <h3>Painel público <span class="selo info">sem token</span> <span class="selo info tecnico">GET /relatorios/painel-publico</span></h3>
+        <div id="c_painel"><span class="vazio">Clique em Consultar.</span></div>
+        <div class="linha-botoes">
+          <button id="c_btnPublico" class="fantasma">Consultar sem token (fetch)</button>
+          <a id="c_linkPublico" class="btn sec" target="_blank" rel="noopener">Abrir painel público em nova aba</a>
+        </div>
+        <p class="dica">Dica para a demonstração: abra o link em uma janela anônima do navegador para provar que não há sessão envolvida.</p>
+      </div>
+    </section>
+
+    <!-- 5. SEGURANÇA -->
+    <section class="aba" id="aba-seguranca">
+      <h2>Segurança e resiliência (laboratório)</h2>
+      <p class="lead">Cada teste dispara chamadas reais e compara o status obtido com o esperado. Nenhum token é exibido.</p>
+      <div class="linha-botoes" style="margin:0 0 12px">
+        <button id="s_btnTodos">Executar todos os testes</button>
+        <span id="s_resumo" class="selo"></span>
+      </div>
+      <div class="grade g2">
+        <div id="s_testes"></div>
+        <div>
+          <div class="painel">
+            <h3>Usuário atual e troca rápida</h3>
+            <div id="s_usuario"></div>
+            <div class="linha-botoes"><button id="s_btnTrocar" class="fantasma">Sair e entrar com outro usuário</button></div>
+            <p class="dica">Perfis do sistema: ADMIN (tudo), ATENDENTE (só inscrição), GESTOR (só relatórios). A sessão local (turmas, filas) é mantida ao trocar de usuário.</p>
+          </div>
+          <div class="painel">
+            <h3>Matriz de permissões do usuário atual</h3>
+            <p class="dica" style="margin-top:0">Dispara cada endpoint com dados fictícios (sem alterar a fila nem as vagas reais) e compara com o que o perfil deveria poder fazer. Permitido = qualquer status diferente de 401/403.</p>
+            <div class="linha-botoes" style="margin-top:0"><button id="s_btnMatriz">Executar matriz</button></div>
+            <div class="rolagem"><table class="tabela" id="s_matriz"></table></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 6. EVENTOS E OUTBOX -->
+    <section class="aba" id="aba-eventos">
+      <h2>Eventos e Outbox</h2>
+      <p class="lead">Cada ação grava eventos na tabela outbox na mesma transação. O Publicador os envia ao RabbitMQ e o MSRelatorios os consome para atualizar as projeções.</p>
+      <div class="painel">
+        <h3>Fluxo de um evento</h3>
+        <div class="fluxo" id="fluxo">
+          <div class="no" data-no="0">Core<small>Inscrição / Matrícula</small></div>
+          <div class="seta" data-seta="0"></div>
+          <div class="no" data-no="1">Outbox<small>tabela no Postgres</small></div>
+          <div class="seta" data-seta="1"></div>
+          <div class="no" data-no="2">Publicador<small>job a cada 1 s</small></div>
+          <div class="seta" data-seta="2"></div>
+          <div class="no" data-no="3">RabbitMQ<small>filas relatorios.*</small></div>
+          <div class="seta" data-seta="3"></div>
+          <div class="no" data-no="4">MSRelatorios<small>projeção de leitura</small></div>
+          <div class="seta" data-seta="4"></div>
+          <div class="no" data-no="5">Painel<small>números atualizados</small></div>
+        </div>
+        <p class="dica" id="e_estadoFluxo">Faça uma ação (criar turma, inscrever, alocar ou confirmar) para ver o fluxo animado.</p>
+      </div>
+
+      <div class="grade g2">
+        <div class="painel">
+          <h3>Linha do tempo de eventos esperados</h3>
+          <p class="dica" style="margin-top:0">Gerada localmente a partir das ações feitas aqui. Um evento fica "refletido" quando o número correspondente muda nos relatórios.</p>
+          <div class="linha-botoes" style="margin:0 0 6px">
+            <button id="e_btnVerificar" class="fantasma">Verificar agora</button>
+            <span id="e_pendentes" class="selo"></span>
+          </div>
+          <ul class="linha-tempo" id="e_timeline"></ul>
+        </div>
+        <div class="painel">
+          <h3>Demonstrar a resiliência com o RabbitMQ</h3>
+          <ol style="padding-left:18px;margin:0">
+            <li>Abra o <a href="http://localhost:15672" target="_blank" rel="noopener">RabbitMQ Management</a> (usuário e senha padrão do ambiente local).</li>
+            <li>Pare o RabbitMQ:</li>
+          </ol>
+          <div class="cmd"><code>docker compose stop rabbitmq</code><button class="mini sec" data-copiar="docker compose stop rabbitmq">Copiar</button></div>
+          <ol start="3" style="padding-left:18px;margin:0">
+            <li>Aqui, aloque e confirme normalmente: a API continua respondendo (os eventos ficam <b>PENDENTE</b> na outbox) e os relatórios <b>não mudam</b>.</li>
+            <li>Confira a outbox:</li>
+          </ol>
+          <div class="cmd"><code>docker compose exec -T postgres-core psql -U alocacreche -d alocacreche -c "SELECT id, tipo_evento, status FROM outbox ORDER BY id DESC LIMIT 15"</code><button class="mini sec" data-copiar='docker compose exec -T postgres-core psql -U alocacreche -d alocacreche -c "SELECT id, tipo_evento, status FROM outbox ORDER BY id DESC LIMIT 15"'>Copiar</button></div>
+          <ol start="5" style="padding-left:18px;margin:0"><li>Suba o RabbitMQ de volta e veja a linha do tempo convergir:</li></ol>
+          <div class="cmd"><code>docker compose start rabbitmq</code><button class="mini sec" data-copiar="docker compose start rabbitmq">Copiar</button></div>
+          <p class="dica">Resumo da contagem por status:</p>
+          <div class="cmd"><code>docker compose exec -T postgres-core psql -U alocacreche -d alocacreche -c "SELECT status, count(*) FROM outbox GROUP BY status"</code><button class="mini sec" data-copiar='docker compose exec -T postgres-core psql -U alocacreche -d alocacreche -c "SELECT status, count(*) FROM outbox GROUP BY status"'>Copiar</button></div>
+          <p class="dica">Se a porta do Postgres do core no seu ambiente for outra, ajuste o serviço no <code>docker compose</code>; os comandos acima usam o serviço, não a porta.</p>
+          <p class="dica tecnico">Não existe endpoint de Outbox na API: a consulta é feita direto no banco.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 7. ROTEIRO -->
+    <section class="aba" id="aba-roteiro">
+      <h2>Roteiro de apresentação</h2>
+      <p class="lead">Passo a passo para a apresentação. Marque os passos feitos (a marcação fica salva nesta aba do navegador).</p>
+
+      <div class="painel">
+        <h3>Demo completa automática</h3>
+        <p class="dica" style="margin-top:0">Cria uma creche e uma turma de 3 vagas, faz 3 inscrições, aloca, confirma e confere os relatórios, narrando cada passo.</p>
+        <div class="linha-botoes">
+          <button id="r_btnDemo">Executar demo completa automática</button>
+          <label style="display:inline;margin:0">Ritmo
+            <select id="r_ritmo" style="width:auto;display:inline-block">
+              <option value="1200">rápido</option>
+              <option value="2500" selected>normal</option>
+              <option value="4500">lento (apresentação)</option>
+            </select></label>
+          <button id="r_btnLimpar" class="sec mini">Desmarcar todos os passos</button>
+        </div>
+      </div>
+
+      <div class="grade g2">
+        <div class="painel">
+          <h3>Larissa: Stack A (Inscrição e fila)</h3>
+          <ol class="passos" id="r_larissa"></ol>
+        </div>
+        <div class="painel">
+          <h3>Você: Stack B e C (Matrícula, relatórios e segurança)</h3>
+          <ol class="passos" id="r_voce"></ol>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <aside class="registro" id="registro">
+    <div class="registro-topo">
+      <h3>Registro de chamadas
+        <span>
+          <span class="selo" id="logContador">0</span>
+          <button class="mini sec" id="btnRecolher" title="Recolher ou expandir o registro">&#9776;</button>
+        </span>
+      </h3>
+      <div class="registro-conteudo">
+        <div class="filtros">
+          <input class="cheio" id="logBusca" placeholder="Filtrar por rota, método ou texto">
+          <select id="logStatus">
+            <option value="">Todos os status</option>
+            <option value="2">2xx (sucesso)</option>
+            <option value="4">4xx (cliente)</option>
+            <option value="5">5xx (servidor)</option>
+            <option value="0">Falha de rede</option>
+          </select>
+          <select id="logMetodo">
+            <option value="">Todos os métodos</option>
+            <option>GET</option><option>POST</option>
+          </select>
+          <label class="cheio"><input type="checkbox" id="logAuto"> mostrar também as atualizações automáticas</label>
+        </div>
+        <div class="linha-botoes" style="margin-top:6px">
+          <button class="mini sec" id="btnLogLimpar">Limpar</button>
+          <button class="mini fantasma" id="btnLogCopiar" title="Copia a última chamada filtrada como curl (sem token)">Copiar última como curl</button>
+        </div>
+      </div>
     </div>
-    <button id="btnInscrever">Inscrever na turma atual</button>
-    <p class="aviso">O CPF é gerado automaticamente se ficar em branco.</p>
-  </section>
+    <div class="registro-lista registro-conteudo" id="logLista"></div>
+  </aside>
+</div>
 
-  <section>
-    <h2>3. Alocar e confirmar</h2>
-    <button id="btnAlocar">Alocar vaga ao primeiro da fila</button>
-    <p class="aviso">Matrícula atual: <b id="matriculaAtual">-</b></p>
-    <button id="btnConfirmar" class="sec">Confirmar matrícula</button>
-  </section>
+<div class="toasts" id="toasts" aria-live="polite"></div>
 
-  <section class="larga">
-    <h2>4. Relatórios (via RabbitMQ, consistência eventual)
-      <label style="display:inline"><input id="auto" type="checkbox" style="width:auto"> atualizar a cada 3 s</label></h2>
-    <div class="cartoes">
-      <div class="cartao"><b id="kVagas">-</b><span>vagas disponíveis (ocupação)</span></div>
-      <div class="cartao"><b id="kFila">-</b><span>aguardando na fila</span></div>
-      <div class="cartao"><b id="kTaxa">-</b><span>taxa de confirmação</span></div>
-      <div class="cartao"><b id="kDist">-</b><span>distância média (km)</span></div>
-    </div>
-    <div class="cartoes" style="margin-top:10px">
-      <div class="cartao"><b id="pVagas">-</b><span>painel público: vagas</span></div>
-      <div class="cartao"><b id="pCreches">-</b><span>painel público: creches com vaga</span></div>
-      <div class="cartao"><b id="pTurmas">-</b><span>painel público: turmas</span></div>
-      <div class="cartao"><button id="btnAtualizar" style="margin:0">Atualizar agora</button></div>
-    </div>
-  </section>
-
-  <section class="larga">
-    <h2>Registro das chamadas</h2>
-    <pre id="log"></pre>
-  </section>
-</main>
-
-<script>
-  // Sessão criada pela página /login.html (sessionStorage some ao fechar a aba)
-  var token = sessionStorage.getItem('alocacreche.token');
-  var municipioId = Number(sessionStorage.getItem('alocacreche.municipioId'));
-  // Turma e matrícula atuais sobrevivem a um recarregamento da página (somem junto com a sessão)
-  var turmaId = Number(sessionStorage.getItem('alocacreche.turmaId')) || null;
-  var matriculaId = Number(sessionStorage.getItem('alocacreche.matriculaId')) || null;
-
-  function $(id) { return document.getElementById(id); }
-
-  function registrar(mensagem, ehErro) {
-    var linha = document.createElement('div');
-    linha.textContent = new Date().toLocaleTimeString() + '  ' + mensagem;
-    linha.className = ehErro ? 'erro' : 'ok';
-    var log = $('log');
-    log.insertBefore(linha, log.firstChild);
-    while (log.children.length > 200) { log.removeChild(log.lastChild); }
-  }
-
-  // Esconde o JWT do registro: a página é demonstração, mas o token não deve aparecer na tela
-  function ocultarToken(texto) {
-    return texto.replace(/("token"\s*:\s*")[^"]+(")/g, '$1***$2');
-  }
-
-  // Chamadas silenciosas (polling dos relatórios) só entram no registro quando falham
-  async function chamar(metodo, caminho, corpo, comToken, silencioso) {
-    var cabecalhos = {};
-    if (corpo) { cabecalhos['Content-Type'] = 'application/json'; }
-    if (comToken !== false && token) { cabecalhos['Authorization'] = 'Bearer ' + token; }
-    var resposta;
-    try {
-      resposta = await fetch(caminho, { method: metodo, headers: cabecalhos, body: corpo ? JSON.stringify(corpo) : undefined });
-    } catch (e) {
-      registrar(metodo + ' ' + caminho + ' -> falha de rede (gateway ou backend indisponível)', true);
-      return { ok: false, status: 0, dados: null };
-    }
-    if (resposta.status === 401 && comToken !== false) {
-      registrar('Sessão expirada ou inválida; voltando ao login.', true);
-      irParaLogin();
-    }
-    var texto = await resposta.text();
-    var dados = null;
-    try { dados = texto ? JSON.parse(texto) : null; } catch (e) { dados = texto; }
-    if (!silencioso || !resposta.ok) { registrar(metodo + ' ' + caminho + ' -> ' + resposta.status + (texto ? '  ' + ocultarToken(texto).slice(0, 300) : ''), !resposta.ok); }
-    return { ok: resposta.ok, status: resposta.status, dados: dados };
-  }
-
-  function irParaLogin() {
-    sessionStorage.removeItem('alocacreche.token');
-    sessionStorage.removeItem('alocacreche.municipioId');
-    sessionStorage.removeItem('alocacreche.expiraEm');
-    sessionStorage.removeItem('alocacreche.turmaId');
-    sessionStorage.removeItem('alocacreche.matriculaId');
-    window.location.replace('/login.html');
-  }
-
-  function exigirLogin() {
-    if (!token) { irParaLogin(); return false; }
-    return true;
-  }
-
-  if (!token) {
-    irParaLogin();
-  } else {
-    $('estado').textContent = 'autenticado (município ' + municipioId + ')';
-    $('estado').className = 'estado logado';
-    if (turmaId) { $('turmaAtual').textContent = turmaId; }
-    if (matriculaId) { $('matriculaAtual').textContent = matriculaId; }
-  }
-
-  $('btnSair').onclick = irParaLogin;
-
-  // Página restaurada do cache de navegação (botão Voltar) sem reexecutar o script: revalida a sessão
-  window.addEventListener('pageshow', function (evento) {
-    if (evento.persisted && !sessionStorage.getItem('alocacreche.token')) { irParaLogin(); }
-  });
-
-  function cpfAleatorio() {
-    var n = '';
-    for (var i = 0; i < 11; i++) { n += Math.floor(Math.random() * 10); }
-    return n.slice(0, 3) + '.' + n.slice(3, 6) + '.' + n.slice(6, 9) + '-' + n.slice(9);
-  }
-
-  $('btnCreche').onclick = async function () {
-    if (!exigirLogin()) { return; }
-    var creche = await chamar('POST', '/api/v1/matricula/creches', {
-      nome: $('crecheNome').value, capacidade: Number($('crecheCapacidade').value),
-      endereco: { rua: 'Rua B', numero: 20, bairro: 'Centro', cidade: 'Sao Paulo', estado: 'SP',
-        latitude: Number($('crecheLat').value), longitude: Number($('crecheLon').value) } });
-    if (!creche.ok) { return; }
-    var turma = await chamar('POST', '/api/v1/matricula/turmas', {
-      crecheId: creche.dados.crecheId, faixaEtaria: $('faixa').value, vagasTotais: Number($('vagas').value) });
-    if (turma.ok) {
-      turmaId = turma.dados.turmaId;
-      sessionStorage.setItem('alocacreche.turmaId', String(turmaId));
-      $('turmaAtual').textContent = turmaId;
-    }
-  };
-
-  $('btnInscrever').onclick = async function () {
-    if (!exigirLogin()) { return; }
-    if (!turmaId) { registrar('Crie a creche e a turma primeiro.', true); return; }
-    var cpf = $('respCpf').value || cpfAleatorio();
-    await chamar('POST', '/api/v1/inscricao/inscricoes', {
-      responsavel: { nome: $('respNome').value, cpf: cpf, telefone: '11999990000', email: 'responsavel@example.com',
-        endereco: { rua: 'Rua A', numero: 10, bairro: 'Centro',
-          latitude: Number($('respLat').value), longitude: Number($('respLon').value) } },
-      crianca: { nome: $('criNome').value, dataNascimento: $('criNasc').value },
-      turmaId: turmaId, rendaPerCapita: Number($('renda').value), criterioVulnerabilidade: $('vuln').value === 'true' });
-    $('respCpf').value = '';
-  };
-
-  $('btnAlocar').onclick = async function () {
-    if (!exigirLogin()) { return; }
-    if (!turmaId) { registrar('Crie a creche e a turma primeiro.', true); return; }
-    var r = await chamar('POST', '/api/v1/matricula/vagas/alocar', { turmaId: turmaId });
-    if (r.ok) {
-      matriculaId = r.dados.matriculaId;
-      sessionStorage.setItem('alocacreche.matriculaId', String(matriculaId));
-      $('matriculaAtual').textContent = matriculaId;
-    }
-  };
-
-  $('btnConfirmar').onclick = async function () {
-    if (!exigirLogin()) { return; }
-    if (!matriculaId) { registrar('Aloque uma vaga primeiro.', true); return; }
-    await chamar('POST', '/api/v1/matricula/matriculas/' + matriculaId + '/confirmar');
-  };
-
-  function periodoAtual() {
-    var d = new Date();
-    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-01';
-  }
-
-  function mostrar(id, valor) { $(id).textContent = (valor === undefined || valor === null) ? '-' : valor; }
-
-  async function atualizar() {
-    if (!token) { return; }
-    var base = '/api/v1/relatorios/';
-    var filtroTurma = turmaId ? '&turmaId=' + turmaId : '';
-    var ocup = await chamar('GET', base + 'ocupacao?municipioId=' + municipioId + filtroTurma, null, undefined, true);
-    var fila = await chamar('GET', base + 'fila-espera?municipioId=' + municipioId + filtroTurma, null, undefined, true);
-    var taxa = await chamar('GET', base + 'matricula/taxa-confirmacao?municipioId=' + municipioId + '&periodo=' + periodoAtual(), null, undefined, true);
-    var dist = await chamar('GET', base + 'matricula/distancia-media?municipioId=' + municipioId + '&periodo=' + periodoAtual(), null, undefined, true);
-    var painel = await chamar('GET', base + 'painel-publico?municipioId=' + municipioId, null, false, true);
-
-    var turmas = ocup.ok && Array.isArray(ocup.dados) ? ocup.dados : [];
-    mostrar('kVagas', turmas.length ? turmas[0].vagasDisponiveis : null);
-    var filas = fila.ok && Array.isArray(fila.dados) ? fila.dados : (fila.ok ? [fila.dados] : []);
-    mostrar('kFila', filas.length && filas[0] ? filas[0].quantidadeAguardando : null);
-    mostrar('kTaxa', taxa.ok && taxa.dados && taxa.dados.taxaConfirmacao != null ? Number(taxa.dados.taxaConfirmacao).toFixed(2) : null);
-    mostrar('kDist', dist.ok && dist.dados && dist.dados.distanciaMediaKm != null ? Number(dist.dados.distanciaMediaKm).toFixed(2) : null);
-    mostrar('pVagas', painel.ok && painel.dados ? painel.dados.totalVagasDisponiveis : null);
-    mostrar('pCreches', painel.ok && painel.dados ? painel.dados.totalCrechesComVaga : null);
-    mostrar('pTurmas', painel.ok && painel.dados ? painel.dados.totalTurmas : null);
-  }
-
-  $('btnAtualizar').onclick = function () { if (exigirLogin()) { atualizar(); } };
-
-  var temporizador = null;
-  $('auto').onchange = function () {
-    if (temporizador) { clearInterval(temporizador); temporizador = null; }
-    if ($('auto').checked) { temporizador = setInterval(atualizar, 3000); }
-  };
-</script>
+<script src="/nucleo.js"></script>
+<script src="/acoes.js"></script>
+<script src="/painel.js"></script>
+<script src="/inscricao.js"></script>
+<script src="/matricula.js"></script>
+<script src="/seguranca.js"></script>
+<script src="/eventos.js"></script>
+<script src="/roteiro.js"></script>
+<script src="/principal.js"></script>
 </body>
 </html>
