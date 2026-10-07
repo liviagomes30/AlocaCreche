@@ -14,6 +14,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.alocacreche.core.comum.Endereco;
 import org.alocacreche.core.comum.EntidadeMultiTenant;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 /**
  * CPF e renda (via {@link Inscricao}) sao dado sensivel LGPD - nunca logar em claro (ver
@@ -41,7 +42,8 @@ public class Responsavel extends EntidadeMultiTenant {
 
     @Embedded
     private Endereco endereco;
-
+    
+    @JsonIgnore
     @OneToMany(mappedBy = "responsavel", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private List<Crianca> criancas = new ArrayList<>();
 

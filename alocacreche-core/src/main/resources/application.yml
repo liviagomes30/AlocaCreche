@@ -37,7 +37,8 @@ spring:
       # reinicios; Testcontainers comeca vazio a cada teste e nao e afetado.
       # Workaround local: recriar o volume do postgres-core (docker compose down -v
       # postgres-core). Some de vez quando "validate" substituir "update" acima.
-      ddl-auto: update
+      #ddl-auto: update
+      ddl-auto: none
     properties:
       hibernate:
         format_sql: true

@@ -36,6 +36,7 @@ public class InscricaoService {
     private final MatriculaConsulta matriculaConsulta;
     private final CalculadoraScorePrioridade calculadoraScorePrioridade;
     private final OutboxEventWriter outboxEventWriter;
+    private final FilaRedisService filaRedisService;
 
     @Transactional
     public InscricaoRegistradaResponse registrarInscricao(InscricaoDTO dto) {
@@ -70,6 +71,12 @@ public class InscricaoService {
         Inscricao salva = inscricaoRepository.saveAndFlush(inscricao);
 
         int posicao = enfileirar(salva, turma.getId(), municipioId);
+
+        filaRedisService.adicionar(
+                turma.getId(),
+                salva.getId(),
+                posicao);
+
         emitirEventoDeFila(salva, turma, municipioId);
 
         log.info(
@@ -159,5 +166,9 @@ public class InscricaoService {
                         agora.toLocalDate(),
                         null,
                         agora));
+    }
+
+    public Long consultarPosicaoNaFila(Long turmaId, Long inscricaoId) {
+        return filaRedisService.consultarPosicao(turmaId, inscricaoId);
     }
 }

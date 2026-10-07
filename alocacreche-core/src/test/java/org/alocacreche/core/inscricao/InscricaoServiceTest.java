@@ -74,6 +74,7 @@ class InscricaoServiceTest {
     @Mock private FilaEsperaRepository filaEsperaRepository;
     @Mock private MatriculaConsulta matriculaConsulta;
     @Mock private OutboxEventWriter outboxEventWriter;
+    @Mock private FilaRedisService filaRedisService;
 
     private InscricaoService service;
     private Municipio municipio;
@@ -95,7 +96,8 @@ class InscricaoServiceTest {
                         filaEsperaRepository,
                         matriculaConsulta,
                         new CalculadoraScorePrioridade(),
-                        outboxEventWriter);
+                        outboxEventWriter,
+                        filaRedisService);
         municipio = new Municipio();
         municipio.setConfiguracaoPriorizacao(
                 ConfiguracaoPriorizacao.builder()
