@@ -12,6 +12,7 @@ import org.alocacreche.core.comum.seguranca.SessaoTenantResolver;
 import org.alocacreche.core.comum.tenant.TenantContext;
 import org.alocacreche.core.inscricao.FilaEspera;
 import org.alocacreche.core.inscricao.FilaEsperaRepository;
+import org.alocacreche.core.inscricao.FilaRedisService;
 import org.alocacreche.core.inscricao.Inscricao;
 import org.alocacreche.core.inscricao.StatusInscricao;
 import org.alocacreche.core.matricula.Creche;
@@ -44,6 +45,7 @@ public class AlocacaoVagaTransacional {
     private final MunicipioRepository municipioRepository;
     private final GeolocalizacaoService geolocalizacaoService;
     private final OutboxEventWriter outboxEventWriter;
+    private final FilaRedisService filaRedisService;
 
     /**
      * REQUIRES_NEW porque {@link AlocacaoAutomaticaListener} chama esta alocacao depois do commit da
@@ -90,6 +92,7 @@ public class AlocacaoVagaTransacional {
         Matricula salva = matriculaRepository.saveAndFlush(matricula);
 
         filaEsperaRepository.delete(primeiroDaFila);
+        filaRedisService.removerAposCommit(municipioId, turmaId, inscricao.getId());
         inscricao.setStatus(StatusInscricao.CONVOCADA);
 
         registrarEventos(municipioId, turma, creche, primeiroDaFila, salva, agora);

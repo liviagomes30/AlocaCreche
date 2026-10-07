@@ -28,10 +28,13 @@ class PerfilUsuarioTest {
     }
 
     @Test
-    @DisplayName("ATENDENTE devolve exatamente as duas permissoes de inscricao")
+    @DisplayName("ATENDENTE devolve exatamente as permissoes de inscricao, fila, responsavel e crianca")
     void atendenteDevolvePermissoesDeInscricao() {
         assertThat(PerfilUsuario.ATENDENTE.permissoes()).containsExactlyInAnyOrder(
-                "inscricao:inscricao:add", "inscricao:fila:detail");
+                "inscricao:inscricao:add",
+                "inscricao:fila:detail",
+                "inscricao:responsavel:add",
+                "inscricao:crianca:add");
     }
 
     @ParameterizedTest

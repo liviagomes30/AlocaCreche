@@ -26,6 +26,10 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class InscricaoService {
 
+    /**
+     * Status em que a crianca ainda ocupa a fila ou a vaga. Mesma lista do indice parcial
+     * uk_inscricao_crianca_ativa em schema.sql - mudar um exige mudar o outro.
+     */
     static final Set<StatusInscricao> STATUS_ATIVOS =
             Set.of(StatusInscricao.AGUARDANDO, StatusInscricao.CONVOCADA, StatusInscricao.MATRICULADA);
 
@@ -35,7 +39,8 @@ public class InscricaoService {
     private final EntityManager entityManager;
     private final InscricaoRepository inscricaoRepository;
     private final CriancaRepository criancaRepository;
-    private final ResponsavelRepository responsavelRepository;
+    private final ResponsavelService responsavelService;
+    private final CriancaService criancaService;
     private final MunicipioRepository municipioRepository;
     private final TurmaRepository turmaRepository;
     private final FilaEsperaRepository filaEsperaRepository;
@@ -73,15 +78,11 @@ public class InscricaoService {
         inscricao.setRendaPerCapita(dto.rendaPerCapita());
         inscricao.setCriterioVulnerabilidade(criterioVulnerabilidade);
         inscricao.setScorePrioridade(score);
-        // TODO: Responsavel.cpf e unico no banco inteiro, nao por municipio, entao o 409 vale entre municipios (Stack A)
         Inscricao salva = salvarInscricao(inscricao);
 
         int posicao = enfileirar(salva, turma.getId(), municipioId);
 
-        filaRedisService.adicionar(
-                turma.getId(),
-                salva.getId(),
-                posicao);
+        filaRedisService.adicionarAposCommit(municipioId, turma.getId(), salva.getId(), posicao);
 
         emitirEventoDeFila(salva, turma, municipioId);
 
@@ -105,7 +106,8 @@ public class InscricaoService {
             }
             return crianca;
         }
-        return cadastrarResponsavelECrianca(dto, municipioId);
+        Responsavel responsavel = responsavelService.cadastrarNoMunicipio(municipioId, dto.responsavel());
+        return criancaService.cadastrarNoMunicipio(municipioId, responsavel, dto.crianca());
     }
 
     /**
@@ -117,33 +119,6 @@ public class InscricaoService {
             return inscricaoRepository.saveAndFlush(inscricao);
         } catch (DataIntegrityViolationException excecao) {
             throw new ConflitoException(MENSAGEM_INSCRICAO_ATIVA, excecao);
-        }
-    }
-
-    private Crianca cadastrarResponsavelECrianca(InscricaoDTO dto, Long municipioId) {
-        InscricaoDTO.ResponsavelDTO dadosResponsavel = dto.responsavel();
-        if (responsavelRepository.findByCpf(dadosResponsavel.cpf()).isPresent()) {
-            throw new ConflitoException("CPF ja cadastrado");
-        }
-
-        Responsavel responsavel = new Responsavel();
-        responsavel.setMunicipioId(municipioId);
-        responsavel.setNome(dadosResponsavel.nome());
-        responsavel.setCpf(dadosResponsavel.cpf());
-        responsavel.setTelefone(dadosResponsavel.telefone());
-        responsavel.setEmail(dadosResponsavel.email());
-        responsavel.setEndereco(dadosResponsavel.endereco());
-
-        Crianca crianca = new Crianca();
-        crianca.setMunicipioId(municipioId);
-        crianca.setNome(dto.crianca().nome());
-        crianca.setDataNascimento(dto.crianca().dataNascimento());
-        responsavel.adicionarCrianca(crianca);
-
-        try {
-            return responsavelRepository.saveAndFlush(responsavel).getCriancas().get(0);
-        } catch (DataIntegrityViolationException excecao) {
-            throw new ConflitoException("CPF ja cadastrado");
         }
     }
 
@@ -198,7 +173,39 @@ public class InscricaoService {
                         agora));
     }
 
-    public Long consultarPosicaoNaFila(Long turmaId, Long inscricaoId) {
-        return filaRedisService.consultarPosicao(turmaId, inscricaoId);
+    /**
+     * Posicao da inscricao na fila da turma. Le do Redis (cache) e, na falta da chave (cache frio,
+     * expirado ou Redis fora), cai para a posicao persistida em {@code FilaEspera}, que e a fonte
+     * da verdade. Inscricao de outro municipio e invisivel pela RLS (404); inscricao que ja saiu da
+     * fila (alocada) tambem responde 404.
+     */
+    @Transactional(readOnly = true)
+    public PosicaoFilaResponse consultarPosicaoNaFila(Long turmaId, Long inscricaoId) {
+        Long municipioId = sessaoTenantResolver.municipioIdAtual();
+        TenantContext.aplicar(entityManager, municipioId);
+
+        Inscricao inscricao = inscricaoRepository.findById(inscricaoId)
+                .orElseThrow(() -> new RecursoNaoEncontradoException(
+                        "Inscrição não encontrada: " + inscricaoId));
+        if (inscricao.getStatus() != StatusInscricao.AGUARDANDO) {
+            throw naoEstaNaFila(inscricaoId, turmaId);
+        }
+        Long posicao = filaRedisService
+                .consultarPosicao(municipioId, turmaId, inscricaoId)
+                .orElseGet(() -> posicaoPersistida(turmaId, inscricaoId));
+        return new PosicaoFilaResponse(inscricaoId, turmaId, posicao);
+    }
+
+    private Long posicaoPersistida(Long turmaId, Long inscricaoId) {
+        return filaEsperaRepository
+                .findByInscricaoId(inscricaoId)
+                .filter(fila -> turmaId.equals(fila.getTurmaId()))
+                .map(fila -> fila.getPosicao().longValue())
+                .orElseThrow(() -> naoEstaNaFila(inscricaoId, turmaId));
+    }
+
+    private RecursoNaoEncontradoException naoEstaNaFila(Long inscricaoId, Long turmaId) {
+        return new RecursoNaoEncontradoException(
+                "Inscrição " + inscricaoId + " não está na fila da turma " + turmaId);
     }
 }

@@ -37,8 +37,7 @@ spring:
       # reinicios; Testcontainers comeca vazio a cada teste e nao e afetado.
       # Workaround local: recriar o volume do postgres-core (docker compose down -v
       # postgres-core). Some de vez quando "validate" substituir "update" acima.
-      #ddl-auto: update
-      ddl-auto: none
+      ddl-auto: update
     properties:
       hibernate:
         format_sql: true
@@ -47,6 +46,10 @@ spring:
     redis:
       host: ${SPRING_DATA_REDIS_HOST:localhost}
       port: ${SPRING_DATA_REDIS_PORT:6379}
+      # Timeouts curtos: o Redis e so cache da fila (fail-open); sem eles, Redis fora do ar prende a
+      # conexao do banco por cerca de 60 s em cada inscricao.
+      connect-timeout: ${SPRING_DATA_REDIS_CONNECT_TIMEOUT:500ms}
+      timeout: ${SPRING_DATA_REDIS_TIMEOUT:500ms}
 
   rabbitmq:
     host: ${SPRING_RABBITMQ_HOST:localhost}
