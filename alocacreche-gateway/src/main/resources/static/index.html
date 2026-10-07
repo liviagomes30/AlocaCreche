@@ -110,8 +110,9 @@
   // Sessão criada pela página /login.html (sessionStorage some ao fechar a aba)
   var token = sessionStorage.getItem('alocacreche.token');
   var municipioId = Number(sessionStorage.getItem('alocacreche.municipioId'));
-  var turmaId = null;
-  var matriculaId = null;
+  // Turma e matrícula atuais sobrevivem a um recarregamento da página (somem junto com a sessão)
+  var turmaId = Number(sessionStorage.getItem('alocacreche.turmaId')) || null;
+  var matriculaId = Number(sessionStorage.getItem('alocacreche.matriculaId')) || null;
 
   function $(id) { return document.getElementById(id); }
 
@@ -156,6 +157,8 @@
     sessionStorage.removeItem('alocacreche.token');
     sessionStorage.removeItem('alocacreche.municipioId');
     sessionStorage.removeItem('alocacreche.expiraEm');
+    sessionStorage.removeItem('alocacreche.turmaId');
+    sessionStorage.removeItem('alocacreche.matriculaId');
     window.location.replace('/login.html');
   }
 
@@ -169,6 +172,8 @@
   } else {
     $('estado').textContent = 'autenticado (município ' + municipioId + ')';
     $('estado').className = 'estado logado';
+    if (turmaId) { $('turmaAtual').textContent = turmaId; }
+    if (matriculaId) { $('matriculaAtual').textContent = matriculaId; }
   }
 
   $('btnSair').onclick = irParaLogin;
@@ -195,6 +200,7 @@
       crecheId: creche.dados.crecheId, faixaEtaria: $('faixa').value, vagasTotais: Number($('vagas').value) });
     if (turma.ok) {
       turmaId = turma.dados.turmaId;
+      sessionStorage.setItem('alocacreche.turmaId', String(turmaId));
       $('turmaAtual').textContent = turmaId;
     }
   };
@@ -216,7 +222,11 @@
     if (!exigirLogin()) { return; }
     if (!turmaId) { registrar('Crie a creche e a turma primeiro.', true); return; }
     var r = await chamar('POST', '/api/v1/matricula/vagas/alocar', { turmaId: turmaId });
-    if (r.ok) { matriculaId = r.dados.matriculaId; $('matriculaAtual').textContent = matriculaId; }
+    if (r.ok) {
+      matriculaId = r.dados.matriculaId;
+      sessionStorage.setItem('alocacreche.matriculaId', String(matriculaId));
+      $('matriculaAtual').textContent = matriculaId;
+    }
   };
 
   $('btnConfirmar').onclick = async function () {
@@ -246,7 +256,7 @@
     mostrar('kVagas', turmas.length ? turmas[0].vagasDisponiveis : null);
     var filas = fila.ok && Array.isArray(fila.dados) ? fila.dados : (fila.ok ? [fila.dados] : []);
     mostrar('kFila', filas.length && filas[0] ? filas[0].quantidadeAguardando : null);
-    mostrar('kTaxa', taxa.ok && taxa.dados ? taxa.dados.taxaConfirmacao : null);
+    mostrar('kTaxa', taxa.ok && taxa.dados && taxa.dados.taxaConfirmacao != null ? Number(taxa.dados.taxaConfirmacao).toFixed(2) : null);
     mostrar('kDist', dist.ok && dist.dados && dist.dados.distanciaMediaKm != null ? Number(dist.dados.distanciaMediaKm).toFixed(2) : null);
     mostrar('pVagas', painel.ok && painel.dados ? painel.dados.totalVagasDisponiveis : null);
     mostrar('pCreches', painel.ok && painel.dados ? painel.dados.totalCrechesComVaga : null);
