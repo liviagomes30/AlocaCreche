@@ -594,7 +594,7 @@ class MatriculaControllerIT {
     @DisplayName("creches proximas devolve as turmas da faixa com distancia, so do municipio do token")
     void crechesProximasDevolveTurmasDoMunicipio() throws Exception {
         Long turmaA = criarTurmaPorHttp(municipioA, 2);
-        criarTurmaPorHttp(municipioB, 2);
+        Long turmaB = criarTurmaPorHttp(municipioB, 2);
 
         ResponseEntity<String> resposta =
                 restTemplate.exchange(
@@ -607,11 +607,10 @@ class MatriculaControllerIT {
         JsonNode lista = objectMapper.readTree(resposta.getBody());
         List<Long> turmas = new ArrayList<>();
         lista.forEach(item -> {
-            assertThat(item.get("crecheId").asLong()).isEqualTo(crecheDoMunicipioA);
             assertThat(item.get("distanciaKm").asDouble()).isPositive();
             turmas.add(item.get("turmaId").asLong());
         });
-        assertThat(turmas).contains(turmaA);
+        assertThat(turmas).contains(turmaA).doesNotContain(turmaB);
     }
 
     @Test
