@@ -51,13 +51,25 @@ implementação:
 
 - Um ZSET por município e turma, `fila:{municipioId}:turma:{turmaId}`, membro = `inscricaoId`, score =
   posição. A chave carrega o município para não misturar tenants.
-- A escrita (atualizar posições e remover a convocada) é registrada para depois do commit da transação
-  (`TransactionSynchronization.afterCommit`): rollback não deixa entrada fantasma. É fail-open: falha do Redis
-  vira log de aviso, sem dados sensíveis, e a operação de negócio segue.
+- Cada transação que muda a fila publica **um único snapshot** com a fila inteira da turma (só quem continua
+  nela: a alocada não entra, então some do ZSET). `RenumeracaoFila` o gera e `FilaRedisService.publicarSnapshotAposCommit`
+  o registra para depois do commit (`TransactionSynchronization.afterCommit`): rollback não deixa entrada
+  fantasma. É fail-open: falha do Redis vira log de aviso, sem dados sensíveis, e a operação de negócio segue.
+- **Escrita versionada (descarte de snapshot atrasado).** O lock da turma é solto no commit e a escrita no Redis
+  acontece depois, fora dele; dois snapshots consecutivos da mesma turma poderiam chegar ao Redis fora de ordem
+  e deixar o ZSET diferente do banco (o teste de concorrência com Redis real falhava em cerca de metade das
+  execuções). Por isso cada snapshot carrega uma versão obtida **dentro da transação, sob o lock da turma**
+  (`VersaoFila.proxima()`, `select nextval('fila_versao_seq')`, sequence criada de forma idempotente em
+  `schema.sql`): para a mesma turma, a ordem das versões é a ordem dos commits. O snapshot é aplicado por um
+  script Lua atômico que só age se `versao > versaoAtual`, guardada na chave irmã
+  `fila:{municipioId}:turma:{turmaId}:versao`, e então apaga e recria o ZSET inteiro. Um snapshot que chega
+  atrasado é descartado.
+- **TTL nas duas chaves** (`alocacreche.fila.redis.ttl`, padrão 5 minutos), renovado a cada snapshot, em linha
+  com a invalidação por TTL da ADR 0001. A chave expirada cai para o banco (fallback abaixo).
 - Timeouts curtos de conexão e de comando (`spring.data.redis.connect-timeout` e `timeout`, 500 ms por
   padrão), para que Redis fora do ar não prenda a requisição.
-- **Fallback ao banco:** a consulta lê do Redis e, na falta da chave ou do membro (cache frio, Redis fora),
-  usa `FilaEspera.posicao`, que é a fonte da verdade.
+- **Fallback ao banco:** a consulta lê do Redis e, na falta da chave ou do membro (cache frio, expirado, Redis
+  fora na leitura), usa `FilaEspera.posicao`, que é a fonte da verdade.
 
 ### 4. Consulta de posição com permissão e tenant
 
@@ -75,17 +87,23 @@ implementação:
 
 ## Consequências
 
-- A posição em tempo real é exata no banco (mesma transação da alocação) e no Redis logo após o commit.
+- A posição é exata no banco (mesma transação da alocação) e, com o Redis disponível, no Redis logo após o
+  commit.
 - **Limitação conhecida — custo O(n):** cada inscrição e cada alocação lê e regrava a fila inteira da turma,
   e o lock serializa as escritas da mesma turma. É aceitável para o tamanho esperado de fila por turma; se uma
   fila crescer a ponto de pesar, a evolução é deslocar só as posições afetadas.
-- **Limitação conhecida — janela do cache:** a escrita no Redis ocorre depois do commit, já sem o lock. Duas
-  transações consecutivas na mesma turma podem, numa janela de microssegundos, aplicar seus snapshots fora de
-  ordem; o cache se corrige na próxima escrita da turma e a leitura sempre pode cair para o banco.
+- **Limitação conhecida — Redis fora do ar durante uma escrita:** se o Redis estiver indisponível quando o
+  snapshot é publicado, a escrita é perdida (fail-open) e o ZSET guarda a posição anterior; quando o Redis
+  volta, a API devolve essa posição velha até a próxima escrita na turma ou até o TTL das chaves expirar,
+  quando a leitura passa a cair para o banco. **A defasagem máxima nesse caso é o TTL** (5 minutos por
+  padrão); o banco é a fonte da verdade e nunca fica defasado. Reduzir o TTL reduz a janela ao custo de mais
+  leituras no banco.
 - **Limitação conhecida — distância:** o fator de distância do score é 0 (ADR 0006), então a priorização hoje
   não considera proximidade; a distância é calculada só na alocação e gravada na matrícula.
-- O Redis não tem TTL nas chaves da fila: elas são reescritas a cada renumeração e a chave ausente cai para
-  o banco.
-- Testes: `RenumeracaoFilaTest`, `TravaFilaTurmaTest`, `InscricaoServiceTest`,
-  `AlocacaoVagaTransacionalTest`, `InscricaoFilaRedisIT` (alocar e desistir mantêm as posições `1..N` no
-  banco, no Redis e na API) e `InscricaoFilaConcorrenciaIT` (inscrições e alocações simultâneas).
+- As chaves do Redis expiram por TTL e são reescritas a cada snapshot; a chave ausente cai para o banco.
+- Testes: `RenumeracaoFilaTest`, `TravaFilaTurmaTest`, `VersaoFilaTest`, `FilaRedisServiceTest`,
+  `InscricaoServiceTest`, `AlocacaoVagaTransacionalTest`, `InscricaoFilaRedisIT` (alocar e desistir mantêm as
+  posições `1..N` no banco, no Redis e na API; snapshot atrasado é descartado, o mais novo substitui e o vazio
+  limpa; TTL nas chaves; desempate por data e id), `FilaRedisIndisponivelIT` (Redis pausado: a alocação segue e,
+  expirado o TTL, a posição volta correta do banco) e `InscricaoFilaConcorrenciaIT` (inscrições e alocações
+  simultâneas com o ZSET igual ao banco).

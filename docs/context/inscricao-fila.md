@@ -41,12 +41,20 @@ diretamente.
 
 - Chave: ZSET `fila:{municipioId}:turma:{turmaId}`, membro = `inscricaoId`, score = posição. Os ids são
   globais, mas o município é a fronteira de isolamento, por isso entra na chave.
-- **Redis é cache de leitura; a fonte da verdade é `fila_espera`.** A escrita (`adicionarAposCommit`) e a
-  remoção na alocação (`removerAposCommit`, chamada por `AlocacaoVagaTransacional`) só acontecem
-  **depois do commit**: rollback não deixa entrada fantasma. São fail-open: falha do Redis vira log de
-  aviso (sem dados sensíveis) e nunca derruba a inscrição nem a alocação.
-- Consulta de posição: lê do Redis; sem a chave (cache frio, expirado ou Redis fora) cai para
+- **Redis é cache de leitura; a fonte da verdade é `fila_espera`.** Cada transação que muda a fila publica
+  um único snapshot da fila inteira da turma (`FilaRedisService.publicarSnapshotAposCommit`, só quem continua
+  na fila; a alocada some). A escrita só acontece **depois do commit**: rollback não deixa entrada fantasma.
+  É fail-open: falha do Redis vira log de aviso (sem dados sensíveis) e nunca derruba a inscrição nem a
+  alocação.
+- **Escrita versionada:** o snapshot leva uma versão obtida na transação, sob o lock da turma
+  (`VersaoFila.proxima()`, sequence `fila_versao_seq` em `schema.sql`), e um script Lua atômico só o aplica
+  se a versão for maior que a guardada em `fila:{municipioId}:turma:{turmaId}:versao`; senão é descartado.
+  Assim a ordem de aplicação no Redis não depende da ordem em que as escritas pós-commit chegam.
+- **TTL** nas duas chaves (`alocacreche.fila.redis.ttl`, padrão 5 minutos, renovado a cada snapshot).
+- Consulta de posição: lê do Redis; sem a chave (cache frio, expirado ou Redis fora na leitura) cai para
   `FilaEspera.posicao` no banco. Inscrição que já saiu da fila (alocada) responde 404 com mensagem clara.
+- **Limitação:** se o Redis estiver fora durante a escrita, o ZSET guarda a posição anterior e a API a
+  devolve até a próxima escrita na turma ou até o TTL; a defasagem máxima é o TTL e o banco é a verdade.
 - A posição é a ordem de prioridade na fila, igual no Redis e no banco (ver "Ordenação da fila").
 
 ## Ordenação da fila e lock por turma
@@ -56,9 +64,9 @@ diretamente.
   renumerada `1..N` por `score` decrescente, `dataInscricao` crescente e `id` crescente. A lógica vive
   num único componente, `RenumeracaoFila.renumerar(municipioId, turmaId)` (exige transação ativa,
   `MANDATORY`, e o `TravaFilaTurma` já tomado pelo chamador): ordena, grava em lote e agenda a
-  atualização das posições no ZSET do Redis para depois do commit. A alocação remove a convocada do
-  ZSET (`removerAposCommit`) e renumera, então quem estava atrás sobe de posição em tempo real, no banco,
-  no Redis e em `GET /posicao`. A alocação convoca a menor posição
+  publicação do snapshot no ZSET do Redis para depois do commit. A alocação deleta a convocada e
+  renumera, então o snapshot só traz quem continua na fila e quem estava atrás sobe de posição em tempo
+  real, no banco, no Redis e em `GET /posicao`. A alocação convoca a menor posição
   (`findFirstByTurmaIdOrderByPosicaoAsc`), então a posição errada significa convocar a pessoa errada.
 - **Outros pontos que retiram alguém da fila:** nenhum. Desistência e expiração só mudam a
   `Inscricao` (`CANCELADA`/`EXPIRADA`) cuja entrada na fila já foi removida na alocação; a vaga
@@ -77,14 +85,15 @@ diretamente.
   o lock serializa as inscrições da mesma turma; aceitável para o tamanho esperado de fila por turma.
   Se uma fila crescer a ponto de pesar, a evolução é inserir só o deslocamento afetado (posição da
   nova inscrição em diante) em vez de renumerar tudo.
-- **Redis fora do lock:** a escrita no ZSET ocorre depois do commit, já sem o lock. Duas transações
-  consecutivas na mesma turma podem, em janela de microssegundos, aplicar seus snapshots fora de
-  ordem; o cache se corrige na próxima inscrição da turma e, na leitura, o banco continua sendo a
-  fonte da verdade.
-- Testes: `TravaFilaTurmaTest`, `RenumeracaoFilaTest`, `InscricaoServiceTest` (lock antes da fila),
-  `AlocacaoVagaTransacionalTest` (renumera depois de deletar a convocada), `InscricaoFilaRedisIT`
-  (alocar e desistir com posições 1..N no banco, no Redis e na API) e `InscricaoFilaConcorrenciaIT`
-  (inscrições e alocações simultâneas com Postgres e Redis reais). Decisão registrada na ADR 0007.
+- **Redis fora do lock:** a escrita no ZSET ocorre depois do commit, já sem o lock, então snapshots de
+  transações consecutivas podem chegar fora de ordem. A versão do snapshot (obtida sob o lock) e o script
+  Lua que descarta versão menor resolvem isso; ver "Fila de espera no Redis".
+- Testes: `TravaFilaTurmaTest`, `VersaoFilaTest`, `FilaRedisServiceTest`, `RenumeracaoFilaTest`,
+  `InscricaoServiceTest` (lock antes da fila), `AlocacaoVagaTransacionalTest` (renumera depois de deletar
+  a convocada), `InscricaoFilaRedisIT` (posições 1..N no banco, no Redis e na API; snapshot atrasado
+  descartado; TTL; desempate por data e id), `FilaRedisIndisponivelIT` (Redis pausado: a alocação segue e,
+  expirado o TTL, a posição volta correta do banco) e `InscricaoFilaConcorrenciaIT` (inscrições e
+  alocações simultâneas com Postgres e Redis reais, ZSET igual ao banco). Decisão registrada na ADR 0007.
 
 ## Regras específicas deste módulo
 
