@@ -9,6 +9,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -96,6 +97,7 @@ class InscricaoFilaRedisIT {
     @Autowired private CrecheRepository crecheRepository;
     @Autowired private TurmaRepository turmaRepository;
     @Autowired private FilaEsperaRepository filaEsperaRepository;
+    @Autowired private InscricaoRepository inscricaoRepository;
     @Autowired private FilaRedisService filaRedisService;
     @Autowired private VersaoFila versaoFila;
     @Autowired private PlatformTransactionManager transactionManager;
@@ -173,35 +175,33 @@ class InscricaoFilaRedisIT {
     }
 
     @Test
-    @DisplayName("em empate de score a inscricao mais antiga fica antes")
-    void empateDeScoreRespeitaDataDeInscricao() throws Exception {
-        long primeira = inscreverComDados(
-                turmaDoMunicipioA,
-                500,
-                false);
+    @DisplayName("em empate de score a data de inscricao vem antes do id: id menor com data mais nova fica depois")
+    void empateDeScoreUsaDataAntesDoId() throws Exception {
+        long idMenorDataNova = inscreverComDados(turmaDoMunicipioA, 500, false);
+        long idMaiorDataAntiga = inscreverComDados(turmaDoMunicipioA, 500, false);
+        assertThat(idMenorDataNova).isLessThan(idMaiorDataAntiga);
+        definirDataDeInscricao(idMenorDataNova, LocalDateTime.now().minusHours(1));
+        definirDataDeInscricao(idMaiorDataAntiga, LocalDateTime.now().minusHours(2));
 
-        long segunda = inscreverComDados(
-                turmaDoMunicipioA,
-                500,
-                false);
+        long ultima = inscreverComDados(turmaDoMunicipioA, 500, false);
 
-        String chave = chave(municipioA, turmaDoMunicipioA);
+        assertFilaCoerente(turmaDoMunicipioA, idMaiorDataAntiga, idMenorDataNova, ultima);
+    }
 
-        assertThat(redisTemplate.opsForZSet().score(
-                chave, String.valueOf(primeira)))
-                .isEqualTo(1.0);
+    @Test
+    @DisplayName("em empate de score e de data o id menor fica antes")
+    void empateDeScoreEDataUsaId() throws Exception {
+        long primeira = inscreverComDados(turmaDoMunicipioA, 500, false);
+        long segunda = inscreverComDados(turmaDoMunicipioA, 500, false);
+        long terceira = inscreverComDados(turmaDoMunicipioA, 500, false);
+        LocalDateTime mesmaData = LocalDateTime.now().minusHours(1);
+        definirDataDeInscricao(terceira, mesmaData);
+        definirDataDeInscricao(segunda, mesmaData);
+        definirDataDeInscricao(primeira, mesmaData);
 
-        assertThat(redisTemplate.opsForZSet().score(
-                chave, String.valueOf(segunda)))
-                .isEqualTo(2.0);
+        long ultima = inscreverComDados(turmaDoMunicipioA, 500, false);
 
-        assertThat(posicaoPelaApi(
-                municipioA, primeira, turmaDoMunicipioA))
-                .isEqualTo(1);
-
-        assertThat(posicaoPelaApi(
-                municipioA, segunda, turmaDoMunicipioA))
-                .isEqualTo(2);
+        assertFilaCoerente(turmaDoMunicipioA, primeira, segunda, terceira, ultima);
     }
 
     @Test
@@ -339,6 +339,15 @@ class InscricaoFilaRedisIT {
                 .as("a inscricao que desistiu nao volta a fila")
                 .isEqualTo(HttpStatus.NOT_FOUND);
         assertFilaCoerente(turmaDoMunicipioA, terceira, quarta);
+    }
+
+    private void definirDataDeInscricao(long inscricaoId, LocalDateTime data) {
+        emTenant(municipioA, () -> {
+            Inscricao inscricao = inscricaoRepository.findById(inscricaoId).orElseThrow();
+            inscricao.setDataInscricao(data);
+            inscricaoRepository.saveAndFlush(inscricao);
+            return null;
+        });
     }
 
     private ResponseEntity<String> alocar(Long turmaId) {
