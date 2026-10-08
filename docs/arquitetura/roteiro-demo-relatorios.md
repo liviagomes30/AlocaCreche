@@ -333,7 +333,7 @@ ALOCACRECHE_CORE_URL=http://localhost:8083 SERVER_PORT=8090 mvn spring-boot:run
 ```
 
 Abra `http://localhost:8090/login.html` (a porta padrão do Gateway é a 8080; use outra se ela estiver
-ocupada). Entre com o usuário inicial da seção 3 (ou com um usuário ATENDENTE ou GESTOR criado por SQL, para mostrar a matriz de permissões). O token fica só no `sessionStorage` da aba e some ao
+ocupada). Entre com o usuário inicial da seção 3 (ou com um usuário ATENDENTE ou GESTOR, para mostrar a matriz de permissões; o script `docs/mock-data/usuarios-demo.sql` cria os dois, ver abaixo). O token fica só no `sessionStorage` da aba e some ao
 fechá-la; o botão **Sair** o apaga e uma resposta 401 volta ao login. Cinco falhas seguidas de login
 mostram o bloqueio de 15 minutos (429). As páginas são só para demonstração e teste: não têm senha nem
 token fixos no código.
@@ -349,3 +349,17 @@ dispara por botão os cenários 401, 403, 404, 409, 400, 429 e a matriz de permi
 > `ALOCACRECHE_MATRICULA_MANUTENCAO_HABILITADO=false` para o fluxo manual e ligue-o com um intervalo
 > curto só na hora de mostrar a expiração. O SQL para vencer o prazo de uma matrícula na demo está em
 > `docs/context/matricula-vagas.md` (seção "Cuidados ao demonstrar o job").
+
+### Usuários GESTOR e ATENDENTE para a demo
+
+O core só cria o ADMIN inicial. Para os outros perfis, rode o script abaixo a partir da raiz do repositório
+(sem senha nem hash no repositório: a senha vem do `-v senha=...` e o hash BCrypt é gerado no banco com
+`pgcrypto`). Acrescente `-v email_admin=...` para criar também um ADMIN extra e `-v municipio_id=N` se o
+município não for o 1:
+
+```bash
+docker compose exec -T postgres-core psql -U alocacreche -d alocacreche -v ON_ERROR_STOP=1   -v senha='<senha-da-demo>'   -v email_gestor=gestor@demo.local -v email_atendente=atendente@demo.local   -f - < docs/mock-data/usuarios-demo.sql
+```
+
+Esperado: dois `INSERT 0 1` (um por usuário). Reexecutar é seguro: troca a senha e reativa o usuário. Depois,
+entre em `login.html` (ou no `curl` da seção 7) com o email e a senha informados.

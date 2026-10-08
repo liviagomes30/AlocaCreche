@@ -48,3 +48,20 @@ Agrupado em uma transação por município com `SET LOCAL app.current_tenant`, e
 conectando como a role dedicada `alocacreche_app` (sujeita a RLS) quanto como o usuário bootstrap
 (superuser, ignora RLS). Testado contra o container real deste repositório: 150 linhas inseridas,
 isolamento por tenant confirmado via `SELECT` escopado por município.
+
+## `usuarios-demo.sql` — usuários GESTOR e ATENDENTE para a demo (core)
+
+Cria no município 1 (ou no de `-v municipio_id=N`, que já precisa existir) um usuário GESTOR e um
+ATENDENTE, e opcionalmente um ADMIN extra (`-v email_admin=...`). Não há senha nem hash no arquivo: a senha
+vem da variável `senha` do psql e o hash BCrypt (`$2a$`) é gerado no banco com `pgcrypto`
+(`crypt(senha, gen_salt('bf', 10))`), formato aceito pelo `BCrypt.checkpw` do Sa-Token. Idempotente
+(`ON CONFLICT (municipio_id, email) DO UPDATE`: reexecutar troca a senha e reativa o usuário). A tabela
+`usuario` tem RLS, então o script define o tenant com `set_config('app.current_tenant', ..., true)` dentro da
+transação. Use uma senha só da demo (ela aparece na linha de comando do `psql`).
+
+```bash
+docker compose exec -T postgres-core psql -U alocacreche -d alocacreche -v ON_ERROR_STOP=1   -v senha='<senha-da-demo>'   -v email_gestor=gestor@demo.local -v email_atendente=atendente@demo.local   -f - < docs/mock-data/usuarios-demo.sql
+```
+
+Validado por `AuthControllerIT.usuariosDoScriptDeDemoFazemLogin`: executa o script duas vezes num Postgres
+real (Testcontainers) e faz `POST /api/v1/auth/login` com cada usuário, conferindo as permissões do perfil.

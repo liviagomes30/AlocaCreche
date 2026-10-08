@@ -10,6 +10,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
+import java.nio.file.Path;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -51,7 +52,9 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.mvc.method.RequestMappingInfo;
 import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
+import org.testcontainers.containers.Container.ExecResult;
 import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.utility.MountableFile;
 
 /**
  * Prova ponta a ponta o {@code POST /api/v1/auth/login} com Postgres real (AUTH-01, AUTH-02,
@@ -136,6 +139,43 @@ class AuthControllerIT {
         ResponseEntity<String> resposta = login(emailDo(PerfilUsuario.GESTOR), "SenhaErrada#999", municipioA);
 
         assertCredenciaisInvalidas(resposta);
+    }
+
+    @Test
+    @DisplayName("usuarios criados por docs/mock-data/usuarios-demo.sql (hash pgcrypto) fazem login com o perfil certo")
+    void usuariosDoScriptDeDemoFazemLogin() throws Exception {
+        String senhaDemo = "SenhaDemo#2026";
+        String gestor = "gestor.demo" + DOMINIO;
+        String atendente = "atendente.demo" + DOMINIO;
+        String admin = "admin.demo" + DOMINIO;
+        Path script = Path.of("..", "docs", "mock-data", "usuarios-demo.sql").toAbsolutePath().normalize();
+        postgres.copyFileToContainer(MountableFile.forHostPath(script), "/tmp/usuarios-demo.sql");
+
+        // Duas execucoes seguidas provam a idempotencia (ON CONFLICT DO UPDATE).
+        for (int execucao = 0; execucao < 2; execucao++) {
+            ExecResult resultado = postgres.execInContainer(
+                    "psql", "-U", postgres.getUsername(), "-d", postgres.getDatabaseName(),
+                    "-v", "ON_ERROR_STOP=1",
+                    "-v", "senha=" + senhaDemo,
+                    "-v", "email_gestor=" + gestor,
+                    "-v", "email_atendente=" + atendente,
+                    "-v", "email_admin=" + admin,
+                    "-v", "municipio_id=" + municipioA,
+                    "-f", "/tmp/usuarios-demo.sql");
+            assertThat(resultado.getExitCode()).as(resultado.getStderr()).isZero();
+        }
+
+        Map<String, PerfilUsuario> esperados = Map.of(
+                gestor, PerfilUsuario.GESTOR, atendente, PerfilUsuario.ATENDENTE, admin, PerfilUsuario.ADMIN);
+        for (Map.Entry<String, PerfilUsuario> esperado : esperados.entrySet()) {
+            ResponseEntity<String> resposta = login(esperado.getKey(), senhaDemo, municipioA);
+            assertThat(resposta.getStatusCode()).as(esperado.getKey()).isEqualTo(HttpStatus.OK);
+            String token = objectMapper.readTree(resposta.getBody()).get("token").asText();
+            assertThat((List<?>) stpLogic.getExtra(token, "perms"))
+                    .map(String::valueOf)
+                    .containsExactlyElementsOf(esperado.getValue().permissoes());
+        }
+        assertThat(login(gestor, "SenhaErrada#999", municipioA).getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
     }
 
     @Test
