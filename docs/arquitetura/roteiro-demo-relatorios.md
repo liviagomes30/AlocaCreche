@@ -343,3 +343,9 @@ Eventos e Outbox, Roteiro) com um registro de chamadas fixo à direita (CPF e to
 `curl` sem token). Os arquivos `estilo.css` e `*.js` ficam na mesma pasta. A aba **Roteiro** tem um passo a
 passo para duas pessoas e o botão que executa a demonstração completa automaticamente; a aba **Segurança**
 dispara por botão os cenários 401, 403, 404, 409, 400, 429 e a matriz de permissões do usuário logado.
+
+> **Antes de apresentar:** o job de manutenção da Stack B aloca sozinho turmas com vaga livre e fila não
+> vazia a cada 2 minutos, o que pode antecipar o seu clique em "Alocar". Suba o core com
+> `ALOCACRECHE_MATRICULA_MANUTENCAO_HABILITADO=false` para o fluxo manual e ligue-o com um intervalo
+> curto só na hora de mostrar a expiração. O SQL para vencer o prazo de uma matrícula na demo está em
+> `docs/context/matricula-vagas.md` (seção "Cuidados ao demonstrar o job").

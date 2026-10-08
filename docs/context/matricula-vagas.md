@@ -110,6 +110,25 @@ alocação usa `AlocacaoVagaService.alocarProximoElegivelNoMunicipio`. Expiraç�
 mesma linha da matrícula, então nunca acontecem juntas. Desliga-se com
 `alocacreche.matricula.manutencao.habilitado=false`, como fazem os testes.
 
+**Cuidados ao demonstrar o job.**
+- A reconciliação aloca sozinha qualquer turma com vaga livre e fila não vazia. Com o intervalo padrão
+  de 2 minutos, uma rodada pode cair entre as inscrições e o clique em "Alocar", mudando posições e
+  fazendo a consulta de posição responder 404. Para apresentar o fluxo manual, suba o core com
+  `ALOCACRECHE_MATRICULA_MANUTENCAO_HABILITADO=false`. Para mostrar a expiração, ligue o job com um
+  intervalo curto (`ALOCACRECHE_MATRICULA_MANUTENCAO_INTERVALO_MS`, por exemplo 20000).
+- O prazo (`matricula.prazo_confirmacao`) é um `LocalDateTime` gravado no fuso da JVM, e o `now()` do
+  Postgres em container está em UTC. Por isso `now() - interval '1 day'` pode não vencer o prazo. Para
+  vencer o prazo de uma matrícula na demo, use uma data fixa no passado, dentro de uma transação com o
+  tenant do município (a tabela tem RLS):
+
+```sql
+BEGIN;
+SELECT set_config('app.current_tenant', '1', true);
+UPDATE matricula SET prazo_confirmacao = TIMESTAMP '2000-01-01 00:00:00'
+ WHERE id = <id-da-matricula> AND status = 'PENDENTE';
+COMMIT;
+```
+
 **TODO (ADR 0004/0006):** Circuit Breaker na geocodificação. Hoje a distância usa coordenadas já
 cadastradas, sem chamada externa.
 
