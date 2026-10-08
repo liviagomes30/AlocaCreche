@@ -79,7 +79,7 @@ Publicar no RabbitMQ é do módulo Notificação + plataforma (ver
 | `POST /api/v1/matricula/creches` e `/turmas` | `matricula:creche:add`, `matricula:turma:add` | Cadastro; a turma grava `vaga.liberada` com as vagas iniciais |
 | `POST /api/v1/matricula/vagas/alocar` | `matricula:vaga:alocar` | Aloca a vaga ao primeiro da fila (lock otimista + retry) |
 | `POST /api/v1/matricula/matriculas/{id}/confirmar` | `matricula:matricula:confirmar` | `PENDENTE` → `CONFIRMADA` dentro do prazo |
-| `POST /api/v1/matricula/matriculas/{id}/desistir` | `matricula:matricula:cancelar` | `PENDENTE`/`CONFIRMADA` → `CANCELADA`, devolve a vaga e realoca automaticamente |
+| `POST /api/v1/matricula/matriculas/{id}/desistir` | `matricula:matricula:status` | `PENDENTE`/`CONFIRMADA` → `CANCELADA`, devolve a vaga e realoca automaticamente |
 | `GET /api/v1/matricula/creches/proximas?latitude=&longitude=&faixaEtaria=&limite=` | `matricula:creche:list` | Turmas da faixa, da creche mais próxima para a mais distante (Haversine) |
 
 **Alocação automática ao liberar vaga.** A desistência (`DesistenciaMatriculaTransacional`) cancela a
@@ -108,16 +108,21 @@ mesma linha da matrícula, então nunca acontecem juntas. Desliga-se com
 **TODO (ADR 0004/0006):** Circuit Breaker na geocodificação. Hoje a distância usa coordenadas já
 cadastradas, sem chamada externa.
 
-**Contrato com MSRelatorios:** `StatusMatricula.CANCELADA` existe nos dois módulos; uma matrícula
+**Contrato com MSRelatorios:** `StatusMatricula.CANCELADA` existe nos dois módulos e o `schema.sql` do relatórios recria o CHECK da coluna
+`status` (o `ddl-auto=update` não o altera num banco já criado); uma matrícula
 cancelada continua contando no total da taxa de confirmação, mas não como confirmada.
 
 ## Ajustes na entrada da fila (pacote inscrição)
 
-- **Posição na fila:** `registrarInscricao` trava a turma (`TurmaRepository.buscarParaEnfileirar`,
-  `PESSIMISTIC_WRITE`, que não incrementa `version`) antes de ler a maior posição. Com isso, inscrições
-  simultâneas na mesma turma recebem posições distintas. `uk_fila_espera_turma_posicao (turma_id, posicao)`
-  é a última barreira.
+- **Posição na fila:** `registrarInscricao` serializa a fila da turma com `TravaFilaTurma` (advisory lock
+  de transação, o mesmo da alocação) e renumera por prioridade (score desc, data, id). Não se usa
+  `PESSIMISTIC_WRITE` na `Turma` (conflitaria com o `@Version` da alocação) nem unicidade
+  `(turma_id, posicao)` em `FilaEspera` (a renumeração passa por posições duplicadas dentro da
+  transação). Ver `docs/context/inscricao-fila.md`.
 - **Dupla inscrição:** uma criança só pode ter uma inscrição em `AGUARDANDO`, `CONVOCADA` ou
   `MATRICULADA`. A checagem no serviço responde 409; o índice parcial `uk_inscricao_crianca_ativa`
   (em `schema.sql`) barra a requisição simultânea que passou pela checagem. Depois de `CANCELADA` ou
-  `EXPIRADA`, a criança pode se inscrever de novo.
+  `EXPIRADA`, a criança pode se inscrever de novo. O índice vive em `schema.sql` (idempotente, roda
+  depois do `ddl-auto=update`, tanto no banco vazio quanto nas subidas seguintes); num banco antigo com
+  duas inscrições ativas da mesma criança a criação do índice falha na subida e os duplicados precisam
+  ser resolvidos antes.
