@@ -18,6 +18,10 @@ import org.alocacreche.core.outbox.OutboxRabbitConfig;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -70,8 +74,6 @@ public class InscricaoService {
 
         int posicao = enfileirar(salva, turma.getId(), municipioId);
 
-        filaRedisService.adicionarAposCommit(municipioId, turma.getId(), salva.getId(), posicao);
-
         emitirEventoDeFila(salva, turma, municipioId);
 
         log.info(
@@ -80,6 +82,7 @@ public class InscricaoService {
                 turma.getId(),
                 municipioId,
                 posicao);
+
         return new InscricaoRegistradaResponse(
                 salva.getId(), posicao, salva.getScorePrioridade(), salva.getStatus());
     }
@@ -111,16 +114,48 @@ public class InscricaoService {
     }
 
     private int enfileirar(Inscricao inscricao, Long turmaId, Long municipioId) {
-        // TODO: a posicao na fila pode colidir sob inscricoes simultaneas na mesma turma (Stack A)
-        int posicao = filaEsperaRepository.findMaiorPosicaoByTurmaId(turmaId).orElse(0) + 1;
         FilaEspera fila = new FilaEspera();
         fila.setMunicipioId(municipioId);
         fila.setInscricao(inscricao);
         fila.setTurmaId(turmaId);
-        fila.setPosicao(posicao);
+
+        // A posição será recalculada abaixo conforme o score de prioridade.
+        fila.setPosicao(0);
         filaEsperaRepository.save(fila);
-        return posicao;
-    }
+
+        List<FilaEspera> filasOrdenadas =
+                filaEsperaRepository.findByTurmaIdOrdenadaPorPrioridade(turmaId);
+
+        int posicaoInscricao = 0;
+
+        for (int i = 0; i < filasOrdenadas.size(); i++) {
+                FilaEspera filaAtual = filasOrdenadas.get(i);
+                int novaPosicao = i + 1;
+
+                filaAtual.setPosicao(novaPosicao);
+
+                if (filaAtual.getInscricao().getId().equals(inscricao.getId())) {
+                posicaoInscricao = novaPosicao;
+                }
+        }
+
+        filaEsperaRepository.saveAll(filasOrdenadas);
+
+        Map<Long, Integer> posicoes = new HashMap<>();
+
+        for (FilaEspera filaAtual : filasOrdenadas) {
+                posicoes.put(
+                        filaAtual.getInscricao().getId(),
+                        filaAtual.getPosicao());
+        }
+
+        filaRedisService.atualizarPosicoesAposCommit(
+                municipioId,
+                turmaId,
+                posicoes);
+
+        return posicaoInscricao;
+        }
 
     private void emitirEventoDeFila(Inscricao inscricao, Turma turma, Long municipioId) {
         LocalDateTime agora = LocalDateTime.now();

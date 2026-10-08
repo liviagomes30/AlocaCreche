@@ -7,6 +7,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+import java.util.Map;
 
 /**
  * Cache de leitura da posicao na fila de espera, um ZSET por municipio e turma
@@ -29,6 +30,25 @@ public class FilaRedisService {
                 "adicionar", municipioId, turmaId, () -> redisTemplate
                         .opsForZSet()
                         .add(chave(municipioId, turmaId), inscricaoId.toString(), posicao));
+    }
+
+    public void atualizarPosicoesAposCommit(
+            Long municipioId,
+            Long turmaId,
+            Map<Long, Integer> posicoes) {
+
+        executarAposCommit(
+                "atualizar posições",
+                municipioId,
+                turmaId,
+                () -> {
+                    for (Map.Entry<Long, Integer> entrada : posicoes.entrySet()) {
+                        redisTemplate.opsForZSet().add(
+                                chave(municipioId, turmaId),
+                                entrada.getKey().toString(),
+                                entrada.getValue());
+                    }
+                });
     }
 
     /** Remove a inscricao do ZSET da fila depois do commit da transacao atual. */

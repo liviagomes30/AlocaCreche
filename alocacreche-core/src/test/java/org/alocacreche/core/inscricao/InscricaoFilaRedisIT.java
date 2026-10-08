@@ -136,6 +136,70 @@ class InscricaoFilaRedisIT {
     }
 
     @Test
+    @DisplayName("inscricao com maior score fica antes de quem chegou primeiro")
+    void maiorScoreFicaAntesNaFila() throws Exception {
+        long primeira = inscreverComDados(
+                turmaDoMunicipioA,
+                2000,
+                false);
+
+        long segunda = inscreverComDados(
+                turmaDoMunicipioA,
+                500,
+                false);
+
+        String chave = chave(municipioA, turmaDoMunicipioA);
+
+        assertThat(redisTemplate.opsForZSet().score(
+                chave, String.valueOf(segunda)))
+                .isEqualTo(1.0);
+
+        assertThat(redisTemplate.opsForZSet().score(
+                chave, String.valueOf(primeira)))
+                .isEqualTo(2.0);
+
+        assertThat(posicaoPelaApi(
+                municipioA, segunda, turmaDoMunicipioA))
+                .isEqualTo(1);
+
+        assertThat(posicaoPelaApi(
+                municipioA, primeira, turmaDoMunicipioA))
+                .isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("em empate de score a inscricao mais antiga fica antes")
+    void empateDeScoreRespeitaDataDeInscricao() throws Exception {
+        long primeira = inscreverComDados(
+                turmaDoMunicipioA,
+                500,
+                false);
+
+        long segunda = inscreverComDados(
+                turmaDoMunicipioA,
+                500,
+                false);
+
+        String chave = chave(municipioA, turmaDoMunicipioA);
+
+        assertThat(redisTemplate.opsForZSet().score(
+                chave, String.valueOf(primeira)))
+                .isEqualTo(1.0);
+
+        assertThat(redisTemplate.opsForZSet().score(
+                chave, String.valueOf(segunda)))
+                .isEqualTo(2.0);
+
+        assertThat(posicaoPelaApi(
+                municipioA, primeira, turmaDoMunicipioA))
+                .isEqualTo(1);
+
+        assertThat(posicaoPelaApi(
+                municipioA, segunda, turmaDoMunicipioA))
+                .isEqualTo(2);
+    }
+
+    @Test
     @DisplayName("resposta da posicao traz inscricaoId, turmaId e posicao")
     void respostaDaPosicaoTemOsTresCampos() throws Exception {
         long inscricaoId = inscrever(turmaDoMunicipioA);
@@ -332,6 +396,36 @@ class InscricaoFilaRedisIT {
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         try {
             return objectMapper.readTree(resposta.getBody()).get("inscricaoId").asLong();
+        } catch (Exception excecao) {
+            throw new IllegalStateException(excecao);
+        }
+    }
+
+    private long inscreverComDados(
+        Long turmaId,
+        int rendaPerCapita,
+        boolean vulnerabilidade) {
+
+        Map<String, Object> corpo =
+                corpoInscricao(novoCpf(), turmaId);
+
+        corpo.put("rendaPerCapita", rendaPerCapita);
+        corpo.put("criterioVulnerabilidade", vulnerabilidade);
+
+        ResponseEntity<String> resposta = enviar(
+                HttpMethod.POST,
+                CAMINHO_INSCRICOES,
+                corpo,
+                tokenCom(municipioA, List.of("*")));
+
+        assertThat(resposta.getStatusCode())
+                .as("Resposta da API: %s", resposta.getBody())
+                .isEqualTo(HttpStatus.CREATED);
+
+        try {
+            return objectMapper.readTree(resposta.getBody())
+                    .get("inscricaoId")
+                    .asLong();
         } catch (Exception excecao) {
             throw new IllegalStateException(excecao);
         }
