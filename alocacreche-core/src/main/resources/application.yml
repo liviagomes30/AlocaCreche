@@ -70,6 +70,11 @@ alocacreche:
       # Falhas de login por municipio+email dentro da janela antes de responder 429.
       max-falhas: ${ALOCACRECHE_LOGIN_MAX_FALHAS:5}
       janela-segundos: ${ALOCACRECHE_LOGIN_JANELA_SEGUNDOS:900}
+  fila:
+    redis:
+      # TTL das chaves da fila no Redis (ZSET e versao), renovado a cada snapshot. Com o Redis fora
+      # do ar numa escrita, e a defasagem maxima da posicao lida do cache; o banco e a verdade.
+      ttl: ${ALOCACRECHE_FILA_REDIS_TTL:5m}
   matricula:
     manutencao:
       # Liga/desliga o ManutencaoMatriculaScheduler (expira prazos vencidos e reconcilia vagas

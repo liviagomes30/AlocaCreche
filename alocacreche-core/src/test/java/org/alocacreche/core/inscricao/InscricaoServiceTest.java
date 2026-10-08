@@ -3,6 +3,7 @@ package org.alocacreche.core.inscricao;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
@@ -79,6 +80,7 @@ class InscricaoServiceTest {
     @Mock private OutboxEventWriter outboxEventWriter;
     @Mock private FilaRedisService filaRedisService;
     @Mock private TravaFilaTurma travaFilaTurma;
+    @Mock private VersaoFila versaoFila;
 
     private InscricaoService service;
     private Municipio municipio;
@@ -104,7 +106,7 @@ class InscricaoServiceTest {
                         outboxEventWriter,
                         filaRedisService,
                         travaFilaTurma,
-                        new RenumeracaoFila(filaEsperaRepository, filaRedisService));
+                        new RenumeracaoFila(filaEsperaRepository, filaRedisService, versaoFila));
         municipio = new Municipio();
         municipio.setConfiguracaoPriorizacao(
                 ConfiguracaoPriorizacao.builder()
@@ -307,13 +309,14 @@ class InscricaoServiceTest {
     }
 
     @Test
-    @DisplayName("agenda a atualizacao das posicoes no Redis")
+    @DisplayName("agenda a publicacao do snapshot da fila no Redis")
     void agendaEscritaNoRedis() {
         service.registrarInscricao(dtoPorId("400.00", true));
 
-        verify(filaRedisService).atualizarPosicoesAposCommit(
+        verify(filaRedisService).publicarSnapshotAposCommit(
                 eq(MUNICIPIO_ID),
                 eq(TURMA_ID),
+                anyLong(),
                 eq(Map.of(INSCRICAO_ID, 1)));
     }
 
@@ -334,9 +337,10 @@ class InscricaoServiceTest {
         assertThat(fila.getPosicao()).isEqualTo(0);
 
         verify(filaEsperaRepository).saveAll(any());
-        verify(filaRedisService).atualizarPosicoesAposCommit(
+        verify(filaRedisService).publicarSnapshotAposCommit(
                 eq(MUNICIPIO_ID),
                 eq(TURMA_ID),
+                anyLong(),
                 eq(Map.of(INSCRICAO_ID, 1)));
     }
 
@@ -350,9 +354,10 @@ class InscricaoServiceTest {
 
         verify(filaEsperaRepository).saveAll(any());
 
-        verify(filaRedisService).atualizarPosicoesAposCommit(
+        verify(filaRedisService).publicarSnapshotAposCommit(
                 eq(MUNICIPIO_ID),
                 eq(TURMA_ID),
+                anyLong(),
                 eq(Map.of(INSCRICAO_ID, 1)));
     }
 
@@ -366,7 +371,7 @@ class InscricaoServiceTest {
         ordem.verify(filaEsperaRepository).save(any(FilaEspera.class));
         ordem.verify(filaEsperaRepository).findByTurmaIdOrdenadaPorPrioridade(TURMA_ID);
         ordem.verify(filaEsperaRepository).saveAll(any());
-        ordem.verify(filaRedisService).atualizarPosicoesAposCommit(eq(MUNICIPIO_ID), eq(TURMA_ID), any());
+        ordem.verify(filaRedisService).publicarSnapshotAposCommit(eq(MUNICIPIO_ID), eq(TURMA_ID), anyLong(), any());
     }
 
     @Test

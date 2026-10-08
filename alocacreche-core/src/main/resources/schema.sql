@@ -84,3 +84,8 @@ CREATE POLICY usuario_tenant_isolation ON usuario
 -- e a mesma de InscricaoService.STATUS_ATIVOS.
 CREATE UNIQUE INDEX IF NOT EXISTS uk_inscricao_crianca_ativa ON inscricao (crianca_id)
     WHERE status IN ('AGUARDANDO', 'CONVOCADA', 'MATRICULADA');
+
+-- Versao monotonica dos snapshots da fila de espera publicados no Redis (VersaoFila). Pedida sob o
+-- advisory lock da turma, para que a ordem das versoes seja a ordem dos commits e o Redis descarte
+-- um snapshot que chegue atrasado.
+CREATE SEQUENCE IF NOT EXISTS fila_versao_seq;

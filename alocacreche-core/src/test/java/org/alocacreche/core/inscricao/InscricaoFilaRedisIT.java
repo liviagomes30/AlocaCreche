@@ -53,8 +53,10 @@ import org.testcontainers.containers.PostgreSQLContainer;
  * Prova ponta a ponta o cache da fila no Redis real (Testcontainers) junto com Postgres real: a
  * posicao vem do Redis, a chave carrega o municipio, o rollback nao deixa entrada fantasma, a
  * alocacao remove a entrada, a chave ausente cai para o banco, o isolamento entre municipios (404)
- * e as permissoes (401 e 403), alem dos cadastros de responsavel e crianca. O comportamento sem
- * Redis (fail-open) e coberto pelos demais ITs do core, que apontam para uma porta fechada.
+ * e as permissoes (401 e 403), alem dos cadastros de responsavel e crianca. Cobre tambem a escrita
+ * versionada (snapshot atrasado e descartado, mais novo substitui, vazio limpa, TTL nas chaves) e o
+ * desempate por data e id na prioridade. O comportamento sem Redis (fail-open) e coberto pelos
+ * demais ITs do core, que apontam para uma porta fechada, e por FilaRedisIndisponivelIT.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -94,6 +96,8 @@ class InscricaoFilaRedisIT {
     @Autowired private CrecheRepository crecheRepository;
     @Autowired private TurmaRepository turmaRepository;
     @Autowired private FilaEsperaRepository filaEsperaRepository;
+    @Autowired private FilaRedisService filaRedisService;
+    @Autowired private VersaoFila versaoFila;
     @Autowired private PlatformTransactionManager transactionManager;
     @MockitoSpyBean private OutboxEventRepository outboxEventRepository;
     @PersistenceContext private EntityManager entityManager;
@@ -198,6 +202,57 @@ class InscricaoFilaRedisIT {
         assertThat(posicaoPelaApi(
                 municipioA, segunda, turmaDoMunicipioA))
                 .isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("snapshot atrasado (versao menor) e ignorado, o mais novo substitui o ZSET inteiro e o vazio limpa")
+    void snapshotsForaDeOrdemVenceOMaisNovo() {
+        long a = 9001L;
+        long b = 9002L;
+        long c = 9003L;
+        String chave = chave(municipioA, turmaDoMunicipioA);
+
+        filaRedisService.publicarSnapshotAposCommit(municipioA, turmaDoMunicipioA, 20L, Map.of(a, 1, b, 2));
+        filaRedisService.publicarSnapshotAposCommit(municipioA, turmaDoMunicipioA, 19L, Map.of(b, 1, a, 2, c, 3));
+
+        assertThat(redisTemplate.opsForZSet().score(chave, String.valueOf(a))).as("versao menor ignorada").isEqualTo(1.0);
+        assertThat(redisTemplate.opsForZSet().score(chave, String.valueOf(b))).isEqualTo(2.0);
+        assertThat(redisTemplate.opsForZSet().score(chave, String.valueOf(c))).isNull();
+
+        filaRedisService.publicarSnapshotAposCommit(municipioA, turmaDoMunicipioA, 20L, Map.of(c, 1));
+        assertThat(redisTemplate.opsForZSet().score(chave, String.valueOf(c)))
+                .as("versao igual tambem e ignorada")
+                .isNull();
+
+        filaRedisService.publicarSnapshotAposCommit(municipioA, turmaDoMunicipioA, 21L, Map.of(c, 1, b, 2));
+        assertThat(redisTemplate.opsForZSet().zCard(chave)).as("substitui o conteudo inteiro").isEqualTo(2L);
+        assertThat(redisTemplate.opsForZSet().score(chave, String.valueOf(a))).isNull();
+        assertThat(redisTemplate.opsForZSet().score(chave, String.valueOf(c))).isEqualTo(1.0);
+        assertThat(redisTemplate.opsForZSet().score(chave, String.valueOf(b))).isEqualTo(2.0);
+
+        filaRedisService.publicarSnapshotAposCommit(municipioA, turmaDoMunicipioA, 22L, Map.of());
+        assertThat(redisTemplate.hasKey(chave)).as("snapshot vazio limpa a fila").isFalse();
+
+        filaRedisService.publicarSnapshotAposCommit(municipioA, turmaDoMunicipioA, 22L, Map.of(a, 1));
+        assertThat(redisTemplate.hasKey(chave)).as("o vazio registrou a versao 22").isFalse();
+    }
+
+    @Test
+    @DisplayName("as duas chaves da fila expiram (TTL renovado a cada snapshot)")
+    void chavesDaFilaTemTtl() {
+        inscrever(turmaDoMunicipioA);
+
+        assertThat(redisTemplate.getExpire(chave(municipioA, turmaDoMunicipioA))).isBetween(1L, 300L);
+        assertThat(redisTemplate.getExpire(chave(municipioA, turmaDoMunicipioA) + ":versao")).isBetween(1L, 300L);
+    }
+
+    @Test
+    @DisplayName("versoes pedidas em transacoes sucessivas so crescem (sequence do Postgres)")
+    void versoesSaoMonotonicas() {
+        long primeira = emTenant(municipioA, versaoFila::proxima);
+        long segunda = emTenant(municipioA, versaoFila::proxima);
+
+        assertThat(segunda).isGreaterThan(primeira);
     }
 
     @Test

@@ -2,14 +2,14 @@ package org.alocacreche.core.inscricao;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyDouble;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.lenient;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import java.time.Duration;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -21,13 +21,15 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.redis.RedisConnectionFailureException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ZSetOperations;
+import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 /**
- * Regras do cache de fila: chave com o municipio, escrita so depois do commit, fail-open e leitura
- * vazia (nunca excecao) quando o Redis falha. O comportamento com Redis real esta em
- * InscricaoFilaRedisIT.
+ * Regras do cache de fila: chaves com o municipio, snapshot so depois do commit, argumentos do
+ * script (versao, TTL, pares score/membro), fail-open e leitura vazia (nunca excecao) quando o
+ * Redis falha. A semantica do script (versao menor ignorada, maior substitui, vazio limpa) esta em
+ * InscricaoFilaRedisIT, com Redis real.
  */
 @ExtendWith(MockitoExtension.class)
 @DisplayName("FilaRedisService")
@@ -37,6 +39,8 @@ class FilaRedisServiceTest {
     private static final Long TURMA_ID = 10L;
     private static final Long INSCRICAO_ID = 50L;
     private static final String CHAVE = "fila:7:turma:10";
+    private static final String CHAVE_VERSAO = "fila:7:turma:10:versao";
+    private static final List<String> CHAVES = List.of(CHAVE, CHAVE_VERSAO);
 
     @Mock private StringRedisTemplate redisTemplate;
     @Mock private ZSetOperations<String, String> zSet;
@@ -45,8 +49,7 @@ class FilaRedisServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new FilaRedisService(redisTemplate);
-        lenient().when(redisTemplate.opsForZSet()).thenReturn(zSet);
+        service = new FilaRedisService(redisTemplate, Duration.ofMinutes(5));
     }
 
     @AfterEach
@@ -57,29 +60,38 @@ class FilaRedisServiceTest {
     }
 
     @Test
-    @DisplayName("a chave inclui o municipio e a turma")
-    void chaveIncluiOMunicipio() {
+    @DisplayName("as chaves incluem o municipio e a turma; a da versao e irma da fila")
+    void chavesIncluemOMunicipio() {
         assertThat(FilaRedisService.chave(MUNICIPIO_ID, TURMA_ID)).isEqualTo(CHAVE);
+        assertThat(FilaRedisService.chaveVersao(MUNICIPIO_ID, TURMA_ID)).isEqualTo(CHAVE_VERSAO);
     }
 
     @Test
-    @DisplayName("sem transacao ativa a escrita acontece na hora")
-    void semTransacaoEscreveNaHora() {
-        service.adicionarAposCommit(MUNICIPIO_ID, TURMA_ID, INSCRICAO_ID, 2);
+    @DisplayName("sem transacao ativa o snapshot e aplicado na hora, com versao, TTL e pares score/membro")
+    void semTransacaoAplicaNaHora() {
+        service.publicarSnapshotAposCommit(MUNICIPIO_ID, TURMA_ID, 9L, Map.of(INSCRICAO_ID, 2));
 
-        verify(zSet).add(CHAVE, "50", 2);
+        verify(redisTemplate).execute(any(RedisScript.class), eq(CHAVES), eq("9"), eq("300"), eq("2"), eq("50"));
     }
 
     @Test
-    @DisplayName("com transacao ativa a escrita so acontece no afterCommit")
-    void comTransacaoEscreveSoDepoisDoCommit() {
+    @DisplayName("snapshot vazio envia so versao e TTL (o script limpa a fila)")
+    void snapshotVazioEnviaSoVersaoETtl() {
+        service.publicarSnapshotAposCommit(MUNICIPIO_ID, TURMA_ID, 4L, Map.of());
+
+        verify(redisTemplate).execute(any(RedisScript.class), eq(CHAVES), eq("4"), eq("300"));
+    }
+
+    @Test
+    @DisplayName("com transacao ativa o snapshot so e aplicado no afterCommit")
+    void comTransacaoAplicaSoDepoisDoCommit() {
         TransactionSynchronizationManager.initSynchronization();
 
-        service.adicionarAposCommit(MUNICIPIO_ID, TURMA_ID, INSCRICAO_ID, 1);
+        service.publicarSnapshotAposCommit(MUNICIPIO_ID, TURMA_ID, 1L, Map.of(INSCRICAO_ID, 1));
 
-        verifyNoInteractions(zSet);
+        verifyNoInteractions(redisTemplate);
         TransactionSynchronizationManager.getSynchronizations().forEach(TransactionSynchronization::afterCommit);
-        verify(zSet).add(CHAVE, "50", 1);
+        verify(redisTemplate).execute(any(RedisScript.class), eq(CHAVES), eq("1"), eq("300"), eq("1"), eq("50"));
     }
 
     @Test
@@ -87,45 +99,37 @@ class FilaRedisServiceTest {
     void rollbackNaoEscreve() {
         TransactionSynchronizationManager.initSynchronization();
 
-        service.adicionarAposCommit(MUNICIPIO_ID, TURMA_ID, INSCRICAO_ID, 1);
+        service.publicarSnapshotAposCommit(MUNICIPIO_ID, TURMA_ID, 1L, Map.of(INSCRICAO_ID, 1));
         TransactionSynchronizationManager.getSynchronizations()
                 .forEach(sincronizacao -> sincronizacao.afterCompletion(TransactionSynchronization.STATUS_ROLLED_BACK));
 
-        verifyNoInteractions(zSet);
-    }
-
-    @Test
-    @DisplayName("remover usa ZREM no ZSET do municipio e da turma")
-    void removerUsaZrem() {
-        service.removerAposCommit(MUNICIPIO_ID, TURMA_ID, INSCRICAO_ID);
-
-        verify(zSet).remove(CHAVE, "50");
+        verifyNoInteractions(redisTemplate);
     }
 
     @Test
     @DisplayName("falha do Redis na escrita nao propaga (fail-open)")
     void falhaNaEscritaNaoPropaga() {
-        when(zSet.add(anyString(), anyString(), anyDouble()))
+        when(redisTemplate.execute(any(RedisScript.class), eq(CHAVES), eq("1"), eq("300"), eq("1"), eq("50")))
                 .thenThrow(new RedisConnectionFailureException("redis fora"));
 
-        service.adicionarAposCommit(MUNICIPIO_ID, TURMA_ID, INSCRICAO_ID, 1);
+        service.publicarSnapshotAposCommit(MUNICIPIO_ID, TURMA_ID, 1L, Map.of(INSCRICAO_ID, 1));
 
-        verify(zSet).add(CHAVE, "50", 1);
+        verify(redisTemplate).execute(any(RedisScript.class), eq(CHAVES), eq("1"), eq("300"), eq("1"), eq("50"));
     }
 
     @Test
-    @DisplayName("falha do Redis na remocao nao propaga (fail-open)")
-    void falhaNaRemocaoNaoPropaga() {
-        doThrow(new RedisConnectionFailureException("redis fora")).when(zSet).remove(anyString(), any());
+    @DisplayName("o TTL configurado vira segundos no script, com minimo de 1")
+    void ttlConfiguradoViraSegundos() {
+        new FilaRedisService(redisTemplate, Duration.ofMillis(100))
+                .publicarSnapshotAposCommit(MUNICIPIO_ID, TURMA_ID, 2L, Map.of());
 
-        service.removerAposCommit(MUNICIPIO_ID, TURMA_ID, INSCRICAO_ID);
-
-        verify(zSet).remove(CHAVE, "50");
+        verify(redisTemplate).execute(any(RedisScript.class), eq(CHAVES), eq("2"), eq("1"));
     }
 
     @Test
     @DisplayName("consulta devolve a posicao guardada como score")
     void consultaDevolveAPosicao() {
+        when(redisTemplate.opsForZSet()).thenReturn(zSet);
         when(zSet.score(CHAVE, "50")).thenReturn(3.0);
 
         assertThat(service.consultarPosicao(MUNICIPIO_ID, TURMA_ID, INSCRICAO_ID)).contains(3L);
@@ -134,6 +138,7 @@ class FilaRedisServiceTest {
     @Test
     @DisplayName("consulta devolve vazio quando o membro nao existe")
     void consultaVaziaQuandoAusente() {
+        when(redisTemplate.opsForZSet()).thenReturn(zSet);
         when(zSet.score(CHAVE, "50")).thenReturn(null);
 
         assertThat(service.consultarPosicao(MUNICIPIO_ID, TURMA_ID, INSCRICAO_ID)).isEqualTo(Optional.empty());
@@ -142,6 +147,7 @@ class FilaRedisServiceTest {
     @Test
     @DisplayName("consulta devolve vazio, sem excecao, quando o Redis esta indisponivel")
     void consultaVaziaQuandoRedisFora() {
+        when(redisTemplate.opsForZSet()).thenReturn(zSet);
         when(zSet.score(CHAVE, "50")).thenThrow(new RedisConnectionFailureException("redis fora"));
 
         assertThat(service.consultarPosicao(MUNICIPIO_ID, TURMA_ID, INSCRICAO_ID)).isEmpty();

@@ -32,7 +32,6 @@ import org.alocacreche.core.comum.seguranca.SessaoTenantResolver;
 import org.alocacreche.core.inscricao.Crianca;
 import org.alocacreche.core.inscricao.FilaEspera;
 import org.alocacreche.core.inscricao.FilaEsperaRepository;
-import org.alocacreche.core.inscricao.FilaRedisService;
 import org.alocacreche.core.inscricao.Inscricao;
 import org.alocacreche.core.inscricao.RenumeracaoFila;
 import org.alocacreche.core.inscricao.Responsavel;
@@ -93,7 +92,6 @@ class AlocacaoVagaTransacionalTest {
     @Mock private MunicipioRepository municipioRepository;
     @Mock private GeolocalizacaoService geolocalizacaoService;
     @Mock private OutboxEventWriter outboxEventWriter;
-    @Mock private FilaRedisService filaRedisService;
     @Mock private TravaFilaTurma travaFilaTurma;
     @Mock private RenumeracaoFila renumeracaoFila;
 
@@ -118,7 +116,6 @@ class AlocacaoVagaTransacionalTest {
                         municipioRepository,
                         geolocalizacaoService,
                         outboxEventWriter,
-                        filaRedisService,
                         travaFilaTurma,
                         renumeracaoFila);
 
@@ -213,7 +210,7 @@ class AlocacaoVagaTransacionalTest {
 
         assertThatThrownBy(() -> alocacao.executar(TURMA_ID)).isInstanceOf(IllegalStateException.class);
 
-        verifyNoInteractions(matriculaRepository, outboxEventWriter, filaRedisService, renumeracaoFila);
+        verifyNoInteractions(matriculaRepository, outboxEventWriter, renumeracaoFila);
         verify(turmaRepository, never()).saveAndFlush(any());
         verify(filaEsperaRepository, never()).delete(any());
     }
@@ -238,14 +235,6 @@ class AlocacaoVagaTransacionalTest {
         verify(turmaRepository).saveAndFlush(turma);
         verify(filaEsperaRepository).delete(primeiroDaFila);
         assertThat(inscricao.getStatus()).isEqualTo(StatusInscricao.CONVOCADA);
-    }
-
-    @Test
-    @DisplayName("remove a inscricao alocada do ZSET da fila no Redis (depois do commit)")
-    void removeAInscricaoDoRedis() {
-        alocacao.executar(TURMA_ID);
-
-        verify(filaRedisService).removerAposCommit(MUNICIPIO_ID, TURMA_ID, INSCRICAO_ID);
     }
 
     @Test
@@ -486,7 +475,7 @@ class AlocacaoVagaTransacionalTest {
     private void verificarRecusaSemEfeito() {
         verify(turmaRepository, never()).saveAndFlush(any(Turma.class));
         verify(filaEsperaRepository, never()).delete(any(FilaEspera.class));
-        verifyNoInteractions(matriculaRepository, outboxEventWriter, filaRedisService, renumeracaoFila);
+        verifyNoInteractions(matriculaRepository, outboxEventWriter, renumeracaoFila);
         assertThat(inscricao.getStatus()).isEqualTo(StatusInscricao.AGUARDANDO);
     }
 

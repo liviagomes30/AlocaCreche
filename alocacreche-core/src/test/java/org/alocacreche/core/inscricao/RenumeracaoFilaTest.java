@@ -27,9 +27,11 @@ class RenumeracaoFilaTest {
 
     private static final Long MUNICIPIO_ID = 7L;
     private static final Long TURMA_ID = 30L;
+    private static final long VERSAO = 12L;
 
     @Mock private FilaEsperaRepository filaEsperaRepository;
     @Mock private FilaRedisService filaRedisService;
+    @Mock private VersaoFila versaoFila;
 
     private FilaEspera fila(long inscricaoId, int posicaoAtual) {
         Inscricao inscricao = new Inscricao();
@@ -41,15 +43,16 @@ class RenumeracaoFilaTest {
     }
 
     @Test
-    @DisplayName("atribui 1..n na ordem de prioridade, grava em lote e agenda o Redis")
+    @DisplayName("atribui 1..n na ordem de prioridade, grava em lote e publica o snapshot versionado no Redis")
     void atribuiPosicoesNaOrdemDaConsulta() {
         FilaEspera segunda = fila(2L, 2);
         FilaEspera terceira = fila(3L, 3);
         FilaEspera primeira = fila(1L, 9);
         List<FilaEspera> ordenadas = List.of(segunda, terceira, primeira);
         when(filaEsperaRepository.findByTurmaIdOrdenadaPorPrioridade(TURMA_ID)).thenReturn(ordenadas);
+        when(versaoFila.proxima()).thenReturn(VERSAO);
 
-        Map<Long, Integer> posicoes = new RenumeracaoFila(filaEsperaRepository, filaRedisService)
+        Map<Long, Integer> posicoes = new RenumeracaoFila(filaEsperaRepository, filaRedisService, versaoFila)
                 .renumerar(MUNICIPIO_ID, TURMA_ID);
 
         assertThat(posicoes).containsExactlyInAnyOrderEntriesOf(Map.of(2L, 1, 3L, 2, 1L, 3));
@@ -58,19 +61,20 @@ class RenumeracaoFilaTest {
         assertThat(primeira.getPosicao()).isEqualTo(3);
         InOrder ordem = inOrder(filaEsperaRepository, filaRedisService);
         ordem.verify(filaEsperaRepository).saveAll(ordenadas);
-        ordem.verify(filaRedisService).atualizarPosicoesAposCommit(MUNICIPIO_ID, TURMA_ID, posicoes);
+        ordem.verify(filaRedisService).publicarSnapshotAposCommit(MUNICIPIO_ID, TURMA_ID, VERSAO, posicoes);
     }
 
     @Test
     @DisplayName("fila vazia devolve mapa vazio sem erro")
     void filaVaziaDevolveMapaVazio() {
         when(filaEsperaRepository.findByTurmaIdOrdenadaPorPrioridade(TURMA_ID)).thenReturn(List.of());
+        when(versaoFila.proxima()).thenReturn(VERSAO);
 
-        Map<Long, Integer> posicoes = new RenumeracaoFila(filaEsperaRepository, filaRedisService)
+        Map<Long, Integer> posicoes = new RenumeracaoFila(filaEsperaRepository, filaRedisService, versaoFila)
                 .renumerar(MUNICIPIO_ID, TURMA_ID);
 
         assertThat(posicoes).isEmpty();
-        verify(filaRedisService).atualizarPosicoesAposCommit(MUNICIPIO_ID, TURMA_ID, Map.of());
+        verify(filaRedisService).publicarSnapshotAposCommit(MUNICIPIO_ID, TURMA_ID, VERSAO, Map.of());
     }
 
     @Test

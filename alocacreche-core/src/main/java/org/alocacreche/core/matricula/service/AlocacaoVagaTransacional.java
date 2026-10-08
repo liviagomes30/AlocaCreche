@@ -12,7 +12,6 @@ import org.alocacreche.core.comum.seguranca.SessaoTenantResolver;
 import org.alocacreche.core.comum.tenant.TenantContext;
 import org.alocacreche.core.inscricao.FilaEspera;
 import org.alocacreche.core.inscricao.FilaEsperaRepository;
-import org.alocacreche.core.inscricao.FilaRedisService;
 import org.alocacreche.core.inscricao.Inscricao;
 import org.alocacreche.core.inscricao.RenumeracaoFila;
 import org.alocacreche.core.inscricao.StatusInscricao;
@@ -47,7 +46,6 @@ public class AlocacaoVagaTransacional {
     private final MunicipioRepository municipioRepository;
     private final GeolocalizacaoService geolocalizacaoService;
     private final OutboxEventWriter outboxEventWriter;
-    private final FilaRedisService filaRedisService;
     private final TravaFilaTurma travaFilaTurma;
     private final RenumeracaoFila renumeracaoFila;
 
@@ -110,9 +108,9 @@ public class AlocacaoVagaTransacional {
         Matricula salva = matriculaRepository.saveAndFlush(matricula);
 
         filaEsperaRepository.delete(primeiroDaFila);
-        filaRedisService.removerAposCommit(municipioId, turmaId, inscricao.getId());
         inscricao.setStatus(StatusInscricao.CONVOCADA);
-        // A alocada saiu da fila: quem estava atras sobe uma posicao, no banco e no Redis.
+        // A alocada saiu da fila: quem estava atras sobe uma posicao, no banco e no Redis (o snapshot
+        // publicado pela renumeracao so contem quem continua na fila, entao a alocada some do ZSET).
         renumeracaoFila.renumerar(municipioId, turmaId);
 
         registrarEventos(municipioId, turma, creche, primeiroDaFila, salva, agora);
