@@ -71,3 +71,53 @@ Calcular o score de prioridade em si é do módulo Inscrição & Fila (ver
 `docs/context/inscricao-fila.md`) — este módulo só consome o score recalculado no momento da alocação.
 Publicar no RabbitMQ é do módulo Notificação + plataforma (ver
 `docs/context/notificacao-plataforma.md`) — este módulo só grava na Outbox.
+
+## Estado da implementação (escopo da ADR 0006)
+
+| Endpoint | Permissão | O que faz |
+|---|---|---|
+| `POST /api/v1/matricula/creches` e `/turmas` | `matricula:creche:add`, `matricula:turma:add` | Cadastro; a turma grava `vaga.liberada` com as vagas iniciais |
+| `POST /api/v1/matricula/vagas/alocar` | `matricula:vaga:alocar` | Aloca a vaga ao primeiro da fila (lock otimista + retry) |
+| `POST /api/v1/matricula/matriculas/{id}/confirmar` | `matricula:matricula:confirmar` | `PENDENTE` → `CONFIRMADA` dentro do prazo |
+| `POST /api/v1/matricula/matriculas/{id}/desistir` | `matricula:matricula:cancelar` | `PENDENTE`/`CONFIRMADA` → `CANCELADA`, devolve a vaga e realoca automaticamente |
+| `GET /api/v1/matricula/creches/proximas?latitude=&longitude=&faixaEtaria=&limite=` | `matricula:creche:list` | Turmas da faixa, da creche mais próxima para a mais distante (Haversine) |
+
+**Alocação automática ao liberar vaga.** A desistência (`DesistenciaMatriculaTransacional`) cancela a
+matrícula, devolve a vaga com o mesmo `@Version` da alocação e grava `vaga.liberada` e
+`matricula.atualizada` (status `CANCELADA`) na Outbox, tudo numa transação. Ela publica
+`VagaLiberadaInternalEvent`; `AlocacaoAutomaticaListener` (`@TransactionalEventListener(AFTER_COMMIT)`,
+bean próprio) chama `AlocacaoVagaService.alocarProximoElegivel` por injeção. Por rodar depois do
+commit, `AlocacaoVagaTransacional.executar` usa `REQUIRES_NEW`: com `REQUIRED` a alocação se juntaria à
+transação já confirmada e nada seria gravado. Uma falha da realocação é só registrada em log e não
+desfaz a desistência.
+
+**Job de manutenção (expiração + reconciliação).** `ManutencaoMatriculaScheduler` roda a cada
+`alocacreche.matricula.manutencao.intervalo-ms` (padrão 2 minutos, o SLA da ADR 0001, decisão 19) e
+percorre os municípios um por vez. Para cada um, `ManutencaoMatriculaPorMunicipio` executa dois passos:
+1. `verificarPrazosVencidos`: cada matrícula `PENDENTE` com prazo vencido vira `EXPIRADA`, numa
+   transação própria (`ExpiracaoMatriculaTransacional`), com a vaga devolvida e os eventos gravados.
+2. `reconciliarVagasDisponiveis`: toda turma com vaga livre e fila não vazia é preenchida até acabar a
+   vaga ou a fila. Isso cobre as vagas que a expiração acabou de devolver e as que a realocação
+   automática perdeu.
+
+O job não tem token. Cada transação aplica o `SET LOCAL` do município que recebe, sem `BYPASSRLS`, e a
+alocação usa `AlocacaoVagaService.alocarProximoElegivelNoMunicipio`. Expiração e confirmação travam a
+mesma linha da matrícula, então nunca acontecem juntas. Desliga-se com
+`alocacreche.matricula.manutencao.habilitado=false`, como fazem os testes.
+
+**TODO (ADR 0004/0006):** Circuit Breaker na geocodificação. Hoje a distância usa coordenadas já
+cadastradas, sem chamada externa.
+
+**Contrato com MSRelatorios:** `StatusMatricula.CANCELADA` existe nos dois módulos; uma matrícula
+cancelada continua contando no total da taxa de confirmação, mas não como confirmada.
+
+## Ajustes na entrada da fila (pacote inscrição)
+
+- **Posição na fila:** `registrarInscricao` trava a turma (`TurmaRepository.buscarParaEnfileirar`,
+  `PESSIMISTIC_WRITE`, que não incrementa `version`) antes de ler a maior posição. Com isso, inscrições
+  simultâneas na mesma turma recebem posições distintas. `uk_fila_espera_turma_posicao (turma_id, posicao)`
+  é a última barreira.
+- **Dupla inscrição:** uma criança só pode ter uma inscrição em `AGUARDANDO`, `CONVOCADA` ou
+  `MATRICULADA`. A checagem no serviço responde 409; o índice parcial `uk_inscricao_crianca_ativa`
+  (em `schema.sql`) barra a requisição simultânea que passou pela checagem. Depois de `CANCELADA` ou
+  `EXPIRADA`, a criança pode se inscrever de novo.

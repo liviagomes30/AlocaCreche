@@ -44,6 +44,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.test.util.ReflectionTestUtils;
 
 /**
@@ -374,6 +375,41 @@ class InscricaoServiceTest {
 
         assertThatThrownBy(() -> service.registrarInscricao(dtoPorId("400.00", true)))
                 .isInstanceOf(IllegalStateException.class);
+
+        verifyNoInteractions(filaEsperaRepository, filaRedisService, outboxEventWriter);
+    }
+
+    @Test
+    @DisplayName("crianca com inscricao ativa lanca ConflitoException sem salvar, enfileirar nem gravar evento")
+    void criancaComInscricaoAtivaLancaConflito() {
+        when(inscricaoRepository.existsByCriancaIdAndStatusIn(CRIANCA_ID, InscricaoService.STATUS_ATIVOS))
+                .thenReturn(true);
+
+        assertThatThrownBy(() -> service.registrarInscricao(dtoPorId("400.00", true)))
+                .isInstanceOf(ConflitoException.class)
+                .hasMessage("Crianca ja possui inscricao ativa");
+
+        verify(inscricaoRepository, never()).saveAndFlush(any());
+        verifyNoInteractions(filaEsperaRepository, filaRedisService, outboxEventWriter);
+    }
+
+    @Test
+    @DisplayName("inscricao ativa conta AGUARDANDO, CONVOCADA e MATRICULADA, nao CANCELADA nem EXPIRADA")
+    void statusAtivosDeixamCanceladaEExpiradaDeFora() {
+        assertThat(InscricaoService.STATUS_ATIVOS)
+                .containsExactlyInAnyOrder(
+                        StatusInscricao.AGUARDANDO, StatusInscricao.CONVOCADA, StatusInscricao.MATRICULADA);
+    }
+
+    @Test
+    @DisplayName("inscricao simultanea barrada pelo indice unico vira ConflitoException sem fila nem evento")
+    void indiceUnicoDaCriancaViraConflito() {
+        when(inscricaoRepository.saveAndFlush(any(Inscricao.class)))
+                .thenThrow(new DataIntegrityViolationException("uk_inscricao_crianca_ativa"));
+
+        assertThatThrownBy(() -> service.registrarInscricao(dtoPorId("400.00", true)))
+                .isInstanceOf(ConflitoException.class)
+                .hasMessage("Crianca ja possui inscricao ativa");
 
         verifyNoInteractions(filaEsperaRepository, filaRedisService, outboxEventWriter);
     }

@@ -91,6 +91,7 @@ class MatriculaControllerIT {
     @MockitoSpyBean private FilaEsperaRepository filaEsperaRepository;
     @MockitoSpyBean private OutboxEventRepository outboxEventRepository;
     @Autowired private PlatformTransactionManager transactionManager;
+    @Autowired private org.alocacreche.core.matricula.service.ManutencaoMatriculaPorMunicipio manutencaoPorMunicipio;
     @PersistenceContext private EntityManager entityManager;
 
     private final AtomicInteger sequenciaCpf = new AtomicInteger(100);
@@ -508,6 +509,287 @@ class MatriculaControllerIT {
                     .isEqualTo(StatusMatricula.PENDENTE);
             return null;
         });
+    }
+
+    @Test
+    @DisplayName("desistir devolve a vaga e a realocacao automatica convoca o proximo da fila no mesmo instante")
+    void desistirRealocaAutomaticamenteParaOProximo() throws Exception {
+        Long turmaId = criarTurmaPorHttp(municipioA, 1);
+        inscreverPorHttp(municipioA, turmaId, true);
+        Long segundaInscricao = inscreverPorHttp(municipioA, turmaId, true);
+        String token = tokenCom(municipioA, List.of("*"));
+        Long primeiraMatricula = idDe(alocar(turmaId, token), "matriculaId");
+        outboxEventRepository.deleteAll();
+
+        ResponseEntity<String> resposta = desistir(primeiraMatricula, token);
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(objectMapper.readTree(resposta.getBody()).get("vagasDisponiveis").asInt()).isEqualTo(1);
+        emTenant(municipioA, () -> {
+            Matricula cancelada = matriculaRepository.findById(primeiraMatricula).orElseThrow();
+            assertThat(cancelada.getStatus()).isEqualTo(StatusMatricula.CANCELADA);
+            assertThat(inscricaoRepository.findById(cancelada.getInscricaoId()).orElseThrow().getStatus())
+                    .isEqualTo(StatusInscricao.CANCELADA);
+            Matricula nova = matriculaRepository.findByInscricaoId(segundaInscricao).orElseThrow();
+            assertThat(nova.getStatus()).isEqualTo(StatusMatricula.PENDENTE);
+            assertThat(inscricaoRepository.findById(segundaInscricao).orElseThrow().getStatus())
+                    .isEqualTo(StatusInscricao.CONVOCADA);
+            assertThat(turmaRepository.findById(turmaId).orElseThrow().getVagasDisponiveis()).isZero();
+            assertThat(filaEsperaRepository.findByTurmaIdOrderByPosicaoAsc(turmaId)).isEmpty();
+            return null;
+        });
+        assertThat(outboxEventRepository.findAll())
+                .extracting(OutboxEvent::getTipoEvento)
+                .containsExactlyInAnyOrder(
+                        "vaga.liberada",
+                        "matricula.atualizada",
+                        "vaga.liberada",
+                        "fila.atualizada",
+                        "matricula.atualizada");
+    }
+
+    @Test
+    @DisplayName("desistir com a fila vazia so devolve a vaga, sem nova matricula")
+    void desistirSemFilaSoDevolveAVaga() {
+        Long matriculaId = alocarNovaMatricula(municipioA);
+        Long turmaId = emTenant(municipioA, () -> matriculaRepository.findById(matriculaId).orElseThrow().getTurma().getId());
+
+        ResponseEntity<String> resposta = desistir(matriculaId, tokenCom(municipioA, List.of("*")));
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+        emTenant(municipioA, () -> {
+            assertThat(turmaRepository.findById(turmaId).orElseThrow().getVagasDisponiveis()).isEqualTo(3);
+            assertThat(matriculaRepository.findByTurmaId(turmaId))
+                    .extracting(Matricula::getStatus)
+                    .containsExactly(StatusMatricula.CANCELADA);
+            return null;
+        });
+    }
+
+    @Test
+    @DisplayName("desistir duas vezes responde 409 na segunda e a vaga so volta uma vez")
+    void desistirDuasVezesResponde409() {
+        Long matriculaId = alocarNovaMatricula(municipioA);
+        String token = tokenCom(municipioA, List.of("*"));
+        desistir(matriculaId, token);
+        outboxEventRepository.deleteAll();
+
+        ResponseEntity<String> segunda = desistir(matriculaId, token);
+
+        assertThat(segunda.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(outboxEventRepository.findAll()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("desistir sem a permissao matricula:matricula:cancelar responde 403")
+    void desistirSemPermissaoResponde403() {
+        Long matriculaId = alocarNovaMatricula(municipioA);
+
+        ResponseEntity<String> resposta = desistir(matriculaId, tokenCom(municipioA, List.of(PERMISSAO_CONFIRMAR)));
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+    }
+
+    @Test
+    @DisplayName("creches proximas devolve as turmas da faixa com distancia, so do municipio do token")
+    void crechesProximasDevolveTurmasDoMunicipio() throws Exception {
+        Long turmaA = criarTurmaPorHttp(municipioA, 2);
+        criarTurmaPorHttp(municipioB, 2);
+
+        ResponseEntity<String> resposta =
+                restTemplate.exchange(
+                        "/api/v1/matricula/creches/proximas?latitude=-23.55&longitude=-46.63&faixaEtaria=MATERNAL&limite=20",
+                        HttpMethod.GET,
+                        new HttpEntity<>(cabecalhos(tokenCom(municipioA, List.of("matricula:creche:list")))),
+                        String.class);
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+        JsonNode lista = objectMapper.readTree(resposta.getBody());
+        List<Long> turmas = new ArrayList<>();
+        lista.forEach(item -> {
+            assertThat(item.get("crecheId").asLong()).isEqualTo(crecheDoMunicipioA);
+            assertThat(item.get("distanciaKm").asDouble()).isPositive();
+            turmas.add(item.get("turmaId").asLong());
+        });
+        assertThat(turmas).contains(turmaA);
+    }
+
+    @Test
+    @DisplayName("creches proximas sem latitude responde 400")
+    void crechesProximasSemLatitudeResponde400() {
+        ResponseEntity<String> resposta =
+                restTemplate.exchange(
+                        "/api/v1/matricula/creches/proximas?longitude=-46.63&faixaEtaria=MATERNAL",
+                        HttpMethod.GET,
+                        new HttpEntity<>(cabecalhos(tokenCom(municipioA, List.of("*")))),
+                        String.class);
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    @DisplayName("inscrever de novo a mesma crianca com inscricao ativa responde 409 sem segunda fila")
+    void duplaInscricaoDaMesmaCriancaResponde409() {
+        Long turmaId = criarTurmaPorHttp(municipioA, 3);
+        Long outraTurma = criarTurmaPorHttp(municipioA, 3);
+        Long inscricaoId = inscreverPorHttp(municipioA, turmaId, true);
+        Long criancaId = emTenant(municipioA, () -> inscricaoRepository.findById(inscricaoId).orElseThrow().getCrianca().getId());
+
+        ResponseEntity<String> resposta = inscreverCriancaPorId(criancaId, outraTurma);
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        emTenant(municipioA, () -> {
+            assertThat(inscricaoRepository.findByCriancaId(criancaId)).hasSize(1);
+            assertThat(filaEsperaRepository.findByTurmaIdOrderByPosicaoAsc(outraTurma)).isEmpty();
+            return null;
+        });
+    }
+
+    @Test
+    @DisplayName("duas requisicoes simultaneas para a mesma crianca: uma 201 e uma 409")
+    void duplaInscricaoSimultaneaSoUmaPassa() throws Exception {
+        Long turmaId = criarTurmaPorHttp(municipioA, 3);
+        Long inscricaoId = inscreverPorHttp(municipioA, turmaId, true);
+        Long criancaId = emTenant(municipioA, () -> inscricaoRepository.findById(inscricaoId).orElseThrow().getCrianca().getId());
+        emTenant(municipioA, () -> {
+            var inscricao = inscricaoRepository.findById(inscricaoId).orElseThrow();
+            inscricao.setStatus(StatusInscricao.CANCELADA);
+            filaEsperaRepository.delete(filaEsperaRepository.findByInscricaoId(inscricaoId).orElseThrow());
+            return null;
+        });
+
+        List<HttpStatus> status = emParalelo(2, () -> inscreverCriancaPorId(criancaId, turmaId));
+
+        assertThat(status).containsExactlyInAnyOrder(HttpStatus.CREATED, HttpStatus.CONFLICT);
+    }
+
+    @Test
+    @DisplayName("inscricoes simultaneas na mesma turma recebem posicoes distintas e consecutivas")
+    void inscricoesSimultaneasRecebemPosicoesDistintas() throws Exception {
+        Long turmaId = criarTurmaPorHttp(municipioA, 3);
+
+        List<HttpStatus> status = emParalelo(4, () -> postarInscricaoInline(turmaId));
+
+        assertThat(status).containsOnly(HttpStatus.CREATED);
+        emTenant(municipioA, () -> {
+            assertThat(filaEsperaRepository.findByTurmaIdOrderByPosicaoAsc(turmaId))
+                    .extracting(FilaEspera::getPosicao)
+                    .containsExactly(1, 2, 3, 4);
+            return null;
+        });
+    }
+
+    @Test
+    @DisplayName("job: matricula PENDENTE vencida vira EXPIRADA e a vaga vai para o proximo da fila")
+    void jobExpiraEConvocaOProximo() {
+        Long turmaId = criarTurmaPorHttp(municipioA, 1);
+        inscreverPorHttp(municipioA, turmaId, true);
+        Long segundaInscricao = inscreverPorHttp(municipioA, turmaId, true);
+        Long vencida = idDe(alocar(turmaId, tokenCom(municipioA, List.of("*"))), "matriculaId");
+        emTenant(municipioA, () -> {
+            Matricula matricula = matriculaRepository.findById(vencida).orElseThrow();
+            matricula.setPrazoConfirmacao(LocalDateTime.now().minusMinutes(1));
+            matriculaRepository.saveAndFlush(matricula);
+            return null;
+        });
+        outboxEventRepository.deleteAll();
+
+        manutencaoPorMunicipio.executar(municipioA);
+
+        emTenant(municipioA, () -> {
+            Matricula expirada = matriculaRepository.findById(vencida).orElseThrow();
+            assertThat(expirada.getStatus()).isEqualTo(StatusMatricula.EXPIRADA);
+            assertThat(inscricaoRepository.findById(expirada.getInscricaoId()).orElseThrow().getStatus())
+                    .isEqualTo(StatusInscricao.EXPIRADA);
+            assertThat(matriculaRepository.findByInscricaoId(segundaInscricao).orElseThrow().getStatus())
+                    .isEqualTo(StatusMatricula.PENDENTE);
+            assertThat(turmaRepository.findById(turmaId).orElseThrow().getVagasDisponiveis()).isZero();
+            return null;
+        });
+        assertThat(confirmar(vencida, tokenCom(municipioA, List.of("*"))).getStatusCode())
+                .isEqualTo(HttpStatus.CONFLICT);
+    }
+
+    @Test
+    @DisplayName("job: turma com vaga livre e fila sem ninguem convocado e preenchida ate acabar a vaga")
+    void jobReconciliaVagasLivres() {
+        Long turmaId = criarTurmaPorHttp(municipioA, 2);
+        inscreverPorHttp(municipioA, turmaId, true);
+        inscreverPorHttp(municipioA, turmaId, true);
+        inscreverPorHttp(municipioA, turmaId, true);
+
+        manutencaoPorMunicipio.executar(municipioA);
+
+        emTenant(municipioA, () -> {
+            assertThat(matriculaRepository.findByTurmaId(turmaId))
+                    .extracting(Matricula::getStatus)
+                    .containsExactly(StatusMatricula.PENDENTE, StatusMatricula.PENDENTE);
+            assertThat(turmaRepository.findById(turmaId).orElseThrow().getVagasDisponiveis()).isZero();
+            assertThat(filaEsperaRepository.findByTurmaIdOrderByPosicaoAsc(turmaId)).hasSize(1);
+            return null;
+        });
+    }
+
+    @Test
+    @DisplayName("job: matricula dentro do prazo nao e expirada")
+    void jobNaoExpiraDentroDoPrazo() {
+        Long matriculaId = alocarNovaMatricula(municipioA);
+
+        manutencaoPorMunicipio.executar(municipioA);
+
+        emTenant(municipioA, () -> {
+            assertThat(matriculaRepository.findById(matriculaId).orElseThrow().getStatus())
+                    .isEqualTo(StatusMatricula.PENDENTE);
+            return null;
+        });
+    }
+
+    private List<HttpStatus> emParalelo(int quantidade, Supplier<ResponseEntity<String>> requisicao) throws Exception {
+        java.util.concurrent.CyclicBarrier largada = new java.util.concurrent.CyclicBarrier(quantidade);
+        java.util.concurrent.ExecutorService executor = java.util.concurrent.Executors.newFixedThreadPool(quantidade);
+        try {
+            List<java.util.concurrent.Future<ResponseEntity<String>>> futuros = new ArrayList<>();
+            for (int i = 0; i < quantidade; i++) {
+                futuros.add(executor.submit(() -> {
+                    largada.await(10, java.util.concurrent.TimeUnit.SECONDS);
+                    return requisicao.get();
+                }));
+            }
+            List<HttpStatus> status = new ArrayList<>();
+            for (var futuro : futuros) {
+                status.add(HttpStatus.valueOf(futuro.get(30, java.util.concurrent.TimeUnit.SECONDS).getStatusCode().value()));
+            }
+            return status;
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
+    private ResponseEntity<String> inscreverCriancaPorId(Long criancaId, Long turmaId) {
+        Map<String, Object> corpo = new HashMap<>();
+        corpo.put("criancaId", criancaId);
+        corpo.put("turmaId", turmaId);
+        corpo.put("rendaPerCapita", 1234.56);
+        corpo.put("criterioVulnerabilidade", true);
+        return postar(CAMINHO_INSCRICOES, corpo, tokenCom(municipioA, List.of("*")));
+    }
+
+    private ResponseEntity<String> postarInscricaoInline(Long turmaId) {
+        Map<String, Object> responsavel = new HashMap<>();
+        responsavel.put("nome", "Maria Responsavel");
+        responsavel.put("cpf", String.format("%03d.000.000-00", sequenciaCpf.incrementAndGet()));
+        responsavel.put("endereco", Map.of("rua", "Rua A", "numero", 10, "bairro", "Centro", "latitude", -23.55, "longitude", -46.63));
+        Map<String, Object> corpo = new HashMap<>();
+        corpo.put("responsavel", responsavel);
+        corpo.put("crianca", Map.of("nome", "Joao Crianca", "dataNascimento", "2024-03-10"));
+        corpo.put("turmaId", turmaId);
+        corpo.put("rendaPerCapita", 1234.56);
+        corpo.put("criterioVulnerabilidade", true);
+        return postar(CAMINHO_INSCRICOES, corpo, tokenCom(municipioA, List.of("*")));
+    }
+
+    private ResponseEntity<String> desistir(Long matriculaId, String token) {
+        return postar("/api/v1/matricula/matriculas/" + matriculaId + "/desistir", null, token);
     }
 
     private Long alocarNovaMatricula(Long municipioId) {

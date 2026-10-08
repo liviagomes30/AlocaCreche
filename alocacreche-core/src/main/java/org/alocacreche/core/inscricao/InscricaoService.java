@@ -6,8 +6,10 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.alocacreche.core.comum.excecao.ConflitoException;
 import org.alocacreche.core.comum.excecao.RecursoNaoEncontradoException;
 import org.alocacreche.core.comum.seguranca.SessaoTenantResolver;
 import org.alocacreche.core.comum.tenant.TenantContext;
@@ -18,6 +20,7 @@ import org.alocacreche.core.notificacao.MunicipioRepository;
 import org.alocacreche.core.outbox.OutboxEventWriter;
 import org.alocacreche.core.outbox.OutboxPayloads.FilaEsperaAtualizadaPayload;
 import org.alocacreche.core.outbox.OutboxRabbitConfig;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,6 +28,15 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 public class InscricaoService {
+
+    /**
+     * Status em que a crianca ainda ocupa a fila ou a vaga. Mesma lista do indice parcial
+     * uk_inscricao_crianca_ativa em schema.sql - mudar um exige mudar o outro.
+     */
+    static final Set<StatusInscricao> STATUS_ATIVOS =
+            Set.of(StatusInscricao.AGUARDANDO, StatusInscricao.CONVOCADA, StatusInscricao.MATRICULADA);
+
+    private static final String MENSAGEM_INSCRICAO_ATIVA = "Crianca ja possui inscricao ativa";
 
     private final SessaoTenantResolver sessaoTenantResolver;
     private final EntityManager entityManager;
@@ -70,7 +82,7 @@ public class InscricaoService {
         inscricao.setRendaPerCapita(dto.rendaPerCapita());
         inscricao.setCriterioVulnerabilidade(criterioVulnerabilidade);
         inscricao.setScorePrioridade(score);
-        Inscricao salva = inscricaoRepository.saveAndFlush(inscricao);
+        Inscricao salva = salvarInscricao(inscricao);
 
         int posicao = enfileirar(salva, turma.getId(), municipioId);
 
@@ -89,12 +101,28 @@ public class InscricaoService {
 
     private Crianca resolverCrianca(InscricaoDTO dto, Long municipioId) {
         if (dto.criancaId() != null) {
-            return criancaRepository.findById(dto.criancaId())
+            Crianca crianca = criancaRepository.findById(dto.criancaId())
                     .orElseThrow(() -> new RecursoNaoEncontradoException(
                             "Criança não encontrada: " + dto.criancaId()));
+            if (inscricaoRepository.existsByCriancaIdAndStatusIn(crianca.getId(), STATUS_ATIVOS)) {
+                throw new ConflitoException(MENSAGEM_INSCRICAO_ATIVA);
+            }
+            return crianca;
         }
         Responsavel responsavel = responsavelService.cadastrarNoMunicipio(municipioId, dto.responsavel());
         return criancaService.cadastrarNoMunicipio(municipioId, responsavel, dto.crianca());
+    }
+
+    /**
+     * A consulta em resolverCrianca recusa o caso comum; duas requisicoes simultaneas para a mesma
+     * crianca passam pelas duas consultas, e quem barra a segunda e o indice parcial unico.
+     */
+    private Inscricao salvarInscricao(Inscricao inscricao) {
+        try {
+            return inscricaoRepository.saveAndFlush(inscricao);
+        } catch (DataIntegrityViolationException excecao) {
+            throw new ConflitoException(MENSAGEM_INSCRICAO_ATIVA, excecao);
+        }
     }
 
     private boolean verificarIrmaoMatriculado(Crianca crianca) {

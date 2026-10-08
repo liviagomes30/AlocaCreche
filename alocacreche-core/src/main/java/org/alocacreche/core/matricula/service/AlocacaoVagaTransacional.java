@@ -30,6 +30,7 @@ import org.alocacreche.core.outbox.OutboxPayloads.MatriculaAtualizadaPayload;
 import org.alocacreche.core.outbox.OutboxPayloads.VagaLiberadaPayload;
 import org.alocacreche.core.outbox.OutboxRabbitConfig;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
@@ -48,9 +49,26 @@ public class AlocacaoVagaTransacional {
     private final FilaRedisService filaRedisService;
     private final TravaFilaTurma travaFilaTurma;
 
-    @Transactional
+    /**
+     * Alocacao pedida por uma requisicao HTTP: o municipio vem do token. REQUIRES_NEW pelo mesmo
+     * motivo de {@link #executarNoMunicipio}; sem transacao aberta, o efeito e o de REQUIRED.
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public MatriculaAlocadaResponse executar(Long turmaId) {
-        Long municipioId = sessaoTenantResolver.municipioIdAtual();
+        return alocar(sessaoTenantResolver.municipioIdAtual(), turmaId);
+    }
+
+    /**
+     * Alocacao sem token: {@link AlocacaoAutomaticaListener} (depois do commit da desistencia) e o
+     * job de manutencao. REQUIRES_NEW porque, depois do commit, a transacao anterior ainda esta
+     * vinculada a thread, e um REQUIRED se juntaria a ela sem nunca gravar nada.
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public MatriculaAlocadaResponse executarNoMunicipio(Long municipioId, Long turmaId) {
+        return alocar(municipioId, turmaId);
+    }
+
+    private MatriculaAlocadaResponse alocar(Long municipioId, Long turmaId) {
         TenantContext.aplicar(entityManager, municipioId);
         // Mesmo lock do enfileiramento: sem ele, a leitura do primeiro da fila e a remocao
         // competiriam com uma renumeracao em andamento e poderiam convocar fora da ordem do score.
@@ -99,6 +117,9 @@ public class AlocacaoVagaTransacional {
         return new MatriculaAlocadaResponse(salva.getId());
     }
 
+    // TODO: se a geocodificacao externa voltar ao escopo (ADR 0006), envolver a chamada com Circuit
+    // Breaker (Resilience4j) e gravar a matricula com distancia nula quando o circuito abrir - a
+    // distancia e side-channel e nao pode travar a alocacao. Hoje usa coordenadas cadastradas.
     private Double calcularDistancia(Endereco origem, Endereco destino) {
         if (!temCoordenadas(origem) || !temCoordenadas(destino)) {
             throw new DadoInvalidoException("Responsavel e creche precisam ter latitude e longitude para a alocacao");

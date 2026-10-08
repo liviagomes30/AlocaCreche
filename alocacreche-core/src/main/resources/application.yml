@@ -70,6 +70,13 @@ alocacreche:
       # Falhas de login por municipio+email dentro da janela antes de responder 429.
       max-falhas: ${ALOCACRECHE_LOGIN_MAX_FALHAS:5}
       janela-segundos: ${ALOCACRECHE_LOGIN_JANELA_SEGUNDOS:900}
+  matricula:
+    manutencao:
+      # Liga/desliga o ManutencaoMatriculaScheduler (expira prazos vencidos e reconcilia vagas
+      # livres com fila nao vazia). Ligado por padrao; os testes o desligam.
+      habilitado: ${ALOCACRECHE_MATRICULA_MANUTENCAO_HABILITADO:true}
+      # Intervalo entre rodadas em ms - 2 minutos e o SLA declarado na ADR 0001, decisao 19.
+      intervalo-ms: ${ALOCACRECHE_MATRICULA_MANUTENCAO_INTERVALO_MS:120000}
   outbox:
     publicador:
       # Liga/desliga o OutboxPublicadorScheduler (ligado por padrao; os testes o desligam).

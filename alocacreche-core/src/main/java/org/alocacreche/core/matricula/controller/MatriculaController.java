@@ -6,7 +6,9 @@ import lombok.RequiredArgsConstructor;
 import org.alocacreche.core.matricula.service.AlocacaoVagaService;
 import org.alocacreche.core.matricula.service.AlocarVagaRequest;
 import org.alocacreche.core.matricula.service.ConfirmacaoMatriculaService;
+import org.alocacreche.core.matricula.service.DesistenciaMatriculaService;
 import org.alocacreche.core.matricula.service.MatriculaAlocadaResponse;
+import org.alocacreche.core.matricula.service.MatriculaCanceladaResponse;
 import org.alocacreche.core.matricula.service.MatriculaConfirmadaResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -23,6 +25,7 @@ public class MatriculaController {
 
     private final AlocacaoVagaService alocacaoVagaService;
     private final ConfirmacaoMatriculaService confirmacaoMatriculaService;
+    private final DesistenciaMatriculaService desistenciaMatriculaService;
 
     @SaCheckPermission("matricula:vaga:alocar")
     @PostMapping("/vagas/alocar")
@@ -35,5 +38,11 @@ public class MatriculaController {
     @PostMapping("/matriculas/{id}/confirmar")
     public ResponseEntity<MatriculaConfirmadaResponse> confirmar(@PathVariable("id") Long matriculaId) {
         return ResponseEntity.ok(confirmacaoMatriculaService.confirmar(matriculaId));
+    }
+
+    @SaCheckPermission("matricula:matricula:cancelar")
+    @PostMapping("/matriculas/{id}/desistir")
+    public ResponseEntity<MatriculaCanceladaResponse> desistir(@PathVariable("id") Long matriculaId) {
+        return ResponseEntity.ok(desistenciaMatriculaService.desistir(matriculaId));
     }
 }

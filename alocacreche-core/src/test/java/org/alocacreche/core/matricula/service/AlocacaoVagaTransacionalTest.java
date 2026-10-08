@@ -63,6 +63,7 @@ import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -434,6 +435,30 @@ class AlocacaoVagaTransacionalTest {
         ordem.verify(entityManager).createNativeQuery(contains("set_config"));
         ordem.verify(consultaTenant).setParameter(1, MUNICIPIO_ID.toString());
         ordem.verify(turmaRepository).findById(TURMA_ID);
+    }
+
+    @Test
+    @DisplayName("executarNoMunicipio aplica o municipio recebido e nao le o token (listener e job)")
+    void executarNoMunicipioNaoLeOToken() {
+        Long outroMunicipio = 8L;
+        Municipio outro = new Municipio();
+        outro.setPrazoConfirmacaoDias(PRAZO_DIAS);
+        when(municipioRepository.findById(outroMunicipio)).thenReturn(Optional.of(outro));
+
+        MatriculaAlocadaResponse resposta = alocacao.executarNoMunicipio(outroMunicipio, TURMA_ID);
+
+        assertThat(resposta.matriculaId()).isEqualTo(MATRICULA_ID);
+        verify(consultaTenant).setParameter(1, outroMunicipio.toString());
+        verifyNoInteractions(sessaoTenantResolver);
+    }
+
+    @Test
+    @DisplayName("executarNoMunicipio abre transacao nova (REQUIRES_NEW), para gravar mesmo depois de um commit")
+    void executarNoMunicipioAbreTransacaoNova() throws NoSuchMethodException {
+        Method executar = AlocacaoVagaTransacional.class.getMethod("executarNoMunicipio", Long.class, Long.class);
+
+        assertThat(executar.getAnnotation(Transactional.class).propagation()).isEqualTo(Propagation.REQUIRES_NEW);
+        assertThat(executar.getAnnotation(Transactional.class).noRollbackFor()).isEmpty();
     }
 
     @Test
