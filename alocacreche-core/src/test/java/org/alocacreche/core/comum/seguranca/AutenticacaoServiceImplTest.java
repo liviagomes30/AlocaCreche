@@ -110,8 +110,8 @@ class AutenticacaoServiceImplTest {
                 .isBetween(antes.plusSeconds(TIMEOUT_SEGUNDOS).minusSeconds(1), depois.plusSeconds(TIMEOUT_SEGUNDOS));
         JSONObject claims = claimsDo(resposta.token());
         assertThat(claims.getLong("municipioId")).isEqualTo(MUNICIPIO_ID);
-        assertThat(claims.getJSONArray("perms").toList(String.class)).containsExactlyInAnyOrder(
-                "relatorios:ocupacao:list", "relatorios:fila:list", "relatorios:matricula:list");
+        assertThat(claims.getJSONArray("perms").toList(String.class)).containsExactlyInAnyOrderElementsOf(
+                PerfilUsuario.GESTOR.permissoes());
         assertThat(Instant.ofEpochMilli(claims.getLong(SaJwtUtil.EFF))).isEqualTo(resposta.expiraEm());
     }
 

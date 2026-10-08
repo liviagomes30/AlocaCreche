@@ -28,6 +28,8 @@ public class FilaEspera extends EntidadeMultiTenant {
      * Referencia por objeto criaria dependencia de pacote em ambas as direcoes (inscricao ->
      * matricula e matricula -> inscricao via Matricula.inscricaoId), o que junta os dois pacotes
      * num ciclo. Ver docs/adr/0004-divisao-equipe-tres-integrantes.md (revisao de arquitetura).
+     * Sem unico (turma_id, posicao): a renumeracao por prioridade (InscricaoService) reescreve
+     * posicoes em lote e passaria por duplicatas transitorias; quem serializa e TravaFilaTurma.
      */
     @Column(name = "turma_id", nullable = false)
     private Long turmaId;

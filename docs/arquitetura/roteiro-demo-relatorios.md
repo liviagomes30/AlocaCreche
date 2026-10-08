@@ -226,6 +226,32 @@ curl -s -i -X POST "$CORE/api/v1/matricula/matriculas/$MATRICULA_ID/confirmar" \
 
 Esperado: `HTTP/1.1 409`, sem novo evento.
 
+### 8.7 Sugerir creches próximas (HTTP 200, só leitura)
+
+Usa as coordenadas já cadastradas (sem geocodificação externa, ADR 0006). Exige `matricula:creche:list`.
+
+```bash
+curl -s "$CORE/api/v1/matricula/creches/proximas?latitude=-23.55&longitude=-46.63&faixaEtaria=MATERNAL&limite=5"   -H "Authorization: Bearer $TOKEN"
+```
+
+Esperado: lista de `{crecheId, nome, bairro, turmaId, vagasDisponiveis, distanciaKm}` da mais próxima
+para a mais distante. Sem `latitude`, `longitude` ou `faixaEtaria` a resposta é `400`.
+
+### 8.8 Desistir da matrícula (HTTP 200, vaga devolvida e realocada)
+
+Exige `matricula:matricula:status`. Cancela a matrícula `PENDENTE` ou `CONFIRMADA`, devolve a vaga e, se
+houver fila, convoca o próximo logo após o commit.
+
+```bash
+curl -s -i -X POST "$CORE/api/v1/matricula/matriculas/$MATRICULA_ID/desistir"   -H "Authorization: Bearer $TOKEN"
+```
+
+Esperado: `HTTP/1.1 200` e corpo `{"matriculaId":N,"turmaId":N,"vagasDisponiveis":N}`; a matrícula vira
+`CANCELADA` e a inscrição `CANCELADA`. Na Outbox entram `vaga.liberada` e `matricula.atualizada`
+(`CANCELADA`) e, havendo fila, os eventos da nova alocação. Desistir de novo responde `409`; matrícula
+de outro município ou inexistente responde `404`. O job de manutenção (a cada 2 minutos) também expira
+matrículas `PENDENTE` com prazo vencido (`EXPIRADA`) e realoca vagas livres com fila não vazia.
+
 ## 9. Conferir a Outbox e a entrega
 
 O Publicador roda a cada segundo. Todas as linhas devem chegar a `PROCESSADO`:

@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
@@ -19,6 +20,7 @@ import jakarta.persistence.Query;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.alocacreche.core.comum.Endereco;
 import org.alocacreche.core.comum.excecao.ConflitoException;
@@ -42,6 +44,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.test.util.ReflectionTestUtils;
 
 /**
@@ -75,6 +78,7 @@ class InscricaoServiceTest {
     @Mock private MatriculaConsulta matriculaConsulta;
     @Mock private OutboxEventWriter outboxEventWriter;
     @Mock private FilaRedisService filaRedisService;
+    @Mock private TravaFilaTurma travaFilaTurma;
 
     private InscricaoService service;
     private Municipio municipio;
@@ -98,7 +102,8 @@ class InscricaoServiceTest {
                         matriculaConsulta,
                         new CalculadoraScorePrioridade(),
                         outboxEventWriter,
-                        filaRedisService);
+                        filaRedisService,
+                        travaFilaTurma);
         municipio = new Municipio();
         municipio.setConfiguracaoPriorizacao(
                 ConfiguracaoPriorizacao.builder()
@@ -135,6 +140,22 @@ class InscricaoServiceTest {
                             return inscricao;
                         });
         lenient().when(filaEsperaRepository.findMaiorPosicaoByTurmaId(TURMA_ID)).thenReturn(Optional.empty());
+        
+        lenient()
+        .when(filaEsperaRepository.findByTurmaIdOrdenadaPorPrioridade(TURMA_ID))
+        .thenAnswer(invocacao -> {
+            FilaEspera fila = new FilaEspera();
+            fila.setMunicipioId(MUNICIPIO_ID);
+            fila.setTurmaId(TURMA_ID);
+            fila.setInscricao(
+                    new Inscricao());
+            fila.getInscricao().setId(INSCRICAO_ID);
+            fila.getInscricao().setScorePrioridade(0.7);
+
+            fila.setPosicao(0);
+
+            return List.of(fila);
+        });
     }
 
     @Test
@@ -285,13 +306,14 @@ class InscricaoServiceTest {
     }
 
     @Test
-    @DisplayName("agenda a escrita no Redis com municipio, turma, inscricao e posicao")
+    @DisplayName("agenda a atualizacao das posicoes no Redis")
     void agendaEscritaNoRedis() {
-        when(filaEsperaRepository.findMaiorPosicaoByTurmaId(TURMA_ID)).thenReturn(Optional.of(1));
-
         service.registrarInscricao(dtoPorId("400.00", true));
 
-        verify(filaRedisService).adicionarAposCommit(MUNICIPIO_ID, TURMA_ID, INSCRICAO_ID, 2);
+        verify(filaRedisService).atualizarPosicoesAposCommit(
+                eq(MUNICIPIO_ID),
+                eq(TURMA_ID),
+                eq(Map.of(INSCRICAO_ID, 1)));
     }
 
     @Test
@@ -302,24 +324,94 @@ class InscricaoServiceTest {
         assertThat(resposta.posicao()).isEqualTo(1);
         ArgumentCaptor<FilaEspera> filaSalva = ArgumentCaptor.forClass(FilaEspera.class);
         verify(filaEsperaRepository).save(filaSalva.capture());
+
         FilaEspera fila = filaSalva.getValue();
+
         assertThat(fila.getInscricao().getId()).isEqualTo(INSCRICAO_ID);
         assertThat(fila.getTurmaId()).isEqualTo(TURMA_ID);
         assertThat(fila.getMunicipioId()).isEqualTo(MUNICIPIO_ID);
-        assertThat(fila.getPosicao()).isEqualTo(1);
+        assertThat(fila.getPosicao()).isEqualTo(0);
+
+        verify(filaEsperaRepository).saveAll(any());
+        verify(filaRedisService).atualizarPosicoesAposCommit(
+                eq(MUNICIPIO_ID),
+                eq(TURMA_ID),
+                eq(Map.of(INSCRICAO_ID, 1)));
     }
 
     @Test
-    @DisplayName("a posicao e a maior posicao da turma mais 1")
-    void posicaoEMaiorPosicaoMaisUm() {
-        when(filaEsperaRepository.findMaiorPosicaoByTurmaId(TURMA_ID)).thenReturn(Optional.of(3));
+    @DisplayName("recalcula a posicao da inscricao conforme a fila ordenada por prioridade")
+    void recalculaPosicaoConformePrioridade() {
+        InscricaoRegistradaResponse resposta =
+                service.registrarInscricao(dtoPorId("400.00", true));
 
-        InscricaoRegistradaResponse resposta = service.registrarInscricao(dtoPorId("400.00", true));
+        assertThat(resposta.posicao()).isEqualTo(1);
 
-        assertThat(resposta.posicao()).isEqualTo(4);
-        ArgumentCaptor<FilaEspera> filaSalva = ArgumentCaptor.forClass(FilaEspera.class);
-        verify(filaEsperaRepository).save(filaSalva.capture());
-        assertThat(filaSalva.getValue().getPosicao()).isEqualTo(4);
+        verify(filaEsperaRepository).saveAll(any());
+
+        verify(filaRedisService).atualizarPosicoesAposCommit(
+                eq(MUNICIPIO_ID),
+                eq(TURMA_ID),
+                eq(Map.of(INSCRICAO_ID, 1)));
+    }
+
+    @Test
+    @DisplayName("trava a fila da turma antes de ler ou gravar a fila")
+    void travaAFilaAntesDeLerOuGravar() {
+        service.registrarInscricao(dtoPorId("400.00", true));
+
+        InOrder ordem = inOrder(travaFilaTurma, filaEsperaRepository, filaRedisService);
+        ordem.verify(travaFilaTurma).travar(MUNICIPIO_ID, TURMA_ID);
+        ordem.verify(filaEsperaRepository).save(any(FilaEspera.class));
+        ordem.verify(filaEsperaRepository).findByTurmaIdOrdenadaPorPrioridade(TURMA_ID);
+        ordem.verify(filaEsperaRepository).saveAll(any());
+        ordem.verify(filaRedisService).atualizarPosicoesAposCommit(eq(MUNICIPIO_ID), eq(TURMA_ID), any());
+    }
+
+    @Test
+    @DisplayName("falha ao travar a fila aborta sem gravar fila, Redis nem evento")
+    void falhaAoTravarAbortaSemGravar() {
+        doThrow(new IllegalStateException("falha ao travar")).when(travaFilaTurma).travar(MUNICIPIO_ID, TURMA_ID);
+
+        assertThatThrownBy(() -> service.registrarInscricao(dtoPorId("400.00", true)))
+                .isInstanceOf(IllegalStateException.class);
+
+        verifyNoInteractions(filaEsperaRepository, filaRedisService, outboxEventWriter);
+    }
+
+    @Test
+    @DisplayName("crianca com inscricao ativa lanca ConflitoException sem salvar, enfileirar nem gravar evento")
+    void criancaComInscricaoAtivaLancaConflito() {
+        when(inscricaoRepository.existsByCriancaIdAndStatusIn(CRIANCA_ID, InscricaoService.STATUS_ATIVOS))
+                .thenReturn(true);
+
+        assertThatThrownBy(() -> service.registrarInscricao(dtoPorId("400.00", true)))
+                .isInstanceOf(ConflitoException.class)
+                .hasMessage("Crianca ja possui inscricao ativa");
+
+        verify(inscricaoRepository, never()).saveAndFlush(any());
+        verifyNoInteractions(filaEsperaRepository, filaRedisService, outboxEventWriter);
+    }
+
+    @Test
+    @DisplayName("inscricao ativa conta AGUARDANDO, CONVOCADA e MATRICULADA, nao CANCELADA nem EXPIRADA")
+    void statusAtivosDeixamCanceladaEExpiradaDeFora() {
+        assertThat(InscricaoService.STATUS_ATIVOS)
+                .containsExactlyInAnyOrder(
+                        StatusInscricao.AGUARDANDO, StatusInscricao.CONVOCADA, StatusInscricao.MATRICULADA);
+    }
+
+    @Test
+    @DisplayName("inscricao simultanea barrada pelo indice unico vira ConflitoException sem fila nem evento")
+    void indiceUnicoDaCriancaViraConflito() {
+        when(inscricaoRepository.saveAndFlush(any(Inscricao.class)))
+                .thenThrow(new DataIntegrityViolationException("uk_inscricao_crianca_ativa"));
+
+        assertThatThrownBy(() -> service.registrarInscricao(dtoPorId("400.00", true)))
+                .isInstanceOf(ConflitoException.class)
+                .hasMessage("Crianca ja possui inscricao ativa");
+
+        verifyNoInteractions(filaEsperaRepository, filaRedisService, outboxEventWriter);
     }
 
     @Test

@@ -3,8 +3,13 @@ package org.alocacreche.core.inscricao;
 import cn.dev33.satoken.exception.NotPermissionException;
 import jakarta.persistence.EntityManager;
 import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.alocacreche.core.comum.excecao.ConflitoException;
 import org.alocacreche.core.comum.excecao.RecursoNaoEncontradoException;
 import org.alocacreche.core.comum.seguranca.SessaoTenantResolver;
 import org.alocacreche.core.comum.tenant.TenantContext;
@@ -15,6 +20,7 @@ import org.alocacreche.core.notificacao.MunicipioRepository;
 import org.alocacreche.core.outbox.OutboxEventWriter;
 import org.alocacreche.core.outbox.OutboxPayloads.FilaEsperaAtualizadaPayload;
 import org.alocacreche.core.outbox.OutboxRabbitConfig;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,6 +28,15 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 public class InscricaoService {
+
+    /**
+     * Status em que a crianca ainda ocupa a fila ou a vaga. Mesma lista do indice parcial
+     * uk_inscricao_crianca_ativa em schema.sql - mudar um exige mudar o outro.
+     */
+    static final Set<StatusInscricao> STATUS_ATIVOS =
+            Set.of(StatusInscricao.AGUARDANDO, StatusInscricao.CONVOCADA, StatusInscricao.MATRICULADA);
+
+    private static final String MENSAGEM_INSCRICAO_ATIVA = "Crianca ja possui inscricao ativa";
 
     private final SessaoTenantResolver sessaoTenantResolver;
     private final EntityManager entityManager;
@@ -36,6 +51,7 @@ public class InscricaoService {
     private final CalculadoraScorePrioridade calculadoraScorePrioridade;
     private final OutboxEventWriter outboxEventWriter;
     private final FilaRedisService filaRedisService;
+    private final TravaFilaTurma travaFilaTurma;
 
     @Transactional
     public InscricaoRegistradaResponse registrarInscricao(InscricaoDTO dto) {
@@ -66,11 +82,9 @@ public class InscricaoService {
         inscricao.setRendaPerCapita(dto.rendaPerCapita());
         inscricao.setCriterioVulnerabilidade(criterioVulnerabilidade);
         inscricao.setScorePrioridade(score);
-        Inscricao salva = inscricaoRepository.saveAndFlush(inscricao);
+        Inscricao salva = salvarInscricao(inscricao);
 
         int posicao = enfileirar(salva, turma.getId(), municipioId);
-
-        filaRedisService.adicionarAposCommit(municipioId, turma.getId(), salva.getId(), posicao);
 
         emitirEventoDeFila(salva, turma, municipioId);
 
@@ -80,18 +94,35 @@ public class InscricaoService {
                 turma.getId(),
                 municipioId,
                 posicao);
+
         return new InscricaoRegistradaResponse(
                 salva.getId(), posicao, salva.getScorePrioridade(), salva.getStatus());
     }
 
     private Crianca resolverCrianca(InscricaoDTO dto, Long municipioId) {
         if (dto.criancaId() != null) {
-            return criancaRepository.findById(dto.criancaId())
+            Crianca crianca = criancaRepository.findById(dto.criancaId())
                     .orElseThrow(() -> new RecursoNaoEncontradoException(
                             "Criança não encontrada: " + dto.criancaId()));
+            if (inscricaoRepository.existsByCriancaIdAndStatusIn(crianca.getId(), STATUS_ATIVOS)) {
+                throw new ConflitoException(MENSAGEM_INSCRICAO_ATIVA);
+            }
+            return crianca;
         }
         Responsavel responsavel = responsavelService.cadastrarNoMunicipio(municipioId, dto.responsavel());
         return criancaService.cadastrarNoMunicipio(municipioId, responsavel, dto.crianca());
+    }
+
+    /**
+     * A consulta em resolverCrianca recusa o caso comum; duas requisicoes simultaneas para a mesma
+     * crianca passam pelas duas consultas, e quem barra a segunda e o indice parcial unico.
+     */
+    private Inscricao salvarInscricao(Inscricao inscricao) {
+        try {
+            return inscricaoRepository.saveAndFlush(inscricao);
+        } catch (DataIntegrityViolationException excecao) {
+            throw new ConflitoException(MENSAGEM_INSCRICAO_ATIVA, excecao);
+        }
     }
 
     private boolean verificarIrmaoMatriculado(Crianca crianca) {
@@ -111,15 +142,47 @@ public class InscricaoService {
     }
 
     private int enfileirar(Inscricao inscricao, Long turmaId, Long municipioId) {
-        // TODO: a posicao na fila pode colidir sob inscricoes simultaneas na mesma turma (Stack A)
-        int posicao = filaEsperaRepository.findMaiorPosicaoByTurmaId(turmaId).orElse(0) + 1;
+        // Serializa a fila da turma antes de qualquer leitura ou escrita dela: sem isso, duas
+        // inscricoes simultaneas nao enxergam a linha uma da outra e renumeram por conta propria.
+        travaFilaTurma.travar(municipioId, turmaId);
+
         FilaEspera fila = new FilaEspera();
         fila.setMunicipioId(municipioId);
         fila.setInscricao(inscricao);
         fila.setTurmaId(turmaId);
-        fila.setPosicao(posicao);
+        // A posicao definitiva e atribuida por renumerarPorPrioridade.
+        fila.setPosicao(0);
         filaEsperaRepository.save(fila);
-        return posicao;
+
+        return renumerarPorPrioridade(inscricao, turmaId, municipioId);
+    }
+
+    /**
+     * Renumera toda a fila da turma por prioridade (score desc, dataInscricao asc, id asc) e
+     * devolve a posicao da inscricao informada. Custo O(n) por inscricao, conhecido e aceito.
+     * Deve rodar com o lock da turma ja adquirido.
+     */
+    private int renumerarPorPrioridade(Inscricao inscricao, Long turmaId, Long municipioId) {
+        List<FilaEspera> filasOrdenadas =
+                filaEsperaRepository.findByTurmaIdOrdenadaPorPrioridade(turmaId);
+
+        Map<Long, Integer> posicoes = new HashMap<>();
+        int posicaoInscricao = 0;
+
+        for (int i = 0; i < filasOrdenadas.size(); i++) {
+            FilaEspera filaAtual = filasOrdenadas.get(i);
+            int novaPosicao = i + 1;
+            filaAtual.setPosicao(novaPosicao);
+            posicoes.put(filaAtual.getInscricao().getId(), novaPosicao);
+            if (filaAtual.getInscricao().getId().equals(inscricao.getId())) {
+                posicaoInscricao = novaPosicao;
+            }
+        }
+
+        filaEsperaRepository.saveAll(filasOrdenadas);
+        filaRedisService.atualizarPosicoesAposCommit(municipioId, turmaId, posicoes);
+
+        return posicaoInscricao;
     }
 
     private void emitirEventoDeFila(Inscricao inscricao, Turma turma, Long municipioId) {

@@ -146,6 +146,24 @@ class MatriculaRelatorioRepositoryIT {
         assertThat(resultado.getTotalConfirmadas()).isEqualTo(1L);
     }
 
+    @Test
+    void matriculaCanceladaEntraNoTotalDaTaxaMasNaoEntraNasConfirmadas() {
+        LocalDate periodo = LocalDate.of(2026, 5, 1);
+        upsertComoTenant(
+                1L, 930L, 510L, 100L, 10L, StatusMatricula.CONFIRMADA, 1.0, LocalDate.of(2026, 5, 5), LocalDate.of(2026, 5, 8), 1L);
+        upsertComoTenant(1L, 931L, 511L, 100L, 10L, StatusMatricula.CANCELADA, 1.0, LocalDate.of(2026, 5, 6), null, 1L);
+
+        RelatorioConfirmacaoProjection resultado =
+                transactionTemplate.execute(
+                        status -> {
+                            TenantContext.aplicar(entityManager, 1L);
+                            return repository.calcularTaxaConfirmacao(1L, periodo);
+                        });
+
+        assertThat(resultado.getTotalMatriculas()).isEqualTo(2L);
+        assertThat(resultado.getTotalConfirmadas()).isEqualTo(1L);
+    }
+
     private void upsertComoTenant(
             Long municipioId,
             Long matriculaId,

@@ -36,6 +36,7 @@ import org.alocacreche.core.inscricao.FilaRedisService;
 import org.alocacreche.core.inscricao.Inscricao;
 import org.alocacreche.core.inscricao.Responsavel;
 import org.alocacreche.core.inscricao.StatusInscricao;
+import org.alocacreche.core.inscricao.TravaFilaTurma;
 import org.alocacreche.core.matricula.Creche;
 import org.alocacreche.core.matricula.Matricula;
 import org.alocacreche.core.matricula.MatriculaRepository;
@@ -62,6 +63,7 @@ import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -91,6 +93,7 @@ class AlocacaoVagaTransacionalTest {
     @Mock private GeolocalizacaoService geolocalizacaoService;
     @Mock private OutboxEventWriter outboxEventWriter;
     @Mock private FilaRedisService filaRedisService;
+    @Mock private TravaFilaTurma travaFilaTurma;
 
     private AlocacaoVagaTransacional alocacao;
     private Turma turma;
@@ -113,7 +116,8 @@ class AlocacaoVagaTransacionalTest {
                         municipioRepository,
                         geolocalizacaoService,
                         outboxEventWriter,
-                        filaRedisService);
+                        filaRedisService,
+                        travaFilaTurma);
 
         enderecoCreche = new Endereco("Rua B", 20, "Centro", "01000-000", "Sao Paulo", "SP", -23.56, -46.64);
         creche = new Creche();
@@ -187,6 +191,28 @@ class AlocacaoVagaTransacionalTest {
         assertThat(matricula.getDataConfirmacao()).isNull();
         assertThat(matricula.getDistanciaKm()).isEqualTo(DISTANCIA_KM);
         verify(filaEsperaRepository, never()).findByTurmaIdOrderByPosicaoAsc(any());
+    }
+
+    @Test
+    @DisplayName("trava a fila da turma antes de ler o primeiro da fila")
+    void travaAFilaAntesDeLerOPrimeiro() {
+        alocacao.executar(TURMA_ID);
+
+        InOrder ordem = inOrder(travaFilaTurma, filaEsperaRepository);
+        ordem.verify(travaFilaTurma).travar(MUNICIPIO_ID, TURMA_ID);
+        ordem.verify(filaEsperaRepository).findFirstByTurmaIdOrderByPosicaoAsc(TURMA_ID);
+    }
+
+    @Test
+    @DisplayName("falha ao travar a fila aborta a alocacao sem gravar vaga, matricula nem evento")
+    void falhaAoTravarAbortaSemGravar() {
+        doThrow(new IllegalStateException("falha ao travar")).when(travaFilaTurma).travar(MUNICIPIO_ID, TURMA_ID);
+
+        assertThatThrownBy(() -> alocacao.executar(TURMA_ID)).isInstanceOf(IllegalStateException.class);
+
+        verifyNoInteractions(matriculaRepository, outboxEventWriter, filaRedisService);
+        verify(turmaRepository, never()).saveAndFlush(any());
+        verify(filaEsperaRepository, never()).delete(any());
     }
 
     @Test
@@ -409,6 +435,30 @@ class AlocacaoVagaTransacionalTest {
         ordem.verify(entityManager).createNativeQuery(contains("set_config"));
         ordem.verify(consultaTenant).setParameter(1, MUNICIPIO_ID.toString());
         ordem.verify(turmaRepository).findById(TURMA_ID);
+    }
+
+    @Test
+    @DisplayName("executarNoMunicipio aplica o municipio recebido e nao le o token (listener e job)")
+    void executarNoMunicipioNaoLeOToken() {
+        Long outroMunicipio = 8L;
+        Municipio outro = new Municipio();
+        outro.setPrazoConfirmacaoDias(PRAZO_DIAS);
+        when(municipioRepository.findById(outroMunicipio)).thenReturn(Optional.of(outro));
+
+        MatriculaAlocadaResponse resposta = alocacao.executarNoMunicipio(outroMunicipio, TURMA_ID);
+
+        assertThat(resposta.matriculaId()).isEqualTo(MATRICULA_ID);
+        verify(consultaTenant).setParameter(1, outroMunicipio.toString());
+        verifyNoInteractions(sessaoTenantResolver);
+    }
+
+    @Test
+    @DisplayName("executarNoMunicipio abre transacao nova (REQUIRES_NEW), para gravar mesmo depois de um commit")
+    void executarNoMunicipioAbreTransacaoNova() throws NoSuchMethodException {
+        Method executar = AlocacaoVagaTransacional.class.getMethod("executarNoMunicipio", Long.class, Long.class);
+
+        assertThat(executar.getAnnotation(Transactional.class).propagation()).isEqualTo(Propagation.REQUIRES_NEW);
+        assertThat(executar.getAnnotation(Transactional.class).noRollbackFor()).isEmpty();
     }
 
     @Test

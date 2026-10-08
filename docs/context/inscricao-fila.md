@@ -47,8 +47,35 @@ diretamente.
   aviso (sem dados sensíveis) e nunca derruba a inscrição nem a alocação.
 - Consulta de posição: lê do Redis; sem a chave (cache frio, expirado ou Redis fora) cai para
   `FilaEspera.posicao` no banco. Inscrição que já saiu da fila (alocada) responde 404 com mensagem clara.
-- A posição é o número de entrada na fila (não é renumerada quando alguém é alocado), igual no Redis e
-  no banco.
+- A posição é a ordem de prioridade na fila, igual no Redis e no banco (ver "Ordenação da fila").
+
+## Ordenação da fila e lock por turma
+
+- **Ordem:** a cada inscrição (`InscricaoService.enfileirar`), a fila inteira da turma é renumerada
+  `1..N` por `score` decrescente, `dataInscricao` crescente e `id` crescente (`renumerarPorPrioridade`).
+  A alocação convoca a menor posição (`findFirstByTurmaIdOrderByPosicaoAsc`), então a posição errada
+  significa convocar a pessoa errada. A alocação remove a inscrição convocada sem renumerar: as
+  posições restantes continuam distintas e ordenadas, só podem começar acima de 1 até a próxima
+  inscrição renumerar.
+- **Lock por turma (`TravaFilaTurma.travar`):** enfileirar e alocar tomam o mesmo
+  `pg_advisory_xact_lock(namespace_fila, turmaId)` dentro da transação, depois do `TenantContext.aplicar`
+  e antes de ler ou gravar a fila. Sem ele, duas inscrições simultâneas (READ COMMITTED) não enxergam a
+  linha uma da outra e renumeram por conta própria, gerando posições duplicadas ou fora de ordem. O
+  lock é solto no commit/rollback, exige transação ativa (`MANDATORY`) e só serializa a mesma turma:
+  turmas diferentes não se bloqueiam.
+- **Por que advisory lock e não `PESSIMISTIC_WRITE` na `Turma`:** o lock de linha disputaria a mesma
+  linha usada pelo `@Version` da alocação e da confirmação de matrícula (módulo Matrícula). O advisory
+  lock não toca linha nenhuma.
+- **Limitação conhecida:** a renumeração é O(n) por inscrição (lê e regrava a fila inteira da turma) e
+  o lock serializa as inscrições da mesma turma; aceitável para o tamanho esperado de fila por turma.
+  Se uma fila crescer a ponto de pesar, a evolução é inserir só o deslocamento afetado (posição da
+  nova inscrição em diante) em vez de renumerar tudo.
+- **Redis fora do lock:** a escrita no ZSET ocorre depois do commit, já sem o lock. Duas transações
+  consecutivas na mesma turma podem, em janela de microssegundos, aplicar seus snapshots fora de
+  ordem; o cache se corrige na próxima inscrição da turma e, na leitura, o banco continua sendo a
+  fonte da verdade.
+- Testes: `TravaFilaTurmaTest`, `InscricaoServiceTest` (lock antes da fila) e
+  `InscricaoFilaConcorrenciaIT` (inscrições e alocações simultâneas com Postgres e Redis reais).
 
 ## Regras específicas deste módulo
 

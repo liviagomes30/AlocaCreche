@@ -33,3 +33,12 @@ DROP POLICY IF EXISTS matricula_relatorio_tenant_isolation ON matricula_relatori
 
 CREATE POLICY matricula_relatorio_tenant_isolation ON matricula_relatorio
     USING (municipio_id = current_setting('app.current_tenant')::bigint);
+
+-- O ddl-auto=update cria o CHECK da coluna status (enum STRING) so na criacao da tabela e nunca o
+-- altera. Um banco criado antes de StatusMatricula ganhar CANCELADA rejeitaria o evento
+-- matricula.atualizada de uma desistencia e o mandaria para a DLQ. Recriar a restricao aqui, de forma
+-- idempotente, cobre bancos novos e antigos; manter a lista igual a StatusMatricula.
+ALTER TABLE matricula_relatorio DROP CONSTRAINT IF EXISTS matricula_relatorio_status_check;
+
+ALTER TABLE matricula_relatorio ADD CONSTRAINT matricula_relatorio_status_check
+    CHECK (status IN ('PENDENTE', 'CONFIRMADA', 'EXPIRADA', 'CANCELADA'));
