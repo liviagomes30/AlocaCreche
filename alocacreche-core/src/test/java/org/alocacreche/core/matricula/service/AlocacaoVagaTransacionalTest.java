@@ -36,6 +36,7 @@ import org.alocacreche.core.inscricao.FilaRedisService;
 import org.alocacreche.core.inscricao.Inscricao;
 import org.alocacreche.core.inscricao.Responsavel;
 import org.alocacreche.core.inscricao.StatusInscricao;
+import org.alocacreche.core.inscricao.TravaFilaTurma;
 import org.alocacreche.core.matricula.Creche;
 import org.alocacreche.core.matricula.Matricula;
 import org.alocacreche.core.matricula.MatriculaRepository;
@@ -91,6 +92,7 @@ class AlocacaoVagaTransacionalTest {
     @Mock private GeolocalizacaoService geolocalizacaoService;
     @Mock private OutboxEventWriter outboxEventWriter;
     @Mock private FilaRedisService filaRedisService;
+    @Mock private TravaFilaTurma travaFilaTurma;
 
     private AlocacaoVagaTransacional alocacao;
     private Turma turma;
@@ -113,7 +115,8 @@ class AlocacaoVagaTransacionalTest {
                         municipioRepository,
                         geolocalizacaoService,
                         outboxEventWriter,
-                        filaRedisService);
+                        filaRedisService,
+                        travaFilaTurma);
 
         enderecoCreche = new Endereco("Rua B", 20, "Centro", "01000-000", "Sao Paulo", "SP", -23.56, -46.64);
         creche = new Creche();
@@ -187,6 +190,28 @@ class AlocacaoVagaTransacionalTest {
         assertThat(matricula.getDataConfirmacao()).isNull();
         assertThat(matricula.getDistanciaKm()).isEqualTo(DISTANCIA_KM);
         verify(filaEsperaRepository, never()).findByTurmaIdOrderByPosicaoAsc(any());
+    }
+
+    @Test
+    @DisplayName("trava a fila da turma antes de ler o primeiro da fila")
+    void travaAFilaAntesDeLerOPrimeiro() {
+        alocacao.executar(TURMA_ID);
+
+        InOrder ordem = inOrder(travaFilaTurma, filaEsperaRepository);
+        ordem.verify(travaFilaTurma).travar(MUNICIPIO_ID, TURMA_ID);
+        ordem.verify(filaEsperaRepository).findFirstByTurmaIdOrderByPosicaoAsc(TURMA_ID);
+    }
+
+    @Test
+    @DisplayName("falha ao travar a fila aborta a alocacao sem gravar vaga, matricula nem evento")
+    void falhaAoTravarAbortaSemGravar() {
+        doThrow(new IllegalStateException("falha ao travar")).when(travaFilaTurma).travar(MUNICIPIO_ID, TURMA_ID);
+
+        assertThatThrownBy(() -> alocacao.executar(TURMA_ID)).isInstanceOf(IllegalStateException.class);
+
+        verifyNoInteractions(matriculaRepository, outboxEventWriter, filaRedisService);
+        verify(turmaRepository, never()).saveAndFlush(any());
+        verify(filaEsperaRepository, never()).delete(any());
     }
 
     @Test

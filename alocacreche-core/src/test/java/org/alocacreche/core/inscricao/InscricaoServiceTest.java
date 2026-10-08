@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
@@ -19,6 +20,7 @@ import jakarta.persistence.Query;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.alocacreche.core.comum.Endereco;
 import org.alocacreche.core.comum.excecao.ConflitoException;
@@ -43,8 +45,6 @@ import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
-
-import java.util.Map;
 
 /**
  * Cobre as regras do InscricaoService unico: municipio vindo do token, tenant aplicado antes de
@@ -77,6 +77,7 @@ class InscricaoServiceTest {
     @Mock private MatriculaConsulta matriculaConsulta;
     @Mock private OutboxEventWriter outboxEventWriter;
     @Mock private FilaRedisService filaRedisService;
+    @Mock private TravaFilaTurma travaFilaTurma;
 
     private InscricaoService service;
     private Municipio municipio;
@@ -100,7 +101,8 @@ class InscricaoServiceTest {
                         matriculaConsulta,
                         new CalculadoraScorePrioridade(),
                         outboxEventWriter,
-                        filaRedisService);
+                        filaRedisService,
+                        travaFilaTurma);
         municipio = new Municipio();
         municipio.setConfiguracaoPriorizacao(
                 ConfiguracaoPriorizacao.builder()
@@ -350,6 +352,30 @@ class InscricaoServiceTest {
                 eq(MUNICIPIO_ID),
                 eq(TURMA_ID),
                 eq(Map.of(INSCRICAO_ID, 1)));
+    }
+
+    @Test
+    @DisplayName("trava a fila da turma antes de ler ou gravar a fila")
+    void travaAFilaAntesDeLerOuGravar() {
+        service.registrarInscricao(dtoPorId("400.00", true));
+
+        InOrder ordem = inOrder(travaFilaTurma, filaEsperaRepository, filaRedisService);
+        ordem.verify(travaFilaTurma).travar(MUNICIPIO_ID, TURMA_ID);
+        ordem.verify(filaEsperaRepository).save(any(FilaEspera.class));
+        ordem.verify(filaEsperaRepository).findByTurmaIdOrdenadaPorPrioridade(TURMA_ID);
+        ordem.verify(filaEsperaRepository).saveAll(any());
+        ordem.verify(filaRedisService).atualizarPosicoesAposCommit(eq(MUNICIPIO_ID), eq(TURMA_ID), any());
+    }
+
+    @Test
+    @DisplayName("falha ao travar a fila aborta sem gravar fila, Redis nem evento")
+    void falhaAoTravarAbortaSemGravar() {
+        doThrow(new IllegalStateException("falha ao travar")).when(travaFilaTurma).travar(MUNICIPIO_ID, TURMA_ID);
+
+        assertThatThrownBy(() -> service.registrarInscricao(dtoPorId("400.00", true)))
+                .isInstanceOf(IllegalStateException.class);
+
+        verifyNoInteractions(filaEsperaRepository, filaRedisService, outboxEventWriter);
     }
 
     @Test

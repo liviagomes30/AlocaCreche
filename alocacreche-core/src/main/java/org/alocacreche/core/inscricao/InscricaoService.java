@@ -3,6 +3,9 @@ package org.alocacreche.core.inscricao;
 import cn.dev33.satoken.exception.NotPermissionException;
 import jakarta.persistence.EntityManager;
 import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.alocacreche.core.comum.excecao.RecursoNaoEncontradoException;
@@ -17,10 +20,6 @@ import org.alocacreche.core.outbox.OutboxPayloads.FilaEsperaAtualizadaPayload;
 import org.alocacreche.core.outbox.OutboxRabbitConfig;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 @Slf4j
 @Service
@@ -40,6 +39,7 @@ public class InscricaoService {
     private final CalculadoraScorePrioridade calculadoraScorePrioridade;
     private final OutboxEventWriter outboxEventWriter;
     private final FilaRedisService filaRedisService;
+    private final TravaFilaTurma travaFilaTurma;
 
     @Transactional
     public InscricaoRegistradaResponse registrarInscricao(InscricaoDTO dto) {
@@ -114,48 +114,48 @@ public class InscricaoService {
     }
 
     private int enfileirar(Inscricao inscricao, Long turmaId, Long municipioId) {
+        // Serializa a fila da turma antes de qualquer leitura ou escrita dela: sem isso, duas
+        // inscricoes simultaneas nao enxergam a linha uma da outra e renumeram por conta propria.
+        travaFilaTurma.travar(municipioId, turmaId);
+
         FilaEspera fila = new FilaEspera();
         fila.setMunicipioId(municipioId);
         fila.setInscricao(inscricao);
         fila.setTurmaId(turmaId);
-
-        // A posição será recalculada abaixo conforme o score de prioridade.
+        // A posicao definitiva e atribuida por renumerarPorPrioridade.
         fila.setPosicao(0);
         filaEsperaRepository.save(fila);
 
+        return renumerarPorPrioridade(inscricao, turmaId, municipioId);
+    }
+
+    /**
+     * Renumera toda a fila da turma por prioridade (score desc, dataInscricao asc, id asc) e
+     * devolve a posicao da inscricao informada. Custo O(n) por inscricao, conhecido e aceito.
+     * Deve rodar com o lock da turma ja adquirido.
+     */
+    private int renumerarPorPrioridade(Inscricao inscricao, Long turmaId, Long municipioId) {
         List<FilaEspera> filasOrdenadas =
                 filaEsperaRepository.findByTurmaIdOrdenadaPorPrioridade(turmaId);
 
+        Map<Long, Integer> posicoes = new HashMap<>();
         int posicaoInscricao = 0;
 
         for (int i = 0; i < filasOrdenadas.size(); i++) {
-                FilaEspera filaAtual = filasOrdenadas.get(i);
-                int novaPosicao = i + 1;
-
-                filaAtual.setPosicao(novaPosicao);
-
-                if (filaAtual.getInscricao().getId().equals(inscricao.getId())) {
+            FilaEspera filaAtual = filasOrdenadas.get(i);
+            int novaPosicao = i + 1;
+            filaAtual.setPosicao(novaPosicao);
+            posicoes.put(filaAtual.getInscricao().getId(), novaPosicao);
+            if (filaAtual.getInscricao().getId().equals(inscricao.getId())) {
                 posicaoInscricao = novaPosicao;
-                }
+            }
         }
 
         filaEsperaRepository.saveAll(filasOrdenadas);
-
-        Map<Long, Integer> posicoes = new HashMap<>();
-
-        for (FilaEspera filaAtual : filasOrdenadas) {
-                posicoes.put(
-                        filaAtual.getInscricao().getId(),
-                        filaAtual.getPosicao());
-        }
-
-        filaRedisService.atualizarPosicoesAposCommit(
-                municipioId,
-                turmaId,
-                posicoes);
+        filaRedisService.atualizarPosicoesAposCommit(municipioId, turmaId, posicoes);
 
         return posicaoInscricao;
-        }
+    }
 
     private void emitirEventoDeFila(Inscricao inscricao, Turma turma, Long municipioId) {
         LocalDateTime agora = LocalDateTime.now();

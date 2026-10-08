@@ -15,6 +15,7 @@ import org.alocacreche.core.inscricao.FilaEsperaRepository;
 import org.alocacreche.core.inscricao.FilaRedisService;
 import org.alocacreche.core.inscricao.Inscricao;
 import org.alocacreche.core.inscricao.StatusInscricao;
+import org.alocacreche.core.inscricao.TravaFilaTurma;
 import org.alocacreche.core.matricula.Creche;
 import org.alocacreche.core.matricula.Matricula;
 import org.alocacreche.core.matricula.MatriculaRepository;
@@ -45,11 +46,15 @@ public class AlocacaoVagaTransacional {
     private final GeolocalizacaoService geolocalizacaoService;
     private final OutboxEventWriter outboxEventWriter;
     private final FilaRedisService filaRedisService;
+    private final TravaFilaTurma travaFilaTurma;
 
     @Transactional
     public MatriculaAlocadaResponse executar(Long turmaId) {
         Long municipioId = sessaoTenantResolver.municipioIdAtual();
         TenantContext.aplicar(entityManager, municipioId);
+        // Mesmo lock do enfileiramento: sem ele, a leitura do primeiro da fila e a remocao
+        // competiriam com uma renumeracao em andamento e poderiam convocar fora da ordem do score.
+        travaFilaTurma.travar(municipioId, turmaId);
 
         Turma turma =
                 turmaRepository
