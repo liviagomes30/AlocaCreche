@@ -15,24 +15,26 @@
 --     -v senha='<senha-da-demo>' -v email_gestor=gestor@demo.local -v email_atendente=atendente@demo.local \
 --     -f - < docs/mock-data/usuarios-demo.sql
 --
+-- Falha de verdade (exit code != 0 e mensagem clara) quando falta variavel obrigatoria ou o municipio
+-- nao existe: o script liga ON_ERROR_STOP sozinho, entao nao depende de quem chama passar a flag.
+--
 -- Idempotente: reexecutar atualiza hash, nome, perfil e reativa o usuario (UNIQUE municipio+email).
 -- A tabela usuario tem RLS: o tenant e definido com set_config(..., true), que equivale a SET LOCAL
 -- e vale so dentro da transacao.
 
+\set ON_ERROR_STOP on
+
 \if :{?senha}
 \else
-  \echo 'Informe a senha com -v senha=...'
-  \quit
+  DO $$ BEGIN RAISE EXCEPTION 'Informe a senha com -v senha=...'; END $$;
 \endif
 \if :{?email_gestor}
 \else
-  \echo 'Informe o email com -v email_gestor=...'
-  \quit
+  DO $$ BEGIN RAISE EXCEPTION 'Informe o email com -v email_gestor=...'; END $$;
 \endif
 \if :{?email_atendente}
 \else
-  \echo 'Informe o email com -v email_atendente=...'
-  \quit
+  DO $$ BEGIN RAISE EXCEPTION 'Informe o email com -v email_atendente=...'; END $$;
 \endif
 \if :{?municipio_id}
 \else
@@ -43,6 +45,15 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 BEGIN;
 SELECT set_config('app.current_tenant', :'municipio_id', true);
+
+-- Municipio inexistente interrompe o script com erro (exit code 3 do psql), em vez de inserir 0 linhas.
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM municipio WHERE id = current_setting('app.current_tenant')::bigint) THEN
+        RAISE EXCEPTION 'Municipio % nao existe: crie o municipio antes de rodar este script (municipio_id)',
+            current_setting('app.current_tenant');
+    END IF;
+END $$;
 
 INSERT INTO usuario (municipio_id, email, senha_hash, nome, perfil, ativo)
 SELECT m.id, :'email_gestor', crypt(:'senha', gen_salt('bf', 10)), 'Gestor Demo', 'GESTOR', true

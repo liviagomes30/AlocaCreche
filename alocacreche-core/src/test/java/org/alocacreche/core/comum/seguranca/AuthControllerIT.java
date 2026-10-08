@@ -148,20 +148,11 @@ class AuthControllerIT {
         String gestor = "gestor.demo" + DOMINIO;
         String atendente = "atendente.demo" + DOMINIO;
         String admin = "admin.demo" + DOMINIO;
-        Path script = Path.of("..", "docs", "mock-data", "usuarios-demo.sql").toAbsolutePath().normalize();
-        postgres.copyFileToContainer(MountableFile.forHostPath(script), "/tmp/usuarios-demo.sql");
 
         // Duas execucoes seguidas provam a idempotencia (ON CONFLICT DO UPDATE).
         for (int execucao = 0; execucao < 2; execucao++) {
-            ExecResult resultado = postgres.execInContainer(
-                    "psql", "-U", postgres.getUsername(), "-d", postgres.getDatabaseName(),
-                    "-v", "ON_ERROR_STOP=1",
-                    "-v", "senha=" + senhaDemo,
-                    "-v", "email_gestor=" + gestor,
-                    "-v", "email_atendente=" + atendente,
-                    "-v", "email_admin=" + admin,
-                    "-v", "municipio_id=" + municipioA,
-                    "-f", "/tmp/usuarios-demo.sql");
+            ExecResult resultado = executarScriptDeUsuarios(
+                    postgres.getUsername(), senhaDemo, gestor, atendente, admin, municipioA);
             assertThat(resultado.getExitCode()).as(resultado.getStderr()).isZero();
         }
 
@@ -176,6 +167,109 @@ class AuthControllerIT {
                     .containsExactlyElementsOf(esperado.getValue().permissoes());
         }
         assertThat(login(gestor, "SenhaErrada#999", municipioA).getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+    }
+
+    @Test
+    @DisplayName("script de usuarios da demo com municipio inexistente falha (exit code != 0) e nao insere nada")
+    void scriptDeUsuariosFalhaComMunicipioInexistente() throws Exception {
+        String gestor = "gestor.sem.municipio" + DOMINIO;
+
+        ExecResult resultado = executarScriptDeUsuarios(
+                postgres.getUsername(), "SenhaDemo#2026", gestor, "atendente.sem.municipio" + DOMINIO, null, 987_654L);
+
+        assertThat(resultado.getExitCode()).isNotZero();
+        assertThat(resultado.getStderr()).contains("987654 nao existe");
+        assertThat(login(gestor, "SenhaDemo#2026", 987_654L).getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+    }
+
+    @Test
+    @DisplayName("script de usuarios da demo sem senha ou sem email obrigatorio falha (exit code != 0) com mensagem clara")
+    void scriptDeUsuariosFalhaSemVariavelObrigatoria() throws Exception {
+        ExecResult semSenha = executarScriptDeUsuarios(
+                postgres.getUsername(), null, "g" + DOMINIO, "a" + DOMINIO, null, municipioA);
+        ExecResult semGestor = executarScriptDeUsuarios(
+                postgres.getUsername(), "SenhaDemo#2026", null, "a" + DOMINIO, null, municipioA);
+        ExecResult semAtendente = executarScriptDeUsuarios(
+                postgres.getUsername(), "SenhaDemo#2026", "g" + DOMINIO, null, null, municipioA);
+
+        assertThat(semSenha.getExitCode()).isNotZero();
+        assertThat(semSenha.getStderr()).contains("-v senha=");
+        assertThat(semGestor.getExitCode()).isNotZero();
+        assertThat(semGestor.getStderr()).contains("-v email_gestor=");
+        assertThat(semAtendente.getExitCode()).isNotZero();
+        assertThat(semAtendente.getStderr()).contains("-v email_atendente=");
+    }
+
+    @Test
+    @DisplayName("2a execucao do script com OUTRA senha troca a senha: a nova entra e a antiga responde 401")
+    void segundaExecucaoComOutraSenhaTrocaASenha() throws Exception {
+        String gestor = "gestor.troca" + DOMINIO;
+        String atendente = "atendente.troca" + DOMINIO;
+        String senhaAntiga = "SenhaAntiga#2026";
+        String senhaNova = "SenhaNova#2026";
+
+        ExecResult primeira = executarScriptDeUsuarios(postgres.getUsername(), senhaAntiga, gestor, atendente, null, municipioA);
+        assertThat(login(gestor, senhaAntiga, municipioA).getStatusCode()).isEqualTo(HttpStatus.OK);
+        ExecResult segunda = executarScriptDeUsuarios(postgres.getUsername(), senhaNova, gestor, atendente, null, municipioA);
+
+        assertThat(primeira.getExitCode()).as(primeira.getStderr()).isZero();
+        assertThat(segunda.getExitCode()).as(segunda.getStderr()).isZero();
+        assertThat(login(gestor, senhaNova, municipioA).getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(login(gestor, senhaAntiga, municipioA).getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+    }
+
+    @Test
+    @DisplayName("script de usuarios da demo reativa um usuario que estava inativo")
+    void scriptReativaUsuarioInativo() throws Exception {
+        String gestor = "gestor.inativo" + DOMINIO;
+        String senhaDemo = "SenhaDemo#2026";
+        criarUsuario(municipioA, gestor, PerfilUsuario.GESTOR, false);
+        assertThat(login(gestor, SENHA_CORRETA, municipioA).getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+
+        ExecResult resultado = executarScriptDeUsuarios(
+                postgres.getUsername(), senhaDemo, gestor, "atendente.reativa" + DOMINIO, null, municipioA);
+
+        assertThat(resultado.getExitCode()).as(resultado.getStderr()).isZero();
+        assertThat(login(gestor, senhaDemo, municipioA).getStatusCode()).isEqualTo(HttpStatus.OK);
+    }
+
+    @Test
+    @DisplayName("script de usuarios da demo funciona com a role da aplicacao (sujeita a RLS, sem BYPASSRLS)")
+    void scriptFuncionaComARoleSujeitaARls() throws Exception {
+        String gestor = "gestor.rls" + DOMINIO;
+        String senhaDemo = "SenhaDemo#2026";
+
+        ExecResult resultado = executarScriptDeUsuarios(
+                "alocacreche_app", senhaDemo, gestor, "atendente.rls" + DOMINIO, null, municipioA);
+
+        assertThat(resultado.getExitCode()).as(resultado.getStderr()).isZero();
+        assertThat(login(gestor, senhaDemo, municipioA).getStatusCode()).isEqualTo(HttpStatus.OK);
+    }
+
+    /**
+     * Roda docs/mock-data/usuarios-demo.sql dentro do container, sem passar ON_ERROR_STOP: o proprio
+     * script precisa parar no erro. Variavel nula nao e passada ao psql.
+     */
+    private ExecResult executarScriptDeUsuarios(
+            String usuarioPostgres, String senha, String emailGestor, String emailAtendente, String emailAdmin, Long municipioId)
+            throws Exception {
+        Path script = Path.of("..", "docs", "mock-data", "usuarios-demo.sql").toAbsolutePath().normalize();
+        postgres.copyFileToContainer(MountableFile.forHostPath(script), "/tmp/usuarios-demo.sql");
+        List<String> comando = new ArrayList<>(List.of("psql", "-U", usuarioPostgres, "-d", postgres.getDatabaseName()));
+        Map<String, String> variaveis = new HashMap<>();
+        variaveis.put("senha", senha);
+        variaveis.put("email_gestor", emailGestor);
+        variaveis.put("email_atendente", emailAtendente);
+        variaveis.put("email_admin", emailAdmin);
+        variaveis.put("municipio_id", String.valueOf(municipioId));
+        variaveis.forEach((nome, valor) -> {
+            if (valor != null) {
+                comando.add("-v");
+                comando.add(nome + "=" + valor);
+            }
+        });
+        comando.addAll(List.of("-f", "/tmp/usuarios-demo.sql"));
+        return postgres.execInContainer(comando.toArray(String[]::new));
     }
 
     @Test

@@ -63,5 +63,11 @@ transação. Use uma senha só da demo (ela aparece na linha de comando do `psql
 docker compose exec -T postgres-core psql -U alocacreche -d alocacreche -v ON_ERROR_STOP=1   -v senha='<senha-da-demo>'   -v email_gestor=gestor@demo.local -v email_atendente=atendente@demo.local   -f - < docs/mock-data/usuarios-demo.sql
 ```
 
-Validado por `AuthControllerIT.usuariosDoScriptDeDemoFazemLogin`: executa o script duas vezes num Postgres
-real (Testcontainers) e faz `POST /api/v1/auth/login` com cada usuário, conferindo as permissões do perfil.
+O script liga `ON_ERROR_STOP` sozinho e **falha de verdade** (exit code 3 do `psql` e mensagem clara) quando falta
+`senha`, `email_gestor` ou `email_atendente`, ou quando o município não existe; em automação, o exit code
+diferente de zero é o sinal. Não há mais saída 0 com `INSERT 0 0`.
+
+Validado por `AuthControllerIT` (script de usuários da demo): executa o script num Postgres real (Testcontainers)
+e faz `POST /api/v1/auth/login` com cada usuário, conferindo as permissões do perfil; cobre também município
+inexistente (falha), variável ausente (falha), 2ª execução com outra senha (a nova entra e a antiga dá 401),
+reativação de usuário inativo e execução com a role sujeita a RLS (`alocacreche_app`).

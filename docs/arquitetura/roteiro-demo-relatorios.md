@@ -361,5 +361,5 @@ município não for o 1:
 docker compose exec -T postgres-core psql -U alocacreche -d alocacreche -v ON_ERROR_STOP=1   -v senha='<senha-da-demo>'   -v email_gestor=gestor@demo.local -v email_atendente=atendente@demo.local   -f - < docs/mock-data/usuarios-demo.sql
 ```
 
-Esperado: dois `INSERT 0 1` (um por usuário). Reexecutar é seguro: troca a senha e reativa o usuário. Depois,
+Esperado: dois `INSERT 0 1` (um por usuário) e exit code 0. Se o município não existir ou faltar uma variável, o script termina com erro e exit code diferente de zero (nada é inserido). Reexecutar é seguro: troca a senha e reativa o usuário. Depois,
 entre em `login.html` (ou no `curl` da seção 7) com o email e a senha informados.
