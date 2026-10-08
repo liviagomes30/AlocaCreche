@@ -14,6 +14,7 @@ import org.alocacreche.core.inscricao.FilaEspera;
 import org.alocacreche.core.inscricao.FilaEsperaRepository;
 import org.alocacreche.core.inscricao.FilaRedisService;
 import org.alocacreche.core.inscricao.Inscricao;
+import org.alocacreche.core.inscricao.RenumeracaoFila;
 import org.alocacreche.core.inscricao.StatusInscricao;
 import org.alocacreche.core.inscricao.TravaFilaTurma;
 import org.alocacreche.core.matricula.Creche;
@@ -48,6 +49,7 @@ public class AlocacaoVagaTransacional {
     private final OutboxEventWriter outboxEventWriter;
     private final FilaRedisService filaRedisService;
     private final TravaFilaTurma travaFilaTurma;
+    private final RenumeracaoFila renumeracaoFila;
 
     /**
      * Alocacao pedida por uma requisicao HTTP: o municipio vem do token. REQUIRES_NEW pelo mesmo
@@ -110,6 +112,8 @@ public class AlocacaoVagaTransacional {
         filaEsperaRepository.delete(primeiroDaFila);
         filaRedisService.removerAposCommit(municipioId, turmaId, inscricao.getId());
         inscricao.setStatus(StatusInscricao.CONVOCADA);
+        // A alocada saiu da fila: quem estava atras sobe uma posicao, no banco e no Redis.
+        renumeracaoFila.renumerar(municipioId, turmaId);
 
         registrarEventos(municipioId, turma, creche, primeiroDaFila, salva, agora);
 

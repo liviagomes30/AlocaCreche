@@ -34,6 +34,7 @@ import org.alocacreche.core.inscricao.FilaEspera;
 import org.alocacreche.core.inscricao.FilaEsperaRepository;
 import org.alocacreche.core.inscricao.FilaRedisService;
 import org.alocacreche.core.inscricao.Inscricao;
+import org.alocacreche.core.inscricao.RenumeracaoFila;
 import org.alocacreche.core.inscricao.Responsavel;
 import org.alocacreche.core.inscricao.StatusInscricao;
 import org.alocacreche.core.inscricao.TravaFilaTurma;
@@ -94,6 +95,7 @@ class AlocacaoVagaTransacionalTest {
     @Mock private OutboxEventWriter outboxEventWriter;
     @Mock private FilaRedisService filaRedisService;
     @Mock private TravaFilaTurma travaFilaTurma;
+    @Mock private RenumeracaoFila renumeracaoFila;
 
     private AlocacaoVagaTransacional alocacao;
     private Turma turma;
@@ -117,7 +119,8 @@ class AlocacaoVagaTransacionalTest {
                         geolocalizacaoService,
                         outboxEventWriter,
                         filaRedisService,
-                        travaFilaTurma);
+                        travaFilaTurma,
+                        renumeracaoFila);
 
         enderecoCreche = new Endereco("Rua B", 20, "Centro", "01000-000", "Sao Paulo", "SP", -23.56, -46.64);
         creche = new Creche();
@@ -210,7 +213,7 @@ class AlocacaoVagaTransacionalTest {
 
         assertThatThrownBy(() -> alocacao.executar(TURMA_ID)).isInstanceOf(IllegalStateException.class);
 
-        verifyNoInteractions(matriculaRepository, outboxEventWriter, filaRedisService);
+        verifyNoInteractions(matriculaRepository, outboxEventWriter, filaRedisService, renumeracaoFila);
         verify(turmaRepository, never()).saveAndFlush(any());
         verify(filaEsperaRepository, never()).delete(any());
     }
@@ -243,6 +246,16 @@ class AlocacaoVagaTransacionalTest {
         alocacao.executar(TURMA_ID);
 
         verify(filaRedisService).removerAposCommit(MUNICIPIO_ID, TURMA_ID, INSCRICAO_ID);
+    }
+
+    @Test
+    @DisplayName("renumera a fila da turma depois de deletar a alocada, para os demais subirem")
+    void renumeraAFilaDepoisDeRemoverAAlocada() {
+        alocacao.executar(TURMA_ID);
+
+        InOrder ordem = inOrder(filaEsperaRepository, renumeracaoFila);
+        ordem.verify(filaEsperaRepository).delete(primeiroDaFila);
+        ordem.verify(renumeracaoFila).renumerar(MUNICIPIO_ID, TURMA_ID);
     }
 
     @Test
@@ -473,7 +486,7 @@ class AlocacaoVagaTransacionalTest {
     private void verificarRecusaSemEfeito() {
         verify(turmaRepository, never()).saveAndFlush(any(Turma.class));
         verify(filaEsperaRepository, never()).delete(any(FilaEspera.class));
-        verifyNoInteractions(matriculaRepository, outboxEventWriter, filaRedisService);
+        verifyNoInteractions(matriculaRepository, outboxEventWriter, filaRedisService, renumeracaoFila);
         assertThat(inscricao.getStatus()).isEqualTo(StatusInscricao.AGUARDANDO);
     }
 

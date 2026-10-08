@@ -103,7 +103,8 @@ class InscricaoServiceTest {
                         new CalculadoraScorePrioridade(),
                         outboxEventWriter,
                         filaRedisService,
-                        travaFilaTurma);
+                        travaFilaTurma,
+                        new RenumeracaoFila(filaEsperaRepository, filaRedisService));
         municipio = new Municipio();
         municipio.setConfiguracaoPriorizacao(
                 ConfiguracaoPriorizacao.builder()

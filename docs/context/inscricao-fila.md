@@ -51,12 +51,19 @@ diretamente.
 
 ## Ordenação da fila e lock por turma
 
-- **Ordem:** a cada inscrição (`InscricaoService.enfileirar`), a fila inteira da turma é renumerada
-  `1..N` por `score` decrescente, `dataInscricao` crescente e `id` crescente (`renumerarPorPrioridade`).
-  A alocação convoca a menor posição (`findFirstByTurmaIdOrderByPosicaoAsc`), então a posição errada
-  significa convocar a pessoa errada. A alocação remove a inscrição convocada sem renumerar: as
-  posições restantes continuam distintas e ordenadas, só podem começar acima de 1 até a próxima
-  inscrição renumerar.
+- **Ordem:** a cada inscrição (`InscricaoService.enfileirar`) **e a cada alocação**
+  (`AlocacaoVagaTransacional`, depois de deletar a inscrição convocada), a fila inteira da turma é
+  renumerada `1..N` por `score` decrescente, `dataInscricao` crescente e `id` crescente. A lógica vive
+  num único componente, `RenumeracaoFila.renumerar(municipioId, turmaId)` (exige transação ativa,
+  `MANDATORY`, e o `TravaFilaTurma` já tomado pelo chamador): ordena, grava em lote e agenda a
+  atualização das posições no ZSET do Redis para depois do commit. A alocação remove a convocada do
+  ZSET (`removerAposCommit`) e renumera, então quem estava atrás sobe de posição em tempo real, no banco,
+  no Redis e em `GET /posicao`. A alocação convoca a menor posição
+  (`findFirstByTurmaIdOrderByPosicaoAsc`), então a posição errada significa convocar a pessoa errada.
+- **Outros pontos que retiram alguém da fila:** nenhum. Desistência e expiração só mudam a
+  `Inscricao` (`CANCELADA`/`EXPIRADA`) cuja entrada na fila já foi removida na alocação; a vaga
+  devolvida dispara a próxima alocação (listener ou job), que renumera pelo caminho acima. Não há
+  reconciliação que mexa em `fila_espera`.
 - **Lock por turma (`TravaFilaTurma.travar`):** enfileirar e alocar tomam o mesmo
   `pg_advisory_xact_lock(namespace_fila, turmaId)` dentro da transação, depois do `TenantContext.aplicar`
   e antes de ler ou gravar a fila. Sem ele, duas inscrições simultâneas (READ COMMITTED) não enxergam a
@@ -66,7 +73,7 @@ diretamente.
 - **Por que advisory lock e não `PESSIMISTIC_WRITE` na `Turma`:** o lock de linha disputaria a mesma
   linha usada pelo `@Version` da alocação e da confirmação de matrícula (módulo Matrícula). O advisory
   lock não toca linha nenhuma.
-- **Limitação conhecida:** a renumeração é O(n) por inscrição (lê e regrava a fila inteira da turma) e
+- **Limitação conhecida:** a renumeração é O(n) por inscrição e por alocação (lê e regrava a fila inteira da turma) e
   o lock serializa as inscrições da mesma turma; aceitável para o tamanho esperado de fila por turma.
   Se uma fila crescer a ponto de pesar, a evolução é inserir só o deslocamento afetado (posição da
   nova inscrição em diante) em vez de renumerar tudo.
@@ -74,8 +81,10 @@ diretamente.
   consecutivas na mesma turma podem, em janela de microssegundos, aplicar seus snapshots fora de
   ordem; o cache se corrige na próxima inscrição da turma e, na leitura, o banco continua sendo a
   fonte da verdade.
-- Testes: `TravaFilaTurmaTest`, `InscricaoServiceTest` (lock antes da fila) e
-  `InscricaoFilaConcorrenciaIT` (inscrições e alocações simultâneas com Postgres e Redis reais).
+- Testes: `TravaFilaTurmaTest`, `RenumeracaoFilaTest`, `InscricaoServiceTest` (lock antes da fila),
+  `AlocacaoVagaTransacionalTest` (renumera depois de deletar a convocada), `InscricaoFilaRedisIT`
+  (alocar e desistir com posições 1..N no banco, no Redis e na API) e `InscricaoFilaConcorrenciaIT`
+  (inscrições e alocações simultâneas com Postgres e Redis reais). Decisão registrada na ADR 0007.
 
 ## Regras específicas deste módulo
 

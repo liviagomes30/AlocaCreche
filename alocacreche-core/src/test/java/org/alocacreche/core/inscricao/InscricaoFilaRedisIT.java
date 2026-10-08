@@ -93,6 +93,7 @@ class InscricaoFilaRedisIT {
     @Autowired private MunicipioRepository municipioRepository;
     @Autowired private CrecheRepository crecheRepository;
     @Autowired private TurmaRepository turmaRepository;
+    @Autowired private FilaEsperaRepository filaEsperaRepository;
     @Autowired private PlatformTransactionManager transactionManager;
     @MockitoSpyBean private OutboxEventRepository outboxEventRepository;
     @PersistenceContext private EntityManager entityManager;
@@ -243,6 +244,77 @@ class InscricaoFilaRedisIT {
         ResponseEntity<String> posicao = consultarPosicao(municipioA, inscricaoId, turmaDoMunicipioA);
         assertThat(posicao.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
         assertThat(posicao.getBody()).contains("não está na fila");
+    }
+
+    @Test
+    @DisplayName("alocar a vaga renumera a fila: o primeiro sai e os demais sobem no banco, no Redis e na API")
+    void alocarRenumeraOsDemais() throws Exception {
+        long rendaAlta = inscreverComDados(turmaDoMunicipioA, 2000, false);
+        long rendaMedia = inscreverComDados(turmaDoMunicipioA, 1500, false);
+        long rendaMuitoBaixa = inscreverComDados(turmaDoMunicipioA, 500, false);
+        long rendaBaixa = inscreverComDados(turmaDoMunicipioA, 1000, false);
+        assertFilaCoerente(turmaDoMunicipioA, rendaMuitoBaixa, rendaBaixa, rendaMedia, rendaAlta);
+
+        assertThat(alocar(turmaDoMunicipioA).getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertFilaCoerente(turmaDoMunicipioA, rendaBaixa, rendaMedia, rendaAlta);
+
+        assertThat(alocar(turmaDoMunicipioA).getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertFilaCoerente(turmaDoMunicipioA, rendaMedia, rendaAlta);
+    }
+
+    @Test
+    @DisplayName("desistencia com alocacao automatica mantem as posicoes coerentes e sem buracos")
+    void desistenciaComAlocacaoAutomaticaMantemPosicoes() throws Exception {
+        long primeira = inscreverComDados(turmaDoMunicipioA, 500, false);
+        long segunda = inscreverComDados(turmaDoMunicipioA, 1000, false);
+        long terceira = inscreverComDados(turmaDoMunicipioA, 1500, false);
+        long quarta = inscreverComDados(turmaDoMunicipioA, 2000, false);
+        ResponseEntity<String> alocacao = alocar(turmaDoMunicipioA);
+        long matriculaId = objectMapper.readTree(alocacao.getBody()).get("matriculaId").asLong();
+        assertFilaCoerente(turmaDoMunicipioA, segunda, terceira, quarta);
+
+        ResponseEntity<String> desistencia = enviar(
+                HttpMethod.POST,
+                "/api/v1/matricula/matriculas/" + matriculaId + "/desistir",
+                null,
+                tokenCom(municipioA, List.of("*")));
+
+        assertThat(desistencia.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(consultarPosicao(municipioA, primeira, turmaDoMunicipioA).getStatusCode())
+                .as("a inscricao que desistiu nao volta a fila")
+                .isEqualTo(HttpStatus.NOT_FOUND);
+        assertFilaCoerente(turmaDoMunicipioA, terceira, quarta);
+    }
+
+    private ResponseEntity<String> alocar(Long turmaId) {
+        return enviar(HttpMethod.POST, CAMINHO_ALOCAR, Map.of("turmaId", turmaId), tokenCom(municipioA, List.of("*")));
+    }
+
+    /**
+     * Confere que a fila da turma tem exatamente as inscricoes informadas, na ordem dada, com as
+     * posicoes 1..n no banco, no ZSET do Redis e na resposta da API.
+     */
+    private void assertFilaCoerente(Long turmaId, long... inscricoesEmOrdem) throws Exception {
+        Map<Long, Integer> noBanco = emTenant(municipioA, () -> {
+            Map<Long, Integer> posicoes = new HashMap<>();
+            filaEsperaRepository.findByTurmaIdOrderByPosicaoAsc(turmaId)
+                    .forEach(fila -> posicoes.put(fila.getInscricao().getId(), fila.getPosicao()));
+            return posicoes;
+        });
+        assertThat(noBanco).hasSize(inscricoesEmOrdem.length);
+        String chave = chave(municipioA, turmaId);
+        assertThat(redisTemplate.opsForZSet().zCard(chave)).isEqualTo((long) inscricoesEmOrdem.length);
+        for (int i = 0; i < inscricoesEmOrdem.length; i++) {
+            long inscricaoId = inscricoesEmOrdem[i];
+            int esperada = i + 1;
+            assertThat(noBanco.get(inscricaoId)).as("banco, inscricao %s", inscricaoId).isEqualTo(esperada);
+            assertThat(redisTemplate.opsForZSet().score(chave, String.valueOf(inscricaoId)))
+                    .as("Redis, inscricao %s", inscricaoId)
+                    .isEqualTo((double) esperada);
+            assertThat(posicaoPelaApi(municipioA, inscricaoId, turmaId))
+                    .as("API, inscricao %s", inscricaoId)
+                    .isEqualTo(esperada);
+        }
     }
 
     @Test

@@ -3,9 +3,6 @@ package org.alocacreche.core.inscricao;
 import cn.dev33.satoken.exception.NotPermissionException;
 import jakarta.persistence.EntityManager;
 import java.time.LocalDateTime;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -52,6 +49,7 @@ public class InscricaoService {
     private final OutboxEventWriter outboxEventWriter;
     private final FilaRedisService filaRedisService;
     private final TravaFilaTurma travaFilaTurma;
+    private final RenumeracaoFila renumeracaoFila;
 
     @Transactional
     public InscricaoRegistradaResponse registrarInscricao(InscricaoDTO dto) {
@@ -150,39 +148,11 @@ public class InscricaoService {
         fila.setMunicipioId(municipioId);
         fila.setInscricao(inscricao);
         fila.setTurmaId(turmaId);
-        // A posicao definitiva e atribuida por renumerarPorPrioridade.
+        // A posicao definitiva e atribuida por RenumeracaoFila.
         fila.setPosicao(0);
         filaEsperaRepository.save(fila);
 
-        return renumerarPorPrioridade(inscricao, turmaId, municipioId);
-    }
-
-    /**
-     * Renumera toda a fila da turma por prioridade (score desc, dataInscricao asc, id asc) e
-     * devolve a posicao da inscricao informada. Custo O(n) por inscricao, conhecido e aceito.
-     * Deve rodar com o lock da turma ja adquirido.
-     */
-    private int renumerarPorPrioridade(Inscricao inscricao, Long turmaId, Long municipioId) {
-        List<FilaEspera> filasOrdenadas =
-                filaEsperaRepository.findByTurmaIdOrdenadaPorPrioridade(turmaId);
-
-        Map<Long, Integer> posicoes = new HashMap<>();
-        int posicaoInscricao = 0;
-
-        for (int i = 0; i < filasOrdenadas.size(); i++) {
-            FilaEspera filaAtual = filasOrdenadas.get(i);
-            int novaPosicao = i + 1;
-            filaAtual.setPosicao(novaPosicao);
-            posicoes.put(filaAtual.getInscricao().getId(), novaPosicao);
-            if (filaAtual.getInscricao().getId().equals(inscricao.getId())) {
-                posicaoInscricao = novaPosicao;
-            }
-        }
-
-        filaEsperaRepository.saveAll(filasOrdenadas);
-        filaRedisService.atualizarPosicoesAposCommit(municipioId, turmaId, posicoes);
-
-        return posicaoInscricao;
+        return renumeracaoFila.renumerar(municipioId, turmaId).get(inscricao.getId());
     }
 
     private void emitirEventoDeFila(Inscricao inscricao, Turma turma, Long municipioId) {
