@@ -94,12 +94,12 @@ function permissoesDoToken() {
   return Array.isArray(perms) ? perms : [];
 }
 
+// Deduz o perfil pelas permissões do token: GESTOR lê relatórios, ATENDENTE opera inscrição
 function perfilDoToken() {
   var perms = permissoesDoToken();
   if (perms.indexOf('*') >= 0) { return 'ADMIN'; }
   if (!perms.length) { return 'sem permissões'; }
-  var soRelatorios = perms.every(function (p) { return p.indexOf('relatorios:') === 0; });
-  if (soRelatorios) { return 'GESTOR'; }
+  if (perms.some(function (p) { return p.indexOf('relatorios:') === 0; })) { return 'GESTOR'; }
   if (perms.some(function (p) { return p.indexOf('inscricao:') === 0; })) { return 'ATENDENTE'; }
   return 'personalizado';
 }

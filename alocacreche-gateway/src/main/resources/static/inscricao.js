@@ -29,6 +29,14 @@ function atualizarEstimativaDeScore() {
   $('a_scoreDetalhe').textContent = e.texto;
 }
 
+// Cor do selo conforme o status de inscrição ou matrícula
+function classeDeStatus(status) {
+  if (status === 'AGUARDANDO') { return 'info'; }
+  if (status === 'CANCELADA' || status === 'EXPIRADA') { return 'erro'; }
+  if (status === 'PENDENTE' || status === 'CONVOCADA') { return 'aviso'; }
+  return 'ok';
+}
+
 function mostrarResultado(idElemento, resposta, mensagemOk) {
   var alvo = $(idElemento);
   alvo.textContent = '';
@@ -50,7 +58,7 @@ function renderizarInscricao() {
   preencherTabela($('a_tabela'), ['Inscrição', 'Criança', 'Turma', 'Posição', 'Score', 'Status'],
     ordenadas.map(function (i) {
       return ['#' + i.id, i.nome, '#' + i.turmaId, i.posicao === null || i.posicao === undefined ? '-' : String(i.posicao),
-        el('span', { title: i.explicacao, texto: numero(i.score, 2) }), selo(i.status, i.status === 'AGUARDANDO' ? 'info' : 'ok')];
+        el('span', { title: i.explicacao, texto: numero(i.score, 2) }), selo(i.status, classeDeStatus(i.status))];
     }), 'Nenhuma inscrição nesta sessão.');
 }
 
@@ -166,7 +174,163 @@ async function aoConsultarTodasAsPosicoes() {
   avisar('Posições atualizadas a partir da API.', 'ok');
 }
 
+// ---------------------------------------------------------------------------
+// Cenários: fila por prioridade, inscrições simultâneas e inscrição única da criança
+// ---------------------------------------------------------------------------
+
+// Escreve o veredito de um cenário (verde quando correto, vermelho caso contrário)
+function escreverVeredito(idElemento, correto, texto) {
+  var alvo = $(idElemento);
+  alvo.textContent = texto;
+  alvo.style.color = correto ? 'var(--ok)' : 'var(--erro)';
+  alvo.style.fontWeight = '600';
+}
+
+function limparCenario(texto) {
+  var alvo = $('a_cenRes');
+  alvo.style.color = '';
+  alvo.style.fontWeight = '';
+  alvo.textContent = texto;
+  preencherTabela($('a_cenTabela'), ['Inscrição'], [], 'Executando...');
+}
+
+// Cria uma creche e uma turma novas (fila vazia) para o cenário
+async function criarTurmaDeCenario(nome, vagas) {
+  return acaoCriarCrecheETurma({ nome: nome + ' ' + sufixoAleatorio(), capacidade: 30, rua: 'Rua B', lat: -23.56, lon: -46.64 }, 'MATERNAL', vagas);
+}
+
+// Consulta a posição oficial (GET .../posicao) de cada inscrição; devolve {status, posicao} na mesma ordem
+async function consultarPosicoes(inscricoes, turmaId) {
+  var respostas = await Promise.all(inscricoes.map(function (i) { return acaoConsultarPosicao(i.inscricaoId, turmaId); }));
+  return respostas.map(function (r) { return { status: r.status, posicao: r.ok ? r.dados.posicao : null }; });
+}
+
+function textoDaPosicao(p) { return p.posicao === null ? 'erro ' + p.status : String(p.posicao); }
+
+async function executarCenarioFurarFila() {
+  limparCenario('Criando a turma do cenário...');
+  var turma = await criarTurmaDeCenario('Creche Prioridade', 5);
+  if (!turma.ok) { escreverVeredito('a_cenRes', false, 'Falha ao criar a turma: ' + mensagemDeErro(turma)); return; }
+  var turmaId = turma.dados.turmaId;
+  var primeira = await acaoInscreverExemplo(turmaId, 'alta');
+  if (!primeira.ok) { escreverVeredito('a_cenRes', false, 'Falha na 1ª inscrição: ' + mensagemDeErro(primeira)); return; }
+  var segunda = await acaoInscreverExemplo(turmaId, 'baixa');
+  if (!segunda.ok) { escreverVeredito('a_cenRes', false, 'Falha na 2ª inscrição: ' + mensagemDeErro(segunda)); return; }
+  var linhas = [
+    { rotulo: 'renda alta (chegou primeiro)', r: primeira.dados, esperada: 2 },
+    { rotulo: 'renda baixa + vulnerável (chegou depois)', r: segunda.dados, esperada: 1 }
+  ];
+  var posicoes = await consultarPosicoes(linhas.map(function (l) { return l.r; }), turmaId);
+  var correto = true;
+  preencherTabela($('a_cenTabela'), ['Inscrição', 'Perfil', 'Score', 'Posição na resposta', 'Posição agora', 'Esperada'],
+    linhas.map(function (l, i) {
+      var confere = posicoes[i].posicao === l.esperada;
+      correto = correto && confere;
+      return ['#' + l.r.inscricaoId, l.rotulo, numero(l.r.scorePrioridade, 2), String(l.r.posicao), textoDaPosicao(posicoes[i]), selo(String(l.esperada), confere ? 'ok' : 'erro')];
+    }), '');
+  escreverVeredito('a_cenRes', correto, correto
+    ? 'A inscrição de maior score passou na frente: a renda alta saiu da posição 1 para a 2 quando a baixa + vulnerável chegou (turma #' + turmaId + ').'
+    : 'ATENÇÃO: as posições não seguem o score. Confira o registro de chamadas.');
+}
+
+// Perfis com scores todos diferentes (0,7 a 0,0), para que a ordem esperada seja inequívoca
+var PERFIS_SIMULTANEOS = [
+  { renda: 350, vulneravel: true, rotulo: 'renda 350 + vuln.', nome: 'P1' },
+  { renda: 800, vulneravel: true, rotulo: 'renda 800 + vuln.', nome: 'P2' },
+  { renda: 1200, vulneravel: true, rotulo: 'renda 1200 + vuln.', nome: 'P3' },
+  { renda: 350, vulneravel: false, rotulo: 'renda 350', nome: 'P4' },
+  { renda: 800, vulneravel: false, rotulo: 'renda 800', nome: 'P5' },
+  { renda: 1200, vulneravel: false, rotulo: 'renda 1200', nome: 'P6' },
+  { renda: 1700, vulneravel: false, rotulo: 'renda 1700', nome: 'P7' },
+  { renda: 2500, vulneravel: false, rotulo: 'renda 2500', nome: 'P8' }
+];
+
+async function executarCenarioSimultaneas() {
+  limparCenario('Criando a turma do cenário...');
+  var turma = await criarTurmaDeCenario('Creche Simultanea', 10);
+  if (!turma.ok) { escreverVeredito('a_cenRes', false, 'Falha ao criar a turma: ' + mensagemDeErro(turma)); return; }
+  var turmaId = turma.dados.turmaId;
+  $('a_cenRes').textContent = 'Disparando ' + PERFIS_SIMULTANEOS.length + ' inscrições ao mesmo tempo...';
+  // A ordem de disparo é embaralhada para que a chegada não coincida com o score
+  var disparo = PERFIS_SIMULTANEOS.slice().sort(function () { return Math.random() - 0.5; });
+  var respostas = await Promise.all(disparo.map(function (p) { return acaoInscreverExemplo(turmaId, p); }));
+  var falhas = respostas.filter(function (r) { return !r.ok; });
+  if (falhas.length) { escreverVeredito('a_cenRes', false, falhas.length + ' inscrição(ões) falharam: ' + mensagemDeErro(falhas[0])); return; }
+  var itens = respostas.map(function (r, i) { return { perfil: disparo[i], r: r.dados }; });
+  itens.sort(function (a, b) { return b.r.scorePrioridade - a.r.scorePrioridade; });
+  var posicoes = await consultarPosicoes(itens.map(function (i) { return i.r; }), turmaId);
+  var obtidas = posicoes.map(function (p) { return p.posicao; });
+  var distintas = obtidas.filter(function (p, pos) { return p !== null && obtidas.indexOf(p) === pos; }).length === obtidas.length;
+  var naOrdem = obtidas.every(function (p, i) { return p === i + 1; });
+  preencherTabela($('a_cenTabela'), ['Esperada', 'Inscrição', 'Perfil', 'Score', 'Posição na resposta', 'Posição agora'],
+    itens.map(function (item, i) {
+      return [selo(String(i + 1), obtidas[i] === i + 1 ? 'ok' : 'erro'), '#' + item.r.inscricaoId, item.perfil.rotulo, numero(item.r.scorePrioridade, 2), String(item.r.posicao), textoDaPosicao(posicoes[i])];
+    }), '');
+  var correto = distintas && naOrdem;
+  escreverVeredito('a_cenRes', correto, correto
+    ? PERFIS_SIMULTANEOS.length + ' inscrições em paralelo na turma #' + turmaId + ': posições 1 a ' + PERFIS_SIMULTANEOS.length + ' sem repetição e na ordem do score (a resposta de cada requisição reflete só o momento em que ela terminou).'
+    : 'ATENÇÃO: posições ' + (distintas ? 'fora da ordem do score' : 'repetidas ou ausentes') + '. Confira o registro de chamadas.');
+}
+
+// Cadastra turma, responsável e criança; devolve {turmaId, criancaId} ou null (com o erro no cenário)
+async function prepararCriancaDeCenario(vagas) {
+  var turma = await criarTurmaDeCenario('Creche Unica', vagas);
+  if (!turma.ok) { escreverVeredito('a_cenRes', false, 'Falha ao criar a turma: ' + mensagemDeErro(turma)); return null; }
+  var sufixo = sufixoAleatorio();
+  var resp = await acaoCadastrarResponsavel({ nome: 'Resp. Unica ' + sufixo, cpf: '', telefone: '11999990000', email: 'unica.' + sufixo + '@example.com', rua: 'Rua A', numero: 10, lat: -23.55, lon: -46.63 });
+  if (!resp.ok) { escreverVeredito('a_cenRes', false, 'Falha no responsável: ' + mensagemDeErro(resp)); return null; }
+  var crianca = await acaoCadastrarCrianca({ responsavelId: resp.dados.responsavelId, nome: 'Crianca Unica ' + sufixo, nascimento: '2024-03-10' });
+  if (!crianca.ok) { escreverVeredito('a_cenRes', false, 'Falha na criança: ' + mensagemDeErro(crianca)); return null; }
+  return { turmaId: turma.dados.turmaId, criancaId: crianca.dados.criancaId };
+}
+
+function inscreverCriancaDoCenario(base) {
+  return acaoInscrever({ modo: 'id', turmaId: base.turmaId, criancaId: base.criancaId, renda: 350, vulneravel: true });
+}
+
+function linhasDeTentativas(respostas) {
+  return respostas.map(function (r, i) {
+    return ['#' + (i + 1), seloStatus(r.status), r.ok ? 'inscrição #' + r.dados.inscricaoId + ', posição ' + r.dados.posicao : mensagemDeErro(r)];
+  });
+}
+
+async function executarCenarioMesmaCrianca() {
+  limparCenario('Preparando turma, responsável e criança...');
+  var base = await prepararCriancaDeCenario(3);
+  if (!base) { return; }
+  var primeira = await inscreverCriancaDoCenario(base);
+  var segunda = await inscreverCriancaDoCenario(base);
+  preencherTabela($('a_cenTabela'), ['Tentativa', 'Status', 'Resultado'], linhasDeTentativas([primeira, segunda]), '');
+  var correto = primeira.status === 201 && segunda.status === 409;
+  escreverVeredito('a_cenRes', correto, correto
+    ? 'A criança #' + base.criancaId + ' já tem inscrição ativa: a 1ª tentativa deu 201 e a 2ª deu 409.'
+    : 'ATENÇÃO: esperado 201 e 409, recebido ' + primeira.status + ' e ' + segunda.status + '.');
+}
+
+async function executarCenarioMesmaCriancaEmParalelo() {
+  limparCenario('Preparando turma, responsável e criança...');
+  var base = await prepararCriancaDeCenario(5);
+  if (!base) { return; }
+  var n = 5;
+  $('a_cenRes').textContent = 'Disparando ' + n + ' inscrições da mesma criança ao mesmo tempo...';
+  var chamadas = [];
+  for (var i = 0; i < n; i++) { chamadas.push(inscreverCriancaDoCenario(base)); }
+  var respostas = await Promise.all(chamadas);
+  var criadas = respostas.filter(function (r) { return r.status === 201; }).length;
+  var conflitos = respostas.filter(function (r) { return r.status === 409; }).length;
+  preencherTabela($('a_cenTabela'), ['Requisição', 'Status', 'Resultado'], linhasDeTentativas(respostas), '');
+  var correto = criadas === 1 && conflitos === n - 1;
+  escreverVeredito('a_cenRes', correto, correto
+    ? 'Em paralelo, só 1 inscrição da criança #' + base.criancaId + ' foi aceita (201) e as outras ' + conflitos + ' receberam 409.'
+    : 'ATENÇÃO: esperado 1 x 201 e ' + (n - 1) + ' x 409; recebido ' + criadas + ' x 201 e ' + conflitos + ' x 409.');
+}
+
 function iniciarInscricao() {
+  $('a_btnFurar').onclick = executarCenarioFurarFila;
+  $('a_btnSimult').onclick = executarCenarioSimultaneas;
+  $('a_btnDupla').onclick = executarCenarioMesmaCrianca;
+  $('a_btnDuplaPar').onclick = executarCenarioMesmaCriancaEmParalelo;
+  preencherTabela($('a_cenTabela'), ['Inscrição'], [], 'Escolha um cenário.');
   ['a_iRenda', 'a_iVuln'].forEach(function (id) { $(id).addEventListener('input', atualizarEstimativaDeScore); });
   $('a_iModo').onchange = renderizarInscricao;
   $('a_iTurma').onchange = function () { $('a_iTurma').setAttribute('data-tocado', '1'); };

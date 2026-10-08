@@ -52,6 +52,7 @@ function aoMudarEstado() {
   renderizarFiltrosDetalhe();
   renderizarResumoDaSessao();
   renderizarTimeline();
+  renderizarJobDeExpiracao();
   renderizarVisao();
 }
 

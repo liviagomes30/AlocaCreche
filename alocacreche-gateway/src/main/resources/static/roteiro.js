@@ -8,22 +8,31 @@ var PASSOS_LARISSA = [
   { id: 'L2', aba: 'matricula', titulo: 'Pré-requisito: criar creche e turma (botão "Criar creche + turma")', esperado: 'Toast de sucesso, turma na tabela e evento <b>vaga.liberada</b> na linha do tempo.' },
   { id: 'L3', aba: 'inscricao', titulo: 'Explicar os pesos do score (renda 0,4, vulnerabilidade 0,3, distância 0,2, irmão 0,1)', esperado: 'A estimativa muda ao alterar a renda e a vulnerabilidade.' },
   { id: 'L4', aba: 'inscricao', titulo: 'Cadastrar responsável e criança; inscrever por criancaId', esperado: '<b>201</b> em cada chamada; inscrição com <b>posição 1</b> e score calculado.' },
-  { id: 'L5', aba: 'inscricao', titulo: 'Inscrever com cadastro inline usando os exemplos "renda baixa + vulnerável" e "renda alta"', esperado: 'Posições 2 e 3; scores <b>0,70</b> (renda baixa + vulnerável) e <b>0,00</b> (renda alta).' },
+  { id: 'L5', aba: 'inscricao', titulo: 'Fila por prioridade: botão "Furar a fila" (renda alta, depois baixa + vulnerável)', esperado: 'A segunda inscrição (score <b>0,70</b>) fica na <b>posição 1</b> e a renda alta (score 0,00) cai para a <b>2</b>, mesmo tendo chegado antes.' },
   { id: 'L6', aba: 'inscricao', titulo: 'Consultar a posição na fila (Redis com fallback no banco)', esperado: '<b>200</b> com a posição da inscrição escolhida.' },
   { id: 'L7', aba: 'inscricao', titulo: 'Rodar o exemplo "Irmão matriculado"', esperado: 'Irmão B com score <b>0,10 maior</b> que o irmão A (peso do irmão matriculado).' },
-  { id: 'L8', aba: 'seguranca', titulo: 'Mostrar CPF duplicado (409) e criança/turma inexistente (404)', esperado: 'Testes "CPF duplicado" e "inexistentes" marcados como passou.' }
+  { id: 'L8', aba: 'inscricao', titulo: 'Concorrência: "Inscrições simultâneas" (8 em paralelo na mesma turma)', esperado: 'Posições <b>1 a 8 sem repetição</b>, na ordem do score (lock por turma no servidor).' },
+  { id: 'L9', aba: 'inscricao', titulo: '"Mesma criança duas vezes" e "em paralelo"', esperado: 'Sequencial: <b>201 e 409</b>. Em paralelo: <b>1 x 201</b> e as demais <b>409</b> (criança com inscrição ativa não se inscreve de novo).' },
+  { id: 'L10', aba: 'seguranca', titulo: 'Mostrar CPF duplicado (409) e criança/turma inexistente (404)', esperado: 'Testes "CPF duplicado" e "inexistentes" marcados como passou.' }
+];
+
+var PASSOS_LETICIA = [
+  { id: 'B1', aba: 'matricula', titulo: 'Alocar a vaga ao primeiro da fila (o de maior score)', esperado: '<b>201</b> com a matrícula PENDENTE; vagas restantes da turma diminuem em 1.' },
+  { id: 'B2', aba: 'matricula', titulo: 'Confirmar a matrícula e tentar confirmar de novo', esperado: '<b>200</b> na primeira vez e <b>409</b> na segunda.' },
+  { id: 'B3', aba: 'matricula', titulo: 'Concorrência: "Preparar corrida" e disparar 5 alocações em paralelo', esperado: 'Exatamente <b>1 vencedora (201)</b> e as outras <b>409</b>; nenhuma matrícula repetida.' },
+  { id: 'B4', aba: 'matricula', titulo: 'Desistência com alocação automática: "Cenário completo" ou botão Desistir', esperado: '<b>200</b>; a matrícula vira CANCELADA, o próximo da fila sai da fila (posição <b>404</b>) e ganha uma nova matrícula PENDENTE; as vagas voltam ao mesmo número.' },
+  { id: 'B5', aba: 'matricula', titulo: 'Desistir duas vezes e de matrícula inexistente', esperado: '<b>409</b> na segunda desistência e <b>404</b> para o id inexistente.' },
+  { id: 'B6', aba: 'matricula', titulo: 'Sugerir creches próximas (Praça da Sé) e provocar o erro 400', esperado: 'Lista ordenada por distância (km); turmas <b>sem vaga destacadas</b> (a família pode entrar na fila); parâmetros inválidos respondem <b>400</b> com mensagem amigável.' }
 ];
 
 var PASSOS_VOCE = [
-  { id: 'V1', aba: 'matricula', titulo: 'Alocar a vaga ao primeiro da fila', esperado: '<b>201</b> com a matrícula PENDENTE; vagas restantes da turma diminuem em 1.' },
-  { id: 'V2', aba: 'matricula', titulo: 'Confirmar a matrícula e tentar confirmar de novo', esperado: '<b>200</b> na primeira vez e <b>409</b> na segunda.' },
-  { id: 'V3', aba: 'matricula', titulo: 'Concorrência: "Preparar corrida" e disparar 5 alocações em paralelo', esperado: 'Exatamente <b>1 vencedora (201)</b> e as outras <b>409</b>; nenhuma matrícula repetida.' },
-  { id: 'V4', aba: 'visao', titulo: 'Acompanhar a Visão geral com atualização automática', esperado: 'Vagas disponíveis, fila, taxa e distância mudam alguns segundos depois e ficam destacados.' },
-  { id: 'V5', aba: 'relatorios', titulo: 'Consultar os relatórios e abrir o painel público em outra aba', esperado: 'Painel público responde <b>200 sem token</b>; município diferente do token responde <b>403</b>.' },
-  { id: 'V6', aba: 'eventos', titulo: 'Linha do tempo de eventos e fluxo Outbox, RabbitMQ e MSRelatorios', esperado: 'Eventos passam de "aguardando" para <b>refletido nos relatórios</b>.' },
-  { id: 'V7', aba: 'eventos', titulo: 'Resiliência: parar o RabbitMQ, agir, subir de novo', esperado: 'API segue respondendo, relatórios param de mudar e depois convergem ao subir o RabbitMQ.' },
-  { id: 'V8', aba: 'seguranca', titulo: 'Executar todos os testes de segurança', esperado: '401 sem token e com token adulterado, 403 de outro município, <b>429</b> com Retry-After após 5 senhas erradas.' },
-  { id: 'V9', aba: 'seguranca', titulo: 'Matriz de permissões com ADMIN, ATENDENTE e GESTOR (trocar de usuário)', esperado: 'ATENDENTE só inscreve; GESTOR só lê relatórios; ADMIN faz tudo. Coluna Resultado = confere.' }
+  { id: 'V1', aba: 'visao', titulo: 'Acompanhar a Visão geral com atualização automática', esperado: 'Vagas disponíveis, fila, taxa e distância mudam alguns segundos depois e ficam destacados.' },
+  { id: 'V2', aba: 'relatorios', titulo: 'Consultar os relatórios e abrir o painel público em outra aba', esperado: 'Painel público responde <b>200 sem token</b>; município diferente do token responde <b>403</b>.' },
+  { id: 'V3', aba: 'eventos', titulo: 'Linha do tempo de eventos e fluxo Outbox, RabbitMQ e MSRelatorios', esperado: 'Eventos passam de "aguardando" para <b>refletido nos relatórios</b>, inclusive os de desistência (<b>vaga.liberada</b> e <b>matricula.atualizada</b> CANCELADA).' },
+  { id: 'V4', aba: 'eventos', titulo: 'Resiliência: parar o RabbitMQ, agir, subir de novo', esperado: 'API segue respondendo, relatórios param de mudar e depois convergem ao subir o RabbitMQ.' },
+  { id: 'V5', aba: 'eventos', titulo: 'Job de expiração: vencer o prazo de uma matrícula PENDENTE por SQL', esperado: 'Em até 2 min (ou no intervalo configurado) a matrícula vira <b>EXPIRADA</b>, a vaga volta e o próximo da fila é convocado.' },
+  { id: 'V6', aba: 'seguranca', titulo: 'Executar todos os testes de segurança', esperado: '401 sem token e com token adulterado, 403 de outro município, <b>429</b> com Retry-After após 5 senhas erradas.' },
+  { id: 'V7', aba: 'seguranca', titulo: 'Matriz de permissões com ADMIN, ATENDENTE e GESTOR (trocar de usuário)', esperado: 'ATENDENTE inscreve, consulta e desiste; GESTOR lê relatórios e opera creches, turmas, alocação, confirmação e desistência; ADMIN faz tudo. Coluna Resultado = confere.' }
 ];
 
 var marcados = lerJson(CHAVES.roteiro) || {};
@@ -114,14 +123,19 @@ async function executarDemoCompleta() {
   $('narradorLista').textContent = '';
   $('btnDemoPausa').textContent = 'Pausar';
   $('btnDemoParar').textContent = 'Parar';
-  var total = 10;
+  var total = 0;
   var passo = 0;
   var contexto = {};
   var sufixo = new Date().toTimeString().slice(0, 5).replace(':', 'h');
+  // Valores dos relatórios antes da demo: os totais de matrículas são do município inteiro
+  await atualizarRelatorios();
+  var base = { matriculas: snapshot && snapshot.taxa ? snapshot.taxa.totalMatriculas : 0, confirmadas: snapshot && snapshot.taxa ? snapshot.taxa.totalConfirmadas : 0 };
 
   var roteiro = [
-    { aba: 'matricula', titulo: 'Criar a creche', detalhe: 'POST /matricula/creches com latitude e longitude (usadas no cálculo da distância).', rodar: async function () {
-      var r = checar(await acaoCriarCreche({ nome: 'Creche Demo ' + sufixo, capacidade: 30, rua: 'Rua B', lat: -23.56, lon: -46.64 }), 'criar creche');
+    { aba: 'matricula', titulo: 'Criar a creche', detalhe: 'POST /matricula/creches com latitude e longitude (usadas na distância e na sugestão de creches próximas).', rodar: async function () {
+      contexto.lat = -23.57 + Math.random() * 0.02;
+      contexto.lon = -46.65 + Math.random() * 0.02;
+      var r = checar(await acaoCriarCreche({ nome: 'Creche Demo ' + sufixo, capacidade: 30, rua: 'Rua B', lat: contexto.lat, lon: contexto.lon }), 'criar creche');
       contexto.crecheId = r.dados.crecheId;
       return 'Creche #' + contexto.crecheId + ' criada.';
     } },
@@ -130,49 +144,82 @@ async function executarDemoCompleta() {
       contexto.turmaId = r.dados.turmaId;
       return 'Turma #' + contexto.turmaId + ' com 3 vagas.';
     } },
-    { aba: 'inscricao', titulo: 'Inscrição 1: renda baixa e vulnerável', detalhe: 'Cadastro inline; score esperado 0,70 (renda 1,0 x 0,4 + vulnerabilidade 1 x 0,3).', rodar: async function () {
-      var r = checar(await acaoInscreverExemplo(contexto.turmaId, 'baixa'), 'inscrição 1');
-      contexto.ins1 = r.dados.inscricaoId;
-      return 'Inscrição #' + r.dados.inscricaoId + ': posição ' + r.dados.posicao + ', score ' + numero(r.dados.scorePrioridade, 2) + '.';
+    { aba: 'inscricao', titulo: 'Inscrição 1: renda alta (chega primeiro)', detalhe: 'Cadastro inline; score esperado 0,00. Como a fila está vazia, vai para a posição 1.', rodar: async function () {
+      var r = checar(await acaoInscreverExemplo(contexto.turmaId, 'alta'), 'inscrição 1');
+      contexto.insAlta = r.dados.inscricaoId;
+      return 'Inscrição #' + r.dados.inscricaoId + ' (renda alta): posição ' + r.dados.posicao + ', score ' + numero(r.dados.scorePrioridade, 2) + '.';
     } },
-    { aba: 'inscricao', titulo: 'Inscrição 2: renda média', detalhe: 'Score esperado 0,20 (renda 0,50 x 0,4).', rodar: async function () {
+    { aba: 'inscricao', titulo: 'Inscrição 2: renda média (chega depois)', detalhe: 'Score esperado 0,20 (renda 0,50 x 0,4): maior que o da primeira, então passa na frente.', rodar: async function () {
       var r = checar(await acaoInscreverExemplo(contexto.turmaId, 'media'), 'inscrição 2');
-      return 'Inscrição #' + r.dados.inscricaoId + ': posição ' + r.dados.posicao + ', score ' + numero(r.dados.scorePrioridade, 2) + '.';
+      contexto.insMedia = r.dados.inscricaoId;
+      if (r.dados.posicao !== 1) { throw new Error('a inscrição de maior score deveria ficar na posição 1; recebida ' + r.dados.posicao); }
+      return 'Inscrição #' + r.dados.inscricaoId + ' (renda média): posição ' + r.dados.posicao + ', score ' + numero(r.dados.scorePrioridade, 2) + '. Furou a fila.';
     } },
-    { aba: 'inscricao', titulo: 'Inscrição 3: renda alta', detalhe: 'Score esperado 0,00.', rodar: async function () {
-      var r = checar(await acaoInscreverExemplo(contexto.turmaId, 'alta'), 'inscrição 3');
-      return 'Inscrição #' + r.dados.inscricaoId + ': posição ' + r.dados.posicao + ', score ' + numero(r.dados.scorePrioridade, 2) + '.';
+    { aba: 'inscricao', titulo: 'Inscrição 3: renda baixa e vulnerável (a última a chegar)', detalhe: 'Score esperado 0,70 (renda 1,0 x 0,4 + vulnerabilidade 1 x 0,3): vai para a frente de todas.', rodar: async function () {
+      var r = checar(await acaoInscreverExemplo(contexto.turmaId, 'baixa'), 'inscrição 3');
+      contexto.insBaixa = r.dados.inscricaoId;
+      if (r.dados.posicao !== 1) { throw new Error('a inscrição de maior score deveria ficar na posição 1; recebida ' + r.dados.posicao); }
+      return 'Inscrição #' + r.dados.inscricaoId + ' (baixa + vulnerável): posição ' + r.dados.posicao + ', score ' + numero(r.dados.scorePrioridade, 2) + '.';
     } },
-    { aba: 'inscricao', titulo: 'Consultar a posição da inscrição 1', detalhe: 'GET .../posicao: lida do Redis, com fallback para o banco.', rodar: async function () {
-      var r = checar(await acaoConsultarPosicao(contexto.ins1, contexto.turmaId), 'posição');
-      if (r.dados.posicao !== 1) { throw new Error('posição esperada 1, recebida ' + r.dados.posicao); }
-      return 'Inscrição #' + contexto.ins1 + ' está na posição ' + r.dados.posicao + '.';
+    { aba: 'inscricao', titulo: 'Conferir as posições na fila (por prioridade)', detalhe: 'GET .../posicao das três inscrições: esperado 1 (baixa + vulnerável), 2 (média) e 3 (alta), apesar de a ordem de chegada ter sido a inversa.', rodar: async function () {
+      var esperado = [[contexto.insBaixa, 1, 'baixa + vulnerável'], [contexto.insMedia, 2, 'média'], [contexto.insAlta, 3, 'alta']];
+      var textos = [];
+      for (var i = 0; i < esperado.length; i++) {
+        var r = checar(await acaoConsultarPosicao(esperado[i][0], contexto.turmaId), 'posição ' + esperado[i][2]);
+        if (r.dados.posicao !== esperado[i][1]) { throw new Error('inscrição ' + esperado[i][2] + ': posição ' + r.dados.posicao + ' (esperada ' + esperado[i][1] + ')'); }
+        textos.push(esperado[i][2] + ' ' + r.dados.posicao);
+      }
+      return 'Posições: ' + textos.join(', ') + '.';
     } },
-    { aba: 'matricula', titulo: 'Alocar a vaga ao primeiro da fila', detalhe: 'POST /matricula/vagas/alocar: transação com lock otimista; a turma passa a ter 2 vagas.', rodar: async function () {
+    { aba: 'matricula', titulo: 'Sugerir creches próximas', detalhe: 'GET /matricula/creches/proximas a partir da coordenada da creche da demo: ela deve ser a primeira da lista, a 0 km, com 3 vagas.', rodar: async function () {
+      var r = checar(await api('GET', '/api/v1/matricula/creches/proximas?latitude=' + contexto.lat + '&longitude=' + contexto.lon + '&faixaEtaria=MATERNAL&limite=5', { rotulo: 'Sugerir creches próximas' }), 'creches próximas');
+      var lista = Array.isArray(r.dados) ? r.dados : [];
+      if (!lista.length || lista[0].crecheId !== contexto.crecheId) { throw new Error('a creche da demo deveria ser a mais próxima (primeira da lista)'); }
+      if (lista[0].vagasDisponiveis !== 3) { throw new Error('esperadas 3 vagas na turma, recebidas ' + lista[0].vagasDisponiveis); }
+      return lista.length + ' turma(s) sugerida(s); a primeira é a creche #' + lista[0].crecheId + ', a ' + numero(lista[0].distanciaKm, 2) + ' km, com ' + lista[0].vagasDisponiveis + ' vagas.';
+    } },
+    { aba: 'matricula', titulo: 'Alocar a vaga ao primeiro da fila', detalhe: 'POST /matricula/vagas/alocar: convoca a maior prioridade (baixa + vulnerável); a turma passa a ter 2 vagas.', rodar: async function () {
       var r = checar(await acaoAlocar(contexto.turmaId), 'alocar');
       contexto.matriculaId = r.dados.matriculaId;
-      return 'Matrícula #' + contexto.matriculaId + ' PENDENTE para a inscrição #' + (r.matricula.inscricaoId || '?') + '.';
+      if (r.matricula.inscricaoId !== contexto.insBaixa) { throw new Error('a matrícula deveria ser da inscrição de maior score (#' + contexto.insBaixa + ')'); }
+      return 'Matrícula #' + contexto.matriculaId + ' PENDENTE para a inscrição #' + r.matricula.inscricaoId + ' (a de maior prioridade).';
     } },
     { aba: 'matricula', titulo: 'Confirmar a matrícula', detalhe: 'POST /matricula/matriculas/{id}/confirmar; a inscrição vira MATRICULADA.', rodar: async function () {
       checar(await acaoConfirmar(contexto.matriculaId), 'confirmar');
       return 'Matrícula #' + contexto.matriculaId + ' CONFIRMADA.';
     } },
+    { aba: 'matricula', titulo: 'Alocar uma segunda vaga', detalhe: 'Convoca a segunda da fila (renda média): a turma passa a ter 1 vaga e 1 inscrição aguardando.', rodar: async function () {
+      var r = checar(await acaoAlocar(contexto.turmaId, 'Alocar a segunda vaga'), 'alocar');
+      contexto.matriculaDesistida = r.dados.matriculaId;
+      if (r.matricula.inscricaoId !== contexto.insMedia) { throw new Error('a segunda matrícula deveria ser da inscrição de renda média (#' + contexto.insMedia + ')'); }
+      return 'Matrícula #' + contexto.matriculaDesistida + ' PENDENTE para a inscrição #' + r.matricula.inscricaoId + '.';
+    } },
+    { aba: 'matricula', titulo: 'Desistir da segunda matrícula: alocação automática', detalhe: 'POST .../desistir libera a vaga e, logo após o commit, o servidor convoca sozinho o último da fila (renda alta).', rodar: async function () {
+      var r = checar(await acaoDesistir(contexto.matriculaDesistida, 'Desistir da segunda matrícula (demo)'), 'desistir');
+      var resumo = r.resumo;
+      if (!resumo.realocada) { throw new Error('a vaga devolvida não foi dada ao próximo da fila (posição respondeu ' + resumo.statusPosicao + ')'); }
+      if (resumo.vagasFinais !== 1) { throw new Error('esperada 1 vaga disponível depois da realocação, calculada ' + resumo.vagasFinais); }
+      return 'Matrícula #' + contexto.matriculaDesistida + ' CANCELADA (vaga voltou a ' + resumo.vagasAposCancelar + ') e a inscrição #' + resumo.proximo.id + ' foi convocada automaticamente: turma com 1 vaga e fila vazia.';
+    } },
     { aba: 'visao', titulo: 'Aguardar os relatórios (consistência eventual)', detalhe: 'Core grava na Outbox, o Publicador envia ao RabbitMQ e o MSRelatorios atualiza as projeções.', rodar: async function () {
-      var ok = await aguardarRelatorios(contexto.turmaId, 2, 2);
+      var ok = await aguardarRelatorios(contexto.turmaId, 1, 0);
       if (!ok) { throw new Error('os relatórios não convergiram em 40 s (RabbitMQ ou MSRelatorios parados?)'); }
       return 'Relatórios convergiram.';
     } },
-    { aba: 'visao', titulo: 'Conferir os números esperados', detalhe: 'Ocupação 2 de 3 vagas disponíveis, 2 na fila, taxa, distância e painel público.', rodar: async function () {
+    { aba: 'visao', titulo: 'Conferir os números esperados', detalhe: 'Ocupação 1 de 3 vagas disponíveis, fila vazia, 3 matrículas novas no período (1 confirmada), distância e painel público.', rodar: async function () {
       var s = snapshot;
       var linha = null;
       s.ocupacao.forEach(function (o) { if (o.turmaId === contexto.turmaId) { linha = o; } });
       var fila = filaDaTurma(contexto.turmaId);
+      var novasMatriculas = s.taxa ? s.taxa.totalMatriculas - base.matriculas : 0;
+      var novasConfirmadas = s.taxa ? s.taxa.totalConfirmadas - base.confirmadas : 0;
       var confere = [
-        ['ocupação: ' + (linha ? linha.vagasDisponiveis : '?') + ' de 3 vagas disponíveis (esperado 2)', !!linha && linha.vagasDisponiveis === 2],
-        ['fila de espera: ' + (fila ? fila.quantidadeAguardando : 0) + ' aguardando (esperado 2)', !!fila && fila.quantidadeAguardando === 2],
-        ['taxa de confirmação: ' + (s.taxa && s.taxa.taxaConfirmacao !== null ? numero(s.taxa.taxaConfirmacao * 100, 0) + '%' : 'sem dados') + ' (' + (s.taxa ? s.taxa.totalConfirmadas : 0) + ' confirmada(s))', !!s.taxa && s.taxa.totalConfirmadas >= 1],
+        ['ocupação: ' + (linha ? linha.vagasDisponiveis : '?') + ' de 3 vagas disponíveis (esperado 1)', !!linha && linha.vagasDisponiveis === 1],
+        ['fila de espera: ' + (fila ? fila.quantidadeAguardando : 0) + ' aguardando (esperado 0)', !fila || fila.quantidadeAguardando === 0],
+        ['matrículas novas no período: ' + novasMatriculas + ' (esperado 3: confirmada, cancelada e a pendente da alocação automática)', novasMatriculas === 3],
+        ['confirmadas novas: ' + novasConfirmadas + ' (esperado 1); taxa do município: ' + (s.taxa && s.taxa.taxaConfirmacao !== null ? numero(s.taxa.taxaConfirmacao * 100, 0) + '%' : 'sem dados'), novasConfirmadas === 1],
         ['distância média: ' + (s.dist && s.dist.distanciaMediaKm !== null ? numero(s.dist.distanciaMediaKm, 2) + ' km' : 'sem dados'), !!s.dist && s.dist.distanciaMediaKm > 0],
-        ['painel público (sem token): ' + (s.painel ? s.painel.totalVagasDisponiveis + ' vagas disponíveis' : 'indisponível'), !!s.painel && s.painel.totalVagasDisponiveis >= 2]
+        ['painel público (sem token): ' + (s.painel ? s.painel.totalVagasDisponiveis + ' vagas disponíveis' : 'indisponível'), !!s.painel && s.painel.totalVagasDisponiveis >= 1]
       ];
       var falhas = 0;
       confere.forEach(function (c) { registrarNaLista(c[0], c[1]); if (!c[1]) { falhas++; } });
@@ -180,6 +227,7 @@ async function executarDemoCompleta() {
       return 'Todos os números conferem.';
     } }
   ];
+  total = roteiro.length;
 
   try {
     for (passo = 0; passo < roteiro.length; passo++) {
@@ -224,9 +272,10 @@ function pararOuFecharDemo() {
 
 function iniciarRoteiro() {
   renderizarListaDoRoteiro('r_larissa', PASSOS_LARISSA);
+  renderizarListaDoRoteiro('r_leticia', PASSOS_LETICIA);
   renderizarListaDoRoteiro('r_voce', PASSOS_VOCE);
   $('r_btnDemo').onclick = executarDemoCompleta;
   $('btnDemoPausa').onclick = alternarPausa;
   $('btnDemoParar').onclick = pararOuFecharDemo;
-  $('r_btnLimpar').onclick = function () { marcados = {}; salvarMarcas(); renderizarListaDoRoteiro('r_larissa', PASSOS_LARISSA); renderizarListaDoRoteiro('r_voce', PASSOS_VOCE); };
+  $('r_btnLimpar').onclick = function () { marcados = {}; salvarMarcas(); renderizarListaDoRoteiro('r_larissa', PASSOS_LARISSA); renderizarListaDoRoteiro('r_leticia', PASSOS_LETICIA); renderizarListaDoRoteiro('r_voce', PASSOS_VOCE); };
 }

@@ -85,7 +85,7 @@ var TESTES_SEGURANCA = [
     }
   },
   {
-    id: 'inexistentes', titulo: 'Criança, turma e matrícula inexistentes', requer: ['inscricao:inscricao:add', 'matricula:vaga:alocar', 'matricula:matricula:confirmar', 'inscricao:crianca:add'],
+    id: 'inexistentes', titulo: 'Criança, turma e matrícula inexistentes', requer: ['inscricao:inscricao:add', 'matricula:vaga:alocar', 'matricula:matricula:confirmar', 'matricula:matricula:status', 'inscricao:crianca:add'],
     descricao: 'Recursos que não existem respondem 404 com mensagem em JSON.',
     rodar: async function () {
       var passos = [];
@@ -102,6 +102,8 @@ var TESTES_SEGURANCA = [
         await api('POST', '/api/v1/matricula/vagas/alocar', { corpo: { turmaId: ID_INEXISTENTE }, rotulo: 'Alocar em turma inexistente', sem401: true }), 404));
       passos.push(passoDeTeste('confirmar matrícula inexistente',
         await api('POST', '/api/v1/matricula/matriculas/' + ID_INEXISTENTE + '/confirmar', { rotulo: 'Confirmar matrícula inexistente', sem401: true }), 404));
+      passos.push(passoDeTeste('desistir de matrícula inexistente',
+        await api('POST', '/api/v1/matricula/matriculas/' + ID_INEXISTENTE + '/desistir', { rotulo: 'Desistir de matrícula inexistente', sem401: true }), 404));
       passos.push(passoDeTeste('posição de inscrição inexistente',
         await api('GET', '/api/v1/inscricao/inscricoes/' + ID_INEXISTENTE + '/posicao?turmaId=' + ID_INEXISTENTE, { rotulo: 'Posição de inscrição inexistente', sem401: true }), 404));
       return passos;
@@ -118,6 +120,37 @@ var TESTES_SEGURANCA = [
         passoDeTeste('inscrição com os dois modos', await api('POST', '/api/v1/inscricao/inscricoes', { corpo: { criancaId: 1, responsavel: { nome: 'A', cpf: '1' }, crianca: { nome: 'B', dataNascimento: '2024-01-01' }, turmaId: 1, rendaPerCapita: 100, criterioVulnerabilidade: false }, rotulo: 'criancaId e inline juntos', sem401: true }), 400),
         passoDeTeste('criança sem nome', await api('POST', '/api/v1/inscricao/criancas', { corpo: { responsavelId: 1 }, rotulo: 'Criança sem campos obrigatórios', sem401: true }), 400)
       ];
+    }
+  },
+  {
+    id: 'creches-proximas', titulo: 'Sugestão de creches próximas: parâmetros', requer: ['matricula:creche:list'],
+    descricao: 'Latitude, longitude e faixa etária são obrigatórios e têm intervalo válido; sem eles a resposta é 400. Com parâmetros válidos, 200 com a lista (pode ser vazia).',
+    rodar: async function () {
+      var base = '/api/v1/matricula/creches/proximas?';
+      return [
+        passoDeTeste('sem nenhum parâmetro', await api('GET', base, { rotulo: 'Creches próximas sem parâmetros', sem401: true }), 400),
+        passoDeTeste('latitude 200', await api('GET', base + 'latitude=200&longitude=-46.63&faixaEtaria=MATERNAL', { rotulo: 'Creches próximas com latitude inválida', sem401: true }), 400),
+        passoDeTeste('faixa etária inexistente', await api('GET', base + 'latitude=-23.55&longitude=-46.63&faixaEtaria=ADULTO', { rotulo: 'Creches próximas com faixa inválida', sem401: true }), 400),
+        passoDeTeste('limite 21', await api('GET', base + 'latitude=-23.55&longitude=-46.63&faixaEtaria=MATERNAL&limite=21', { rotulo: 'Creches próximas com limite 21', sem401: true }), 400),
+        passoDeTeste('parâmetros válidos', await api('GET', base + 'latitude=-23.55&longitude=-46.63&faixaEtaria=MATERNAL&limite=3', { rotulo: 'Creches próximas válida', sem401: true }), 200)
+      ];
+    }
+  },
+  {
+    id: 'inscricao-unica', titulo: 'Criança com inscrição ativa não se inscreve de novo', requer: ['inscricao:inscricao:add', 'inscricao:responsavel:add', 'inscricao:crianca:add', 'matricula:creche:add', 'matricula:turma:add'],
+    descricao: 'A mesma criança inscrita duas vezes: 201 e depois 409 (a regra vale também para requisições simultâneas, veja o cenário na aba Stack A).',
+    rodar: async function () {
+      var turma = await acaoCriarCrecheETurma({ nome: 'Creche Inscricao Unica ' + sufixoAleatorio(), capacidade: 10, rua: 'Rua B', lat: -23.56, lon: -46.64 }, 'MATERNAL', 2);
+      if (!turma.ok) { return [passoDeTeste('criar turma de apoio', turma, 201)]; }
+      var sufixo = sufixoAleatorio();
+      var resp = await acaoCadastrarResponsavel({ nome: 'Resp. Unica ' + sufixo, cpf: '', telefone: '11999990000', email: 'unica.' + sufixo + '@example.com', rua: 'Rua A', numero: 10, lat: -23.55, lon: -46.63 });
+      if (!resp.ok) { return [passoDeTeste('cadastrar responsável de apoio', resp, 201)]; }
+      var crianca = await acaoCadastrarCrianca({ responsavelId: resp.dados.responsavelId, nome: 'Crianca Unica ' + sufixo, nascimento: '2024-03-10' });
+      if (!crianca.ok) { return [passoDeTeste('cadastrar criança de apoio', crianca, 201)]; }
+      var dados = { modo: 'id', turmaId: turma.dados.turmaId, criancaId: crianca.dados.criancaId, renda: 350, vulneravel: true };
+      var primeira = await acaoInscrever(dados);
+      var segunda = await acaoInscrever(dados);
+      return [passoDeTeste('1ª inscrição da criança', primeira, 201), passoDeTeste('2ª inscrição da mesma criança', segunda, 409)];
     }
   },
   {
@@ -263,6 +296,8 @@ function endpointsDaMatriz() {
     { nome: 'Criar turma', perm: 'matricula:turma:add', metodo: 'POST', caminho: '/api/v1/matricula/turmas', corpo: function () { return {}; } },
     { nome: 'Alocar vaga', perm: 'matricula:vaga:alocar', metodo: 'POST', caminho: '/api/v1/matricula/vagas/alocar', corpo: function () { return { turmaId: ID_INEXISTENTE }; } },
     { nome: 'Confirmar matrícula', perm: 'matricula:matricula:confirmar', metodo: 'POST', caminho: '/api/v1/matricula/matriculas/' + ID_INEXISTENTE + '/confirmar' },
+    { nome: 'Desistir da matrícula', perm: 'matricula:matricula:status', metodo: 'POST', caminho: '/api/v1/matricula/matriculas/' + ID_INEXISTENTE + '/desistir' },
+    { nome: 'Sugerir creches próximas', perm: 'matricula:creche:list', metodo: 'GET', caminho: '/api/v1/matricula/creches/proximas?latitude=-23.55&longitude=-46.63&faixaEtaria=MATERNAL&limite=3' },
     { nome: 'Relatório de ocupação', perm: 'relatorios:ocupacao:list', metodo: 'GET', caminho: '/api/v1/relatorios/ocupacao?municipioId=' + m },
     { nome: 'Relatório da fila de espera', perm: 'relatorios:fila:list', metodo: 'GET', caminho: '/api/v1/relatorios/fila-espera?municipioId=' + m },
     { nome: 'Relatório de matrículas', perm: 'relatorios:matricula:list', metodo: 'GET', caminho: '/api/v1/relatorios/matricula/taxa-confirmacao?municipioId=' + m + '&periodo=' + periodoComoData(periodoSelecionado()) }

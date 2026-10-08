@@ -30,8 +30,8 @@
 
   <nav class="lateral" id="nav">
     <button class="nav-item" data-aba="visao">1. Visão geral<small>painel ao vivo</small></button>
-    <button class="nav-item" data-aba="inscricao">2. Stack A<small>Inscrição e fila</small></button>
-    <button class="nav-item" data-aba="matricula">3. Stack B<small>Matrícula e vagas</small></button>
+    <button class="nav-item" data-aba="inscricao">2. Stack A<small>Larissa: inscrição e fila</small></button>
+    <button class="nav-item" data-aba="matricula">3. Stack B<small>Letícia: matrícula e vagas</small></button>
     <button class="nav-item" data-aba="relatorios">4. Stack C<small>Relatórios e painel público</small></button>
     <button class="nav-item" data-aba="seguranca">5. Segurança<small>e resiliência</small></button>
     <button class="nav-item" data-aba="eventos">6. Eventos e Outbox<small>RabbitMQ e relatórios</small></button>
@@ -92,7 +92,7 @@
     <!-- 2. STACK A -->
     <section class="aba" id="aba-inscricao">
       <h2>Stack A: Inscrição e fila de espera</h2>
-      <p class="lead">Cadastre responsável e criança, inscreva na turma e veja o score de prioridade e a posição na fila (Redis com fallback para o banco).</p>
+      <p class="lead">Cadastre responsável e criança, inscreva na turma e veja o score de prioridade e a posição na fila. A fila é ordenada por prioridade: quem tem score maior passa na frente, independentemente da hora da inscrição (posição lida do Redis, com fallback para o banco).</p>
 
       <div class="painel">
         <h3>Como o score de prioridade é calculado</h3>
@@ -111,7 +111,8 @@
             <div>Estimativa com os valores do formulário de inscrição:</div>
             <div class="score-grande" id="a_scoreEstimado">-</div>
             <div id="a_scoreDetalhe" class="dica"></div>
-            <p class="dica tecnico">A fila é atendida pela posição (ordem de chegada); o score fica gravado na inscrição e é devolvido na resposta.</p>
+            <p class="dica">Ordem da fila: <b>score maior primeiro</b>; em empate, quem se inscreveu antes (data de inscrição e, por fim, o id). A cada inscrição a fila inteira da turma é renumerada de 1 a N.</p>
+            <p class="dica tecnico">Enfileirar e alocar tomam o mesmo lock por turma no servidor (inscrições simultâneas não geram posição duplicada). A alocação convoca a menor posição e não renumera: as posições restantes continuam distintas e ordenadas até a próxima inscrição.</p>
           </div>
         </div>
       </div>
@@ -193,12 +194,27 @@
           <div class="rolagem"><table class="tabela" id="a_tabela"></table></div>
         </div>
       </div>
+
+      <div class="painel" style="margin-top:14px">
+        <h3>Cenários: fila por prioridade e inscrição única da criança</h3>
+        <p class="dica" style="margin-top:0">Cada cenário cria a sua própria creche e turma (fila limpa) para que o resultado seja verificável. As posições da coluna "Posição agora" vêm de GET .../posicao, não da resposta da inscrição.</p>
+        <div class="linha-botoes">
+          <button id="a_btnFurar" title="Inscreve renda alta e depois renda baixa + vulnerável: a segunda passa na frente">Furar a fila (renda alta, depois baixa + vulnerável)</button>
+          <button id="a_btnSimult" title="8 inscrições ao mesmo tempo na mesma turma, com scores todos diferentes">Inscrições simultâneas (8 em paralelo)</button>
+        </div>
+        <div class="linha-botoes">
+          <button id="a_btnDupla" class="fantasma" title="Inscreve a mesma criança duas vezes seguidas: 201 e depois 409">Mesma criança duas vezes (409)</button>
+          <button id="a_btnDuplaPar" class="fantasma" title="5 inscrições da mesma criança ao mesmo tempo: só uma pode ser aceita">Mesma criança em paralelo (1 x 201, demais 409)</button>
+        </div>
+        <div class="rolagem"><table class="tabela" id="a_cenTabela" style="margin-top:10px"></table></div>
+        <p id="a_cenRes" class="dica"></p>
+      </div>
     </section>
 
     <!-- 3. STACK B -->
     <section class="aba" id="aba-matricula">
       <h2>Stack B: Matrícula e vagas</h2>
-      <p class="lead">Crie creches e turmas, aloque a vaga ao primeiro da fila, confirme a matrícula e prove que o lock otimista impede matrícula dupla.</p>
+      <p class="lead">Crie creches e turmas, aloque a vaga ao primeiro da fila (o de maior score), confirme a matrícula, desista dela (a vaga volta e o próximo da fila é convocado automaticamente), sugira creches próximas e prove que o lock otimista impede matrícula dupla.</p>
 
       <div class="grade g3">
         <div class="painel">
@@ -247,6 +263,7 @@
           <div class="rolagem"><table class="tabela" id="b_tabela"></table></div>
           <h3 style="margin-top:12px">Matrículas desta sessão</h3>
           <div class="rolagem"><table class="tabela" id="b_tabelaMat"></table></div>
+          <p class="dica tecnico">Matrículas "auto" nasceram da alocação automática após uma desistência: a API não devolve o id nesse caminho; consulte-o no banco (<code>SELECT id, status FROM matricula ORDER BY id DESC</code>).</p>
         </div>
         <div class="painel">
           <h3>Concorrência: alocações em paralelo (lock otimista)</h3>
@@ -266,7 +283,46 @@
             <button id="b_btnFilaVazia" class="fantasma" title="Cria uma turma nova sem inscritos e tenta alocar">Alocar com fila vazia (409)</button>
           </div>
           <p id="b_erroRes" class="dica"></p>
-          <p class="dica tecnico">Fora da API atual: sugerir creche próxima, cancelar matrícula e liberar vaga (não há endpoint).</p>
+        </div>
+      </div>
+
+      <div class="grade g2" style="margin-top:14px">
+        <div class="painel">
+          <h3>Desistência e alocação automática <span class="selo info">POST /matricula/matriculas/{id}/desistir</span></h3>
+          <p class="dica" style="margin-top:0">Desistir cancela a matrícula (PENDENTE ou CONFIRMADA) e devolve a vaga. Logo depois do commit, o servidor convoca sozinho o próximo da fila, criando uma nova matrícula PENDENTE. A tela consulta a posição de quem estava na frente e mostra o que mudou (só enxerga as inscrições desta sessão).</p>
+          <label for="b_dSel">Matrícula</label><select id="b_dSel"></select>
+          <div class="linha-botoes">
+            <button id="b_btnDesistir">Desistir da matrícula</button>
+            <button id="b_btnDesistir2" class="fantasma" title="Desiste duas vezes seguidas: a segunda deve responder 409">Desistir 2 vezes (409)</button>
+            <button id="b_btnDesistir404" class="fantasma" title="Desiste de um id que não existe: 404">Matrícula inexistente (404)</button>
+          </div>
+          <div class="linha-botoes" style="margin-top:0">
+            <button id="b_btnCenarioDes" class="fantasma" title="Cria turma de 1 vaga, 3 inscritos, aloca, confirma e desiste">Cenário completo: desistência com fila</button>
+          </div>
+          <div class="rolagem"><table class="tabela" id="b_desTabela" style="margin-top:10px"></table></div>
+          <p id="b_desRes" class="dica"></p>
+          <p id="b_desRel" class="dica"></p>
+        </div>
+
+        <div class="painel">
+          <h3>Sugerir creches próximas <span class="selo info">GET /matricula/creches/proximas</span></h3>
+          <p class="dica" style="margin-top:0">Ordena as turmas da faixa etária pela distância (Haversine, em km) até a coordenada informada. Turmas <b>sem vaga aparecem de propósito</b> (destacadas): a família ainda pode entrar na fila delas.</p>
+          <div class="campos">
+            <div><label for="b_pxLat">Latitude</label><input id="b_pxLat" type="number" step="any" value="-23.55"></div>
+            <div><label for="b_pxLon">Longitude</label><input id="b_pxLon" type="number" step="any" value="-46.63"></div>
+            <div><label for="b_pxFaixa">Faixa etária</label>
+              <select id="b_pxFaixa"><option>BERCARIO</option><option selected>MATERNAL</option><option>PRE_ESCOLA</option></select></div>
+            <div><label for="b_pxLim">Limite (1 a 20)</label><input id="b_pxLim" type="number" min="1" max="20" value="5"></div>
+            <div class="cheio"><label for="b_pxResp">Preencher com o endereço de um responsável desta sessão</label><select id="b_pxResp"></select></div>
+          </div>
+          <div class="linha-botoes">
+            <button id="b_btnProximas">Buscar creches próximas</button>
+            <button id="b_btnPxSe" class="fantasma mini" title="-23.55, -46.63">Exemplo: Praça da Sé</button>
+            <button id="b_btnPxPaulista" class="fantasma mini" title="-23.56, -46.65">Exemplo: Av. Paulista</button>
+            <button id="b_btnPxErro" class="fantasma mini" title="Latitude fora do intervalo e limite acima de 20">Parâmetros inválidos (400)</button>
+          </div>
+          <div class="rolagem"><table class="tabela" id="b_pxTabela" style="margin-top:10px"></table></div>
+          <p id="b_pxRes" class="dica"></p>
         </div>
       </div>
     </section>
@@ -319,11 +375,12 @@
             <h3>Usuário atual e troca rápida</h3>
             <div id="s_usuario"></div>
             <div class="linha-botoes"><button id="s_btnTrocar" class="fantasma">Sair e entrar com outro usuário</button></div>
-            <p class="dica">Perfis do sistema: ADMIN (tudo), ATENDENTE (só inscrição), GESTOR (só relatórios). A sessão local (turmas, filas) é mantida ao trocar de usuário.</p>
+            <p class="dica">Perfis do sistema (PerfilUsuario): <b>ADMIN</b> tem tudo (*); <b>GESTOR</b> lê relatórios e opera creches, turmas, alocação, confirmação e desistência; <b>ATENDENTE</b> cadastra responsável, criança e inscrição, consulta a posição e as creches próximas e registra desistência. A sessão local (turmas, filas) é mantida ao trocar de usuário.</p>
+            <p class="dica tecnico">O "esperado" da matriz é calculado a partir das permissões do JWT do usuário atual, não de uma tabela fixa nesta tela.</p>
           </div>
           <div class="painel">
             <h3>Matriz de permissões do usuário atual</h3>
-            <p class="dica" style="margin-top:0">Dispara cada endpoint com dados fictícios (sem alterar a fila nem as vagas reais) e compara com o que o perfil deveria poder fazer. Permitido = qualquer status diferente de 401/403.</p>
+            <p class="dica" style="margin-top:0">Dispara cada endpoint com dados fictícios (sem alterar a fila nem as vagas reais) e compara com o que o perfil deveria poder fazer. Permitido = qualquer status diferente de 401/403 (o dado fictício costuma resultar em 400 ou 404, o que prova que passou da permissão).</p>
             <div class="linha-botoes" style="margin-top:0"><button id="s_btnMatriz">Executar matriz</button></div>
             <div class="rolagem"><table class="tabela" id="s_matriz"></table></div>
           </div>
@@ -350,7 +407,7 @@
           <div class="seta" data-seta="4"></div>
           <div class="no" data-no="5">Painel<small>números atualizados</small></div>
         </div>
-        <p class="dica" id="e_estadoFluxo">Faça uma ação (criar turma, inscrever, alocar ou confirmar) para ver o fluxo animado.</p>
+        <p class="dica" id="e_estadoFluxo">Faça uma ação (criar turma, inscrever, alocar, confirmar ou desistir) para ver o fluxo animado.</p>
       </div>
 
       <div class="grade g2">
@@ -362,6 +419,7 @@
             <span id="e_pendentes" class="selo"></span>
           </div>
           <ul class="linha-tempo" id="e_timeline"></ul>
+          <p class="dica">Eventos reconhecidos: <code>vaga.liberada</code>, <code>fila.atualizada</code> e <code>matricula.atualizada</code> (PENDENTE, CONFIRMADA, CANCELADA ou EXPIRADA). Uma desistência gera <code>vaga.liberada</code> + <code>matricula.atualizada</code> (CANCELADA) e, havendo fila, os três eventos da alocação automática.</p>
         </div>
         <div class="painel">
           <h3>Demonstrar a resiliência com o RabbitMQ</h3>
@@ -383,6 +441,37 @@
           <p class="dica tecnico">Não existe endpoint de Outbox na API: a consulta é feita direto no banco.</p>
         </div>
       </div>
+
+      <div class="painel">
+        <h3>Job de expiração e reconciliação <span class="selo info">sem endpoint</span></h3>
+        <div class="grade g2">
+          <div>
+            <p style="margin-top:0">O core tem um job agendado (<code>ManutencaoMatriculaScheduler</code>, sem token, desligado nos testes) que roda a cada 2 minutos por padrão e, para cada município, faz dois passos:</p>
+            <ol style="padding-left:18px;margin:0">
+              <li><b>Expira</b> toda matrícula <b>PENDENTE</b> cujo prazo de confirmação venceu (o prazo vem do município, em dias): ela vira <b>EXPIRADA</b>, a inscrição também, a vaga volta para a turma e os eventos <code>vaga.liberada</code> e <code>matricula.atualizada</code> (EXPIRADA) vão para a Outbox.</li>
+              <li><b>Reconcilia</b>: toda turma com vaga livre e fila não vazia é preenchida até acabar a vaga ou a fila. É a rede de segurança da alocação automática (que acontece em memória, sem durabilidade, depois do commit da desistência).</li>
+            </ol>
+            <p class="dica">A expiração vence a confirmação: as duas travam a mesma matrícula, então nunca acontecem juntas.</p>
+            <p class="dica"><b>Cuidado na apresentação:</b> o passo de reconciliação também aloca sozinho toda turma que tenha vaga livre e inscritos na fila, ou seja, pode "furar" a alocação manual e a demo automática (inscrito some da fila, 404 na posição). Para as demonstrações de alocação manual, suba o core com um intervalo longo (ex.: <code>ALOCACRECHE_MATRICULA_MANUTENCAO_INTERVALO_MS=3600000</code>) ou com o job desligado, e só encurte o intervalo na demonstração do job.</p>
+          </div>
+          <div>
+            <p style="margin-top:0"><b>Como demonstrar</b></p>
+            <ol style="padding-left:18px;margin:0">
+              <li>Aloque uma vaga (matrícula PENDENTE) e escolha-a aqui, de preferência numa turma com mais gente na fila:</li>
+            </ol>
+            <select id="e_expSel" aria-label="Matrícula PENDENTE para expirar"></select>
+            <ol start="2" style="padding-left:18px;margin:6px 0 0"><li>Vença o prazo por SQL (o comando já usa a matrícula escolhida e o município do token):</li></ol>
+            <div class="cmd"><code id="e_expSql"></code><button class="mini sec" id="e_btnCopiarSql">Copiar</button></div>
+            <ol start="3" style="padding-left:18px;margin:0"><li>Marque a expiração para acompanhar nos eventos (a tela assume que o job vai rodar):</li></ol>
+            <div class="linha-botoes"><button id="e_btnExpiracao" class="fantasma">Acompanhar a expiração</button></div>
+            <ol start="4" style="padding-left:18px;margin:0"><li>Espere a próxima rodada do job (até 2 min) ou acelere subindo o core com a variável abaixo (propriedade <code>alocacreche.matricula.manutencao.intervalo-ms</code>, em ms; para desligar o job use <code>ALOCACRECHE_MATRICULA_MANUTENCAO_HABILITADO=false</code>):</li></ol>
+            <div class="cmd"><code>ALOCACRECHE_MATRICULA_MANUTENCAO_INTERVALO_MS=10000</code><button class="mini sec" data-copiar="ALOCACRECHE_MATRICULA_MANUTENCAO_INTERVALO_MS=10000">Copiar</button></div>
+            <p class="dica">Depois confira o status no banco e a linha do tempo (vaga devolvida, próximo da fila convocado):</p>
+            <div class="cmd"><code>docker compose exec -T postgres-core psql -U alocacreche -d alocacreche -c "SELECT id, status, prazo_confirmacao FROM matricula ORDER BY id DESC LIMIT 10"</code><button class="mini sec" data-copiar='docker compose exec -T postgres-core psql -U alocacreche -d alocacreche -c "SELECT id, status, prazo_confirmacao FROM matricula ORDER BY id DESC LIMIT 10"'>Copiar</button></div>
+          </div>
+        </div>
+        <p class="dica tecnico">A tabela matricula tem RLS: o UPDATE por psql precisa definir o tenant com SET LOCAL na mesma transação, como no comando acima. O prazo vencido é uma data fixa de 2000 de propósito: a JVM grava o prazo no próprio fuso e o now() do Postgres (em container, geralmente UTC) pode estar horas à frente, o que faria o prazo "nunca vencer".</p>
+      </div>
     </section>
 
     <!-- 7. ROTEIRO -->
@@ -392,7 +481,8 @@
 
       <div class="painel">
         <h3>Demo completa automática</h3>
-        <p class="dica" style="margin-top:0">Cria uma creche e uma turma de 3 vagas, faz 3 inscrições, aloca, confirma e confere os relatórios, narrando cada passo.</p>
+        <p class="dica" style="margin-top:0">Cria uma creche e uma turma de 3 vagas, faz 3 inscrições (a última a chegar, de maior prioridade, passa na frente), sugere creches próximas, aloca e confirma, desiste de uma matrícula para ver a alocação automática convocar o próximo da fila e confere os relatórios, narrando cada passo.</p>
+        <p class="dica">Se o job de manutenção do core (a cada 2 min por padrão) rodar no meio da demo, ele aloca a vaga livre sozinho e algum passo pode divergir; veja a aba Eventos e Outbox para evitar isso.</p>
         <div class="linha-botoes">
           <button id="r_btnDemo">Executar demo completa automática</button>
           <label style="display:inline;margin:0">Ritmo
@@ -405,13 +495,17 @@
         </div>
       </div>
 
-      <div class="grade g2">
+      <div class="grade g3">
         <div class="painel">
           <h3>Larissa: Stack A (Inscrição e fila)</h3>
           <ol class="passos" id="r_larissa"></ol>
         </div>
         <div class="painel">
-          <h3>Você: Stack B e C (Matrícula, relatórios e segurança)</h3>
+          <h3>Letícia: Stack B (Matrícula e vagas)</h3>
+          <ol class="passos" id="r_leticia"></ol>
+        </div>
+        <div class="painel">
+          <h3>Você: Stack C (Relatórios, segurança) e integração</h3>
           <ol class="passos" id="r_voce"></ol>
         </div>
       </div>

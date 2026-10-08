@@ -12,6 +12,20 @@ function filaLocalDaTurma(turmaId) {
     .sort(function (a, b) { return a.posicao - b.posicao; });
 }
 
+/*
+ * Reproduz localmente a regra do servidor: a fila é ordenada por score (decrescente), data de
+ * inscrição (crescente, aqui o id) e id (crescente), e as posições são renumeradas de 1 a N.
+ * É só espelho para a tela; a posição oficial vem de GET .../posicao.
+ */
+function reordenarFilaLocal(turmaId) {
+  var fila = estado.inscricoes.filter(function (i) { return i.turmaId === turmaId && i.status === 'AGUARDANDO'; });
+  fila.sort(function (a, b) {
+    if (b.score !== a.score) { return b.score - a.score; }
+    return a.id - b.id;
+  });
+  fila.forEach(function (i, indice) { i.posicao = indice + 1; });
+}
+
 function rotuloTurma(turma) {
   var creche = crecheLocal(turma.crecheId);
   return 'Turma ' + turma.id + ' (' + (creche ? creche.nome : 'creche ' + turma.crecheId) + ', ' + turma.faixa + ', ' + turma.vagas + ' vagas)';
@@ -138,6 +152,7 @@ async function acaoInscrever(dados) {
       status: d.status, origem: origem, modo: dados.modo,
       explicacao: explicarScore(dados.renda, dados.vulneravel, !!dados.irmao).texto
     });
+    reordenarFilaLocal(dados.turmaId);
     registrarEvento('Inscrição ' + d.inscricaoId + ' na turma ' + dados.turmaId, 'fila.atualizada',
       { tipo: 'fila', turmaId: dados.turmaId, valor: filaLocalDaTurma(dados.turmaId).length });
     aposAcao();
@@ -167,7 +182,6 @@ async function acaoAlocar(turmaId, rotulo) {
   if (convocada) {
     convocada.status = 'CONVOCADA';
     convocada.posicao = null;
-    fila.slice(1).forEach(function (i) { i.posicao = Math.max(1, i.posicao - 1); });
     if (convocada.origem && creche) { distancia = haversineKm(convocada.origem.lat, convocada.origem.lon, creche.lat, creche.lon); }
   }
   if (turma) { turma.alocadas += 1; }
@@ -199,6 +213,83 @@ async function acaoConfirmar(matriculaId, rotulo) {
   return resposta;
 }
 
+/*
+ * Aplica no estado local o que acontece quando uma matrícula libera a vaga (desistência ou
+ * expiração): a matrícula e a inscrição saem de cena e, havendo fila, o primeiro dela é convocado
+ * por uma nova matrícula PENDENTE (id só existe no banco: a API não o devolve nesse caminho).
+ */
+function aplicarLiberacaoLocal(matricula, statusFinal, realocada, proximo, acaoId, rotuloAcao) {
+  var turma = turmaLocal(matricula.turmaId);
+  matricula.status = statusFinal;
+  var inscricao = acharPorId(estado.inscricoes, matricula.inscricaoId);
+  if (inscricao) { inscricao.status = statusFinal; inscricao.posicao = null; }
+  if (turma) { turma.alocadas = Math.max(0, turma.alocadas - 1); }
+  var creche = turma ? crecheLocal(turma.crecheId) : null;
+  if (realocada && proximo) {
+    proximo.status = 'CONVOCADA';
+    proximo.posicao = null;
+    if (turma) { turma.alocadas += 1; }
+    var distancia = proximo.origem && creche ? haversineKm(proximo.origem.lat, proximo.origem.lon, creche.lat, creche.lon) : null;
+    estado.matriculas.push({ id: null, turmaId: matricula.turmaId, inscricaoId: proximo.id, nome: proximo.nome, status: 'PENDENTE', distanciaKm: distancia, automatica: true });
+  }
+  var disponiveis = turma ? turma.vagas - turma.alocadas : null;
+  var alvoVaga = { tipo: 'vaga', turmaId: matricula.turmaId, valor: disponiveis };
+  registrarEvento(rotuloAcao, 'vaga.liberada', alvoVaga, acaoId);
+  registrarEvento(rotuloAcao + ': matrícula ' + matricula.id + ' ' + statusFinal, 'matricula.atualizada', alvoVaga, acaoId);
+  if (realocada) {
+    registrarEvento(rotuloAcao + ': alocação automática', 'vaga.liberada', alvoVaga, acaoId);
+    registrarEvento(rotuloAcao + ': alocação automática', 'fila.atualizada', { tipo: 'fila', turmaId: matricula.turmaId, valor: filaLocalDaTurma(matricula.turmaId).length }, acaoId);
+    registrarEvento(rotuloAcao + ': alocação automática (nova matrícula PENDENTE)', 'matricula.atualizada', { tipo: 'matriculas' }, acaoId);
+  }
+  return disponiveis;
+}
+
+/*
+ * Desiste da matrícula. A alocação automática roda no servidor logo depois do commit da
+ * desistência; para saber se alguém foi convocado, consulta a posição de quem estava na frente da
+ * fila (404 = saiu da fila, ou seja, foi convocado). Só enxerga a fila das inscrições desta sessão.
+ */
+async function acaoDesistir(matriculaId, rotulo) {
+  await garantirSnapshot();
+  var resposta = await api('POST', '/api/v1/matricula/matriculas/' + matriculaId + '/desistir', { rotulo: rotulo || 'Desistir da matrícula' });
+  if (!resposta.ok) { return resposta; }
+  var matricula = acharPorId(estado.matriculas, matriculaId);
+  var turmaId = resposta.dados.turmaId;
+  var fila = filaLocalDaTurma(turmaId);
+  var proximo = fila.length ? fila[0] : null;
+  var resumo = {
+    turmaId: turmaId, matriculaId: matriculaId, vagasAposCancelar: resposta.dados.vagasDisponiveis,
+    proximo: proximo ? { id: proximo.id, nome: proximo.nome, posicaoAntes: proximo.posicao } : null,
+    statusPosicao: null, realocada: false, vagasFinais: null
+  };
+  if (proximo) {
+    var consulta = await api('GET', '/api/v1/inscricao/inscricoes/' + proximo.id + '/posicao?turmaId=' + turmaId, { rotulo: 'Posição do próximo da fila após a desistência' });
+    resumo.statusPosicao = consulta.status;
+    resumo.realocada = consulta.status === 404;
+    if (consulta.ok) { proximo.posicao = consulta.dados.posicao; }
+  }
+  if (matricula) {
+    resumo.vagasFinais = aplicarLiberacaoLocal(matricula, 'CANCELADA', resumo.realocada, proximo, 'desistencia-' + matriculaId, 'Desistência da matrícula ' + matriculaId);
+  }
+  resposta.resumo = resumo;
+  aposAcao();
+  return resposta;
+}
+
+/*
+ * Prepara a demonstração do job de expiração: assume que o prazo da matrícula PENDENTE será
+ * vencido por SQL e que o job devolverá a vaga (e realocará, se houver fila).
+ */
+function acaoAcompanharExpiracao(matriculaId) {
+  var matricula = acharPorId(estado.matriculas, matriculaId);
+  if (!matricula || matricula.status !== 'PENDENTE') { return false; }
+  var fila = filaLocalDaTurma(matricula.turmaId);
+  var proximo = fila.length ? fila[0] : null;
+  aplicarLiberacaoLocal(matricula, 'EXPIRADA', !!proximo, proximo, 'expiracao-' + matriculaId, 'Expiração da matrícula ' + matriculaId + ' (job)');
+  aposAcao();
+  return true;
+}
+
 // Turma a usar quando a tela não tem seleção explícita
 function turmaPadrao() {
   if (estado.turmaAtual && turmaLocal(estado.turmaAtual)) { return estado.turmaAtual; }
@@ -212,9 +303,9 @@ var PERFIS_EXEMPLO = {
   alta: { renda: 4500, vulneravel: false, rotulo: 'renda alta', nome: 'Carla' }
 };
 
-// Inscreve uma família nova (cadastro inline) com o perfil escolhido
+// Inscreve uma família nova (cadastro inline) com o perfil escolhido (chave de PERFIS_EXEMPLO ou objeto igual a eles)
 async function acaoInscreverExemplo(turmaId, perfil) {
-  var p = PERFIS_EXEMPLO[perfil];
+  var p = typeof perfil === 'string' ? PERFIS_EXEMPLO[perfil] : perfil;
   var sufixo = sufixoAleatorio();
   return acaoInscrever({
     modo: 'inline', turmaId: turmaId, renda: p.renda, vulneravel: p.vulneravel,

@@ -156,7 +156,31 @@ function atualizarEstadoFinalDoFluxo() {
   }
 }
 
+// Comando SQL que vence o prazo da matrícula escolhida (a tabela tem RLS: o tenant vai no SET LOCAL).
+// Usa uma data fixa no passado porque o prazo é gravado no fuso da JVM e o now() do Postgres pode estar em outro fuso.
+function comandoDeExpiracao(matriculaId) {
+  var sql = "BEGIN; SET LOCAL app.current_tenant = '" + municipioId + "'; UPDATE matricula SET prazo_confirmacao = timestamp '2000-01-01 00:00:00' WHERE id = " + (matriculaId || 0) + " AND status = 'PENDENTE'; COMMIT";
+  return 'docker compose exec -T postgres-core psql -U alocacreche -d alocacreche -c "' + sql + '"';
+}
+
+function renderizarJobDeExpiracao() {
+  var pendentes = matriculasComId().filter(function (m) { return m.status === 'PENDENTE'; });
+  preencherSelect($('e_expSel'), pendentes.map(function (m) { return { valor: m.id, rotulo: '#' + m.id + ' ' + m.nome + ' (turma #' + m.turmaId + ', ' + filaLocalDaTurma(m.turmaId).length + ' na fila)' }; }), '(nenhuma matrícula PENDENTE nesta sessão)');
+  $('e_expSql').textContent = comandoDeExpiracao(Number($('e_expSel').value));
+}
+
+function aoAcompanharExpiracao() {
+  var matriculaId = Number($('e_expSel').value);
+  if (!matriculaId) { avisar('Aloque uma vaga primeiro (matrícula PENDENTE).', 'erro'); return; }
+  acaoAcompanharExpiracao(matriculaId);
+  avisar('Expiração da matrícula #' + matriculaId + ' marcada: rode o SQL e espere o job. Veja a linha do tempo.', 'ok');
+}
+
 function iniciarEventos() {
+  $('e_expSel').onchange = renderizarJobDeExpiracao;
+  $('e_btnCopiarSql').onclick = function () { copiar($('e_expSql').textContent, 'Comando copiado.'); };
+  $('e_btnExpiracao').onclick = aoAcompanharExpiracao;
+  renderizarJobDeExpiracao();
   $$('[data-copiar]').forEach(function (b) { b.onclick = function () { copiar(b.getAttribute('data-copiar'), 'Comando copiado.'); }; });
   $('e_btnVerificar').onclick = async function () { await atualizarRelatorios(); avisar('Relatórios consultados.', 'ok'); };
   renderizarTimeline();
