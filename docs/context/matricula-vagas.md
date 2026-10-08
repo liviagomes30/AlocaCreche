@@ -82,6 +82,11 @@ Publicar no RabbitMQ é do módulo Notificação + plataforma (ver
 | `POST /api/v1/matricula/matriculas/{id}/desistir` | `matricula:matricula:status` | `PENDENTE`/`CONFIRMADA` → `CANCELADA`, devolve a vaga e realoca automaticamente |
 | `GET /api/v1/matricula/creches/proximas?latitude=&longitude=&faixaEtaria=&limite=` | `matricula:creche:list` | Turmas da faixa, da creche mais próxima para a mais distante (Haversine) |
 
+**Sugestão de creches inclui turma sem vaga (decisão de produto).** `creches/proximas` devolve também
+turmas com `vagasDisponiveis = 0`, de propósito: a família ainda pode entrar na fila daquela turma. O
+campo `vagasDisponiveis` vai na resposta para o cliente distinguir. Creche sem latitude/longitude fica de
+fora. O contrato está fixado em `MatriculaControllerIT`.
+
 **Alocação automática ao liberar vaga.** A desistência (`DesistenciaMatriculaTransacional`) cancela a
 matrícula, devolve a vaga com o mesmo `@Version` da alocação e grava `vaga.liberada` e
 `matricula.atualizada` (status `CANCELADA`) na Outbox, tudo numa transação. Ela publica

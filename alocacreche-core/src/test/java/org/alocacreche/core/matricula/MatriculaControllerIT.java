@@ -66,6 +66,7 @@ class MatriculaControllerIT {
     private static final String CAMINHO_ALOCAR = "/api/v1/matricula/vagas/alocar";
     private static final String PERMISSAO_ALOCAR = "matricula:vaga:alocar";
     private static final String PERMISSAO_CONFIRMAR = "matricula:matricula:confirmar";
+    private static final String CONSULTA_PROXIMAS_VALIDA = "latitude=-23.55&longitude=-46.63&faixaEtaria=MATERNAL";
 
     static final PostgreSQLContainer<?> postgres =
             new PostgreSQLContainer<>("postgres:16").withInitScript("db/core-app-role.sql");
@@ -627,6 +628,84 @@ class MatriculaControllerIT {
     }
 
     @Test
+    @DisplayName("creches proximas sem token responde 401")
+    void crechesProximasSemTokenResponde401() {
+        assertThat(proximas(CONSULTA_PROXIMAS_VALIDA, null).getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+    }
+
+    @Test
+    @DisplayName("creches proximas com token sem matricula:creche:list responde 403")
+    void crechesProximasSemPermissaoResponde403() {
+        String tokenSemPermissao = tokenCom(municipioA, List.of(PERMISSAO_ALOCAR, "matricula:creche:add"));
+
+        assertThat(proximas(CONSULTA_PROXIMAS_VALIDA, tokenSemPermissao).getStatusCode())
+                .isEqualTo(HttpStatus.FORBIDDEN);
+    }
+
+    @Test
+    @DisplayName("creches proximas com exatamente matricula:creche:list responde 200")
+    void crechesProximasComAPermissaoEspecificaResponde200() {
+        String token = tokenCom(municipioA, List.of("matricula:creche:list"));
+
+        assertThat(proximas(CONSULTA_PROXIMAS_VALIDA, token).getStatusCode()).isEqualTo(HttpStatus.OK);
+    }
+
+    @Test
+    @DisplayName("creches proximas com parametros ausentes ou fora da faixa responde 400")
+    void crechesProximasComParametrosInvalidosResponde400() {
+        String token = tokenCom(municipioA, List.of("matricula:creche:list"));
+        List<String> consultasInvalidas = List.of(
+                "latitude=-23.55&longitude=-46.63",
+                "latitude=-23.55&longitude=-46.63&faixaEtaria=INEXISTENTE",
+                "latitude=-23.55&longitude=-46.63&faixaEtaria=MATERNAL&limite=0",
+                "latitude=-23.55&longitude=-46.63&faixaEtaria=MATERNAL&limite=21",
+                "longitude=-46.63&faixaEtaria=MATERNAL",
+                "latitude=-23.55&faixaEtaria=MATERNAL",
+                "latitude=-90.1&longitude=-46.63&faixaEtaria=MATERNAL",
+                "latitude=90.1&longitude=-46.63&faixaEtaria=MATERNAL",
+                "latitude=-23.55&longitude=-180.1&faixaEtaria=MATERNAL",
+                "latitude=-23.55&longitude=180.1&faixaEtaria=MATERNAL");
+
+        for (String consulta : consultasInvalidas) {
+            assertThat(proximas(consulta, token).getStatusCode()).as(consulta).isEqualTo(HttpStatus.BAD_REQUEST);
+        }
+    }
+
+    @Test
+    @DisplayName("creches proximas aceita os limites validos de limite (1 e 20)")
+    void crechesProximasAceitaLimitesValidos() {
+        String token = tokenCom(municipioA, List.of("matricula:creche:list"));
+
+        assertThat(proximas("latitude=-23.55&longitude=-46.63&faixaEtaria=MATERNAL&limite=1", token).getStatusCode())
+                .isEqualTo(HttpStatus.OK);
+        assertThat(proximas("latitude=-23.55&longitude=-46.63&faixaEtaria=MATERNAL&limite=20", token).getStatusCode())
+                .isEqualTo(HttpStatus.OK);
+    }
+
+    @Test
+    @DisplayName("creches proximas tambem devolve a turma sem vaga, com vagasDisponiveis zero")
+    void crechesProximasIncluiTurmaSemVaga() throws Exception {
+        Long turmaSemVaga = criarTurmaPorHttp(municipioA, 1);
+        inscreverPorHttp(municipioA, turmaSemVaga, true);
+        assertThat(alocar(turmaSemVaga, tokenCom(municipioA, List.of("*"))).getStatusCode())
+                .isEqualTo(HttpStatus.CREATED);
+
+        ResponseEntity<String> resposta = proximas(
+                "latitude=-23.55&longitude=-46.63&faixaEtaria=MATERNAL&limite=20",
+                tokenCom(municipioA, List.of("matricula:creche:list")));
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+        JsonNode item = null;
+        for (JsonNode candidato : objectMapper.readTree(resposta.getBody())) {
+            if (candidato.get("turmaId").asLong() == turmaSemVaga) {
+                item = candidato;
+            }
+        }
+        assertThat(item).as("turma sem vaga deve aparecer na sugestao").isNotNull();
+        assertThat(item.get("vagasDisponiveis").asInt()).isZero();
+    }
+
+    @Test
     @DisplayName("inscrever de novo a mesma crianca com inscricao ativa responde 409 sem segunda fila")
     void duplaInscricaoDaMesmaCriancaResponde409() {
         Long turmaId = criarTurmaPorHttp(municipioA, 3);
@@ -874,6 +953,14 @@ class MatriculaControllerIT {
         } catch (Exception excecao) {
             throw new IllegalStateException(excecao);
         }
+    }
+
+    private ResponseEntity<String> proximas(String consulta, String token) {
+        return restTemplate.exchange(
+                "/api/v1/matricula/creches/proximas?" + consulta,
+                HttpMethod.GET,
+                new HttpEntity<>(cabecalhos(token)),
+                String.class);
     }
 
     private HttpHeaders cabecalhos(String token) {
