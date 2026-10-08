@@ -44,6 +44,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.util.Map;
+
 /**
  * Cobre as regras do InscricaoService unico: municipio vindo do token, tenant aplicado antes de
  * qualquer leitura, 404 em vez de excecao generica, score de prioridade (inclusive irmao
@@ -135,6 +137,22 @@ class InscricaoServiceTest {
                             return inscricao;
                         });
         lenient().when(filaEsperaRepository.findMaiorPosicaoByTurmaId(TURMA_ID)).thenReturn(Optional.empty());
+        
+        lenient()
+        .when(filaEsperaRepository.findByTurmaIdOrdenadaPorPrioridade(TURMA_ID))
+        .thenAnswer(invocacao -> {
+            FilaEspera fila = new FilaEspera();
+            fila.setMunicipioId(MUNICIPIO_ID);
+            fila.setTurmaId(TURMA_ID);
+            fila.setInscricao(
+                    new Inscricao());
+            fila.getInscricao().setId(INSCRICAO_ID);
+            fila.getInscricao().setScorePrioridade(0.7);
+
+            fila.setPosicao(0);
+
+            return List.of(fila);
+        });
     }
 
     @Test
@@ -285,13 +303,14 @@ class InscricaoServiceTest {
     }
 
     @Test
-    @DisplayName("agenda a escrita no Redis com municipio, turma, inscricao e posicao")
+    @DisplayName("agenda a atualizacao das posicoes no Redis")
     void agendaEscritaNoRedis() {
-        when(filaEsperaRepository.findMaiorPosicaoByTurmaId(TURMA_ID)).thenReturn(Optional.of(1));
-
         service.registrarInscricao(dtoPorId("400.00", true));
 
-        verify(filaRedisService).adicionarAposCommit(MUNICIPIO_ID, TURMA_ID, INSCRICAO_ID, 2);
+        verify(filaRedisService).atualizarPosicoesAposCommit(
+                eq(MUNICIPIO_ID),
+                eq(TURMA_ID),
+                eq(Map.of(INSCRICAO_ID, 1)));
     }
 
     @Test
@@ -302,24 +321,35 @@ class InscricaoServiceTest {
         assertThat(resposta.posicao()).isEqualTo(1);
         ArgumentCaptor<FilaEspera> filaSalva = ArgumentCaptor.forClass(FilaEspera.class);
         verify(filaEsperaRepository).save(filaSalva.capture());
+
         FilaEspera fila = filaSalva.getValue();
+
         assertThat(fila.getInscricao().getId()).isEqualTo(INSCRICAO_ID);
         assertThat(fila.getTurmaId()).isEqualTo(TURMA_ID);
         assertThat(fila.getMunicipioId()).isEqualTo(MUNICIPIO_ID);
-        assertThat(fila.getPosicao()).isEqualTo(1);
+        assertThat(fila.getPosicao()).isEqualTo(0);
+
+        verify(filaEsperaRepository).saveAll(any());
+        verify(filaRedisService).atualizarPosicoesAposCommit(
+                eq(MUNICIPIO_ID),
+                eq(TURMA_ID),
+                eq(Map.of(INSCRICAO_ID, 1)));
     }
 
     @Test
-    @DisplayName("a posicao e a maior posicao da turma mais 1")
-    void posicaoEMaiorPosicaoMaisUm() {
-        when(filaEsperaRepository.findMaiorPosicaoByTurmaId(TURMA_ID)).thenReturn(Optional.of(3));
+    @DisplayName("recalcula a posicao da inscricao conforme a fila ordenada por prioridade")
+    void recalculaPosicaoConformePrioridade() {
+        InscricaoRegistradaResponse resposta =
+                service.registrarInscricao(dtoPorId("400.00", true));
 
-        InscricaoRegistradaResponse resposta = service.registrarInscricao(dtoPorId("400.00", true));
+        assertThat(resposta.posicao()).isEqualTo(1);
 
-        assertThat(resposta.posicao()).isEqualTo(4);
-        ArgumentCaptor<FilaEspera> filaSalva = ArgumentCaptor.forClass(FilaEspera.class);
-        verify(filaEsperaRepository).save(filaSalva.capture());
-        assertThat(filaSalva.getValue().getPosicao()).isEqualTo(4);
+        verify(filaEsperaRepository).saveAll(any());
+
+        verify(filaRedisService).atualizarPosicoesAposCommit(
+                eq(MUNICIPIO_ID),
+                eq(TURMA_ID),
+                eq(Map.of(INSCRICAO_ID, 1)));
     }
 
     @Test
