@@ -581,7 +581,7 @@ class MatriculaControllerIT {
     }
 
     @Test
-    @DisplayName("desistir sem a permissao matricula:matricula:cancelar responde 403")
+    @DisplayName("desistir sem a permissao matricula:matricula:status responde 403")
     void desistirSemPermissaoResponde403() {
         Long matriculaId = alocarNovaMatricula(municipioA);
 

@@ -21,20 +21,30 @@ class PerfilUsuarioTest {
     }
 
     @Test
-    @DisplayName("GESTOR devolve exatamente as tres permissoes de relatorios")
-    void gestorDevolvePermissoesDeRelatorios() {
+    @DisplayName("GESTOR devolve as permissoes de relatorios e da operacao de matricula e vagas")
+    void gestorDevolvePermissoesDeRelatoriosEMatricula() {
         assertThat(PerfilUsuario.GESTOR.permissoes()).containsExactlyInAnyOrder(
-                "relatorios:ocupacao:list", "relatorios:fila:list", "relatorios:matricula:list");
+                "relatorios:ocupacao:list",
+                "relatorios:fila:list",
+                "relatorios:matricula:list",
+                "matricula:creche:add",
+                "matricula:turma:add",
+                "matricula:creche:list",
+                "matricula:vaga:alocar",
+                "matricula:matricula:confirmar",
+                "matricula:matricula:status");
     }
 
     @Test
-    @DisplayName("ATENDENTE devolve exatamente as permissoes de inscricao, fila, responsavel e crianca")
+    @DisplayName("ATENDENTE devolve as permissoes de inscricao e as de atendimento da matricula")
     void atendenteDevolvePermissoesDeInscricao() {
         assertThat(PerfilUsuario.ATENDENTE.permissoes()).containsExactlyInAnyOrder(
                 "inscricao:inscricao:add",
                 "inscricao:fila:detail",
                 "inscricao:responsavel:add",
-                "inscricao:crianca:add");
+                "inscricao:crianca:add",
+                "matricula:creche:list",
+                "matricula:matricula:status");
     }
 
     @ParameterizedTest

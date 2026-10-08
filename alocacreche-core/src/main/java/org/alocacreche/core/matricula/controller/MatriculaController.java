@@ -40,7 +40,7 @@ public class MatriculaController {
         return ResponseEntity.ok(confirmacaoMatriculaService.confirmar(matriculaId));
     }
 
-    @SaCheckPermission("matricula:matricula:cancelar")
+    @SaCheckPermission("matricula:matricula:status")
     @PostMapping("/matriculas/{id}/desistir")
     public ResponseEntity<MatriculaCanceladaResponse> desistir(@PathVariable("id") Long matriculaId) {
         return ResponseEntity.ok(desistenciaMatriculaService.desistir(matriculaId));
