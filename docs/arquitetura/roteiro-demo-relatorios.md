@@ -8,6 +8,42 @@ transação da mudança de estado, o Publicador o envia ao RabbitMQ e o MSRelato
 Os comandos são para **bash** (Git Bash no Windows, Linux ou macOS), com `curl` e `docker compose`.
 Valores entre `<...>` são placeholders: escolha os seus e não os versione.
 
+## Subir tudo com um comando
+
+Os scripts `scripts/demo-subir.sh` e `scripts/demo-parar.sh` (bash: Git Bash, Linux ou macOS) fazem as seções
+2 a 6 e 13 deste roteiro sozinhos, sem variáveis para lembrar:
+
+```bash
+scripts/demo-subir.sh            # zera tudo (docker compose down -v) e sobe a demonstração inteira
+scripts/demo-subir.sh --manter   # não zera: reaproveita banco, usuários e .demo/credenciais.txt
+scripts/demo-subir.sh --com-job  # liga o job de manutenção de matrículas (rodada a cada 20 s)
+scripts/demo-subir.sh --sem-build  # não recompila; usa os jars já gerados em */target
+scripts/demo-parar.sh            # para os serviços e derruba a infraestrutura (dados ficam nos volumes)
+scripts/demo-parar.sh --zerar    # idem, apagando os volumes (down -v) e as credenciais
+```
+
+O que o `demo-subir.sh` faz: confere Docker, Java 25, Maven e as portas (para com mensagem clara, sem
+encerrar nada alheio, se uma porta estiver ocupada por outro processo); gera um segredo JWT e uma senha
+aleatórios; sobe a infraestrutura; compila uma vez; sobe core (8083), relatórios (8082) e Gateway (8090), cada
+um com ambiente isolado; cria o município 1 e os usuários ADMIN, GESTOR e ATENDENTE; valida o login dos
+três perfis pelo Gateway; e imprime o quadro final com a URL (`http://localhost:8090/login.html`), os
+e-mails e a senha, o RabbitMQ (`http://localhost:15672`, guest/guest), os logs e como parar.
+Pode ser executado de novo a qualquer momento: ele para antes os processos da própria demonstração.
+Se algo falhar no meio (ou com Ctrl+C), o que subiu é derrubado e o erro é mostrado com o final do log.
+
+- **Credenciais:** o segredo JWT e a senha são gerados a cada execução e ficam só em memória e em
+  `.demo/credenciais.txt` (permissão 600, pasta `.demo/` ignorada pelo git, nunca no `.env`). O arquivo é
+  lido de novo com `--manter`. Os logs (`core.log`, `relatorios.log`, `gateway.log`, `build.log`) e os PIDs
+  ficam na mesma pasta. A senha aparece no quadro final e, durante a criação dos usuários, na linha de
+  comando do `psql`: use só em máquina de demonstração.
+- **Portas:** `POSTGRES_CORE_PORT` (padrão 5434, o mesmo nome do `docker-compose.yml`),
+  `DEMO_PORTA_CORE` (8083), `DEMO_PORTA_RELATORIOS` (8082) e `DEMO_PORTA_GATEWAY` (8090). As portas 5433,
+  6379, 5672 e 15672 são fixas no `docker-compose.yml`; o script só confere se estão livres.
+- **Plataforma:** no Git Bash os processos são encerrados com `taskkill //F //T`; em Linux/macOS, com `kill`.
+  A checagem de porta usa `/dev/tcp` do bash (sem depender de `nc`).
+
+O passo a passo manual abaixo continua valendo como alternativa e para entender cada etapa.
+
 ## 1. Pré-requisitos
 
 - Java 25 e Maven (o projeto exige o JDK 25, ver ADR 0002).

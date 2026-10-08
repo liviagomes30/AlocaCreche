@@ -71,3 +71,6 @@ Validado por `AuthControllerIT` (script de usuários da demo): executa o script 
 e faz `POST /api/v1/auth/login` com cada usuário, conferindo as permissões do perfil; cobre também município
 inexistente (falha), variável ausente (falha), 2ª execução com outra senha (a nova entra e a antiga dá 401),
 reativação de usuário inativo e execução com a role sujeita a RLS (`alocacreche_app`).
+
+Para a demonstração completa, o `scripts/demo-subir.sh` já executa este script (com o ADMIN extra) e valida
+o login dos três perfis; ver "Subir tudo com um comando" em `docs/arquitetura/roteiro-demo-relatorios.md`.

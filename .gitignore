@@ -40,3 +40,6 @@ Thumbs.db
 !.env.example
 application-local.yml
 application-local.yaml
+
+# Estado de execucao da demonstracao (PIDs, logs, credenciais geradas) - scripts/demo-subir.sh
+.demo/
