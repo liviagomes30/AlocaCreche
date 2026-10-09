@@ -59,7 +59,7 @@ exactly-once (por isso os consumidores precisam ser idempotentes, ver abaixo).
 **Mecânica:**
 
 1. O evento é gravado na **mesma transação local** que a escrita de negócio (`OutboxEvent`, ver
-   `alocacreche-core/.../outbox/OutboxEvent.java`).
+   `alocacreche-core/.../outbox/domain/OutboxEvent.java`).
 2. Um publicador assíncrono (`@Scheduled`, separado) lê linhas `PENDENTE`, publica no broker, e só
    marca `PROCESSADO` após confirmar o publish. Uma falha de publish deixa a linha `PENDENTE` para
    a próxima tentativa — nunca um drop silencioso.
