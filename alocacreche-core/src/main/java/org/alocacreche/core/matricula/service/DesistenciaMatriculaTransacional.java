@@ -7,7 +7,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.alocacreche.core.comum.excecao.ConflitoException;
 import org.alocacreche.core.comum.excecao.RecursoNaoEncontradoException;
-import org.alocacreche.core.comum.seguranca.SessaoTenantResolver;
+import org.alocacreche.core.comum.seguranca.service.SessaoTenantResolver;
 import org.alocacreche.core.comum.tenant.TenantContext;
 import org.alocacreche.core.inscricao.Inscricao;
 import org.alocacreche.core.inscricao.InscricaoRepository;

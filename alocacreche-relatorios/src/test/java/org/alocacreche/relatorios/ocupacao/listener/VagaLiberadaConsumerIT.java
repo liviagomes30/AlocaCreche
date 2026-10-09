@@ -1,0 +1,213 @@
+package org.alocacreche.relatorios.ocupacao.listener;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
+import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
+import org.alocacreche.relatorios.config.RabbitMqConfig;
+import org.alocacreche.relatorios.ocupacao.domain.OcupacaoTurma;
+import org.alocacreche.relatorios.ocupacao.event.VagaLiberadaEvent;
+import org.alocacreche.relatorios.ocupacao.repository.OcupacaoTurmaRepository;
+import org.alocacreche.relatorios.tenant.TenantContext;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.amqp.core.Message;
+import org.springframework.amqp.core.MessageProperties;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
+import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.containers.RabbitMQContainer;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
+
+/**
+ * Ponta a ponta com RabbitMQ e Postgres reais (Testcontainers). Cobre OCUP-01/04/05 (caminho
+ * feliz), OCUP-06 (payload malformado direto pra DLQ) e OCUP-08/09 (falha transitoria - 3
+ * tentativas, depois DLQ).
+ */
+@SpringBootTest
+@Testcontainers
+class VagaLiberadaConsumerIT {
+
+    @Container
+    static PostgreSQLContainer<?> postgres =
+            new PostgreSQLContainer<>("postgres:16").withInitScript("db/relatorios-app-role.sql");
+
+    @Container static RabbitMQContainer rabbitmq = new RabbitMQContainer("rabbitmq:3-management");
+
+    @DynamicPropertySource
+    static void props(DynamicPropertyRegistry registry) {
+        registry.add("spring.datasource.url", postgres::getJdbcUrl);
+        registry.add("spring.datasource.username", () -> "alocacreche_app");
+        registry.add("spring.datasource.password", () -> "alocacreche_app");
+        registry.add("spring.rabbitmq.host", rabbitmq::getHost);
+        registry.add("spring.rabbitmq.port", rabbitmq::getAmqpPort);
+        registry.add("spring.rabbitmq.username", rabbitmq::getAdminUsername);
+        registry.add("spring.rabbitmq.password", rabbitmq::getAdminPassword);
+    }
+
+    @Autowired private RabbitTemplate rabbitTemplate;
+
+    @MockitoSpyBean private OcupacaoTurmaRepository repository;
+
+    @MockitoSpyBean private VagaLiberadaListener listener;
+
+    @Autowired private PlatformTransactionManager transactionManager;
+
+    @PersistenceContext private EntityManager entityManager;
+
+    @AfterEach
+    void tearDown() {
+        new TransactionTemplate(transactionManager)
+                .executeWithoutResult(
+                        status -> {
+                            TenantContext.aplicar(entityManager, 1L);
+                            entityManager.createNativeQuery("DELETE FROM ocupacao_turma").executeUpdate();
+                        });
+        drenarFila(RabbitMqConfig.OCUPACAO_QUEUE);
+        drenarFila(RabbitMqConfig.OCUPACAO_DLQ);
+    }
+
+    private void drenarFila(String fila) {
+        while (rabbitTemplate.receive(fila, 200) != null) {
+            // esvazia qualquer mensagem residual de um teste anterior - um unico receive()
+            // deixaria lixo se algum teste vier a publicar mais de uma mensagem por fila.
+        }
+    }
+
+    @Test
+    void eventoValidoAtualizaProjecao() throws InterruptedException {
+        VagaLiberadaEvent evento =
+                new VagaLiberadaEvent(1L, "VagaLiberada", 1L, 300L, 30L, 6, LocalDateTime.now());
+
+        rabbitTemplate.convertAndSend(
+                RabbitMqConfig.DOMINIO_EXCHANGE, RabbitMqConfig.VAGA_LIBERADA_ROUTING_KEY, evento);
+
+        OcupacaoTurma turma = buscarComRetry(300L, 1L, 5_000);
+        assertThat(turma).isNotNull();
+        assertThat(turma.getVagasDisponiveis()).isEqualTo(6);
+        assertThat(turma.getUltimaSequenciaAplicada()).isEqualTo(1L);
+    }
+
+    /**
+     * Reproduz o formato de fio do publicador da Outbox em alocacreche-core: o payload JSON ja
+     * serializado como bytes, com content-type application/json e sem o cabecalho __TypeId__ que
+     * o conversor do proprio MSRelatorios adicionaria.
+     */
+    @Test
+    void mensagemNoFormatoDoPublicadorDaOutboxAtualizaProjecao() throws InterruptedException {
+        MessageProperties messageProperties = new MessageProperties();
+        messageProperties.setContentType(MessageProperties.CONTENT_TYPE_JSON);
+        messageProperties.setContentEncoding(StandardCharsets.UTF_8.name());
+        String payload =
+                "{\"turmaId\":301,\"municipioId\":1,\"crecheId\":31,\"vagasDisponiveis\":4,"
+                        + "\"tipoEvento\":\"VagaLiberada\",\"eventId\":17}";
+
+        rabbitTemplate.send(
+                RabbitMqConfig.DOMINIO_EXCHANGE,
+                RabbitMqConfig.VAGA_LIBERADA_ROUTING_KEY,
+                new Message(payload.getBytes(StandardCharsets.UTF_8), messageProperties));
+
+        OcupacaoTurma turma = buscarComRetry(301L, 1L, 5_000);
+        assertThat(turma).isNotNull();
+        assertThat(turma.getVagasDisponiveis()).isEqualTo(4);
+        assertThat(turma.getUltimaSequenciaAplicada()).isEqualTo(17L);
+    }
+
+    @Test
+    void payloadMalformadoVaiDiretoParaDlqSemReentrega() {
+        MessageProperties messageProperties = new MessageProperties();
+        messageProperties.setContentType(MessageProperties.CONTENT_TYPE_JSON);
+        Message mensagemInvalida =
+                new Message(
+                        "isto nao e um json valido {{{".getBytes(StandardCharsets.UTF_8),
+                        messageProperties);
+
+        rabbitTemplate.send(
+                RabbitMqConfig.DOMINIO_EXCHANGE,
+                RabbitMqConfig.VAGA_LIBERADA_ROUTING_KEY,
+                mensagemInvalida);
+
+        Message naDlq = rabbitTemplate.receive(RabbitMqConfig.OCUPACAO_DLQ, 5_000);
+        assertThat(naDlq).isNotNull();
+
+        Message naFilaPrincipal = rabbitTemplate.receive(RabbitMqConfig.OCUPACAO_QUEUE, 500);
+        assertThat(naFilaPrincipal).isNull();
+        // Sinal decisivo (TODO fechado - ver .specs/STATE.md AD-001, gotcha da rodada 3 do
+        // Verificador): "foi pra DLQ" sozinho e verdade tanto com rejeicao imediata quanto com 3
+        // tentativas antes da DLQ. A excecao de conversao acontece antes do metodo do listener ser
+        // chamado - 0 invocacoes e o sinal que realmente prova "sem reentrega" (mesma tecnica de
+        // FilaEsperaAtualizadaConsumerIT.payloadMalformadoVaiDiretoParaDlqSemInvocarOListener).
+        verify(listener, never()).receber(any());
+    }
+
+    @Test
+    void payloadValidoComVagasNegativasVaiDiretoParaDlqSemRetentarNoRepositorio() {
+        Long turmaId = 500L;
+        VagaLiberadaEvent evento =
+                new VagaLiberadaEvent(1L, "VagaLiberada", 1L, turmaId, 50L, -1, LocalDateTime.now());
+
+        rabbitTemplate.convertAndSend(
+                RabbitMqConfig.DOMINIO_EXCHANGE, RabbitMqConfig.VAGA_LIBERADA_ROUTING_KEY, evento);
+
+        Message naDlq = rabbitTemplate.receive(RabbitMqConfig.OCUPACAO_DLQ, 5_000);
+        assertThat(naDlq).isNotNull();
+        verify(repository, never()).upsert(eq(turmaId), any(), any(), any(), any());
+        // Sinal decisivo: repositorio nunca chamado tambem seria verdade se a mensagem tivesse
+        // sido retentada 3x antes de cair na DLQ (a excecao acontece antes do repositorio ser
+        // tocado nas 3 tentativas). Só a contagem de invocacoes do listener distingue rejeicao
+        // imediata (1 chamada) de retry-entao-DLQ (3 chamadas) - ver validation.md rodada 2.
+        verify(listener, times(1)).receber(argThat(e -> turmaId.equals(e.turmaId())));
+    }
+
+    @Test
+    void falhaTransitoriaVaiParaDlqApenasAposTresTentativas() {
+        Long turmaId = 400L;
+        doThrow(new RuntimeException("falha transitoria simulada"))
+                .when(repository)
+                .upsert(eq(turmaId), any(), any(), any(), any());
+
+        VagaLiberadaEvent evento =
+                new VagaLiberadaEvent(1L, "VagaLiberada", 1L, turmaId, 40L, 2, LocalDateTime.now());
+        rabbitTemplate.convertAndSend(
+                RabbitMqConfig.DOMINIO_EXCHANGE, RabbitMqConfig.VAGA_LIBERADA_ROUTING_KEY, evento);
+
+        Message naDlq = rabbitTemplate.receive(RabbitMqConfig.OCUPACAO_DLQ, 5_000);
+        assertThat(naDlq).isNotNull();
+        verify(repository, times(3)).upsert(eq(turmaId), any(), any(), any(), any());
+    }
+
+    private OcupacaoTurma buscarComRetry(Long turmaId, Long municipioId, long timeoutMillis)
+            throws InterruptedException {
+        long deadline = System.currentTimeMillis() + timeoutMillis;
+        while (System.currentTimeMillis() < deadline) {
+            OcupacaoTurma turma =
+                    new TransactionTemplate(transactionManager)
+                            .execute(
+                                    status -> {
+                                        TenantContext.aplicar(entityManager, municipioId);
+                                        return entityManager.find(OcupacaoTurma.class, turmaId);
+                                    });
+            if (turma != null) {
+                return turma;
+            }
+            Thread.sleep(200);
+        }
+        return null;
+    }
+}

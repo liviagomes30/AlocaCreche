@@ -3,7 +3,7 @@ package org.alocacreche.core.inscricao;
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import org.alocacreche.core.comum.excecao.ConflitoException;
-import org.alocacreche.core.comum.seguranca.SessaoTenantResolver;
+import org.alocacreche.core.comum.seguranca.service.SessaoTenantResolver;
 import org.alocacreche.core.comum.tenant.TenantContext;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;

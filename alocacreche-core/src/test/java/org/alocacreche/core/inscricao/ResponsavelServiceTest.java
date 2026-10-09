@@ -17,7 +17,7 @@ import java.lang.reflect.Method;
 import java.util.Optional;
 import org.alocacreche.core.comum.Endereco;
 import org.alocacreche.core.comum.excecao.ConflitoException;
-import org.alocacreche.core.comum.seguranca.SessaoTenantResolver;
+import org.alocacreche.core.comum.seguranca.service.SessaoTenantResolver;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

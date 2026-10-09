@@ -21,9 +21,9 @@ import org.springframework.web.context.request.ServletRequestAttributes;
  * le o token do cabecalho {@code Authorization: Bearer} de uma requisicao simulada e restaura o
  * estado estatico global do Sa-Token ao fim de cada teste.
  */
-class ContextoSaTokenExtension implements BeforeEachCallback, AfterEachCallback {
+public class ContextoSaTokenExtension implements BeforeEachCallback, AfterEachCallback {
 
-    static final String SEGREDO = "segredo-de-teste-do-core-0123456789";
+    public static final String SEGREDO = "segredo-de-teste-do-core-0123456789";
 
     private SaTokenConfig configAnterior;
     private StpLogic stpLogicAnterior;
@@ -53,16 +53,16 @@ class ContextoSaTokenExtension implements BeforeEachCallback, AfterEachCallback 
         SaManager.setConfig(configAnterior);
     }
 
-    static String emitirToken(Long municipioId, List<String> perms) {
+    public static String emitirToken(Long municipioId, List<String> perms) {
         return new StpLogicJwtForStateless()
                 .createTokenValue(1L, "default", 3600, Map.of("municipioId", municipioId, "perms", perms));
     }
 
-    static String emitirTokenSemClaims() {
+    public static String emitirTokenSemClaims() {
         return new StpLogicJwtForStateless().createTokenValue(1L, "default", 3600, Map.of());
     }
 
-    static void requisicaoComToken(String token) {
+    public static void requisicaoComToken(String token) {
         MockHttpServletRequest requisicao = new MockHttpServletRequest();
         requisicao.addHeader("Authorization", "Bearer " + token);
         RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(requisicao));

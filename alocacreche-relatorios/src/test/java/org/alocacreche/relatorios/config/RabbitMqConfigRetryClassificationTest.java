@@ -2,7 +2,7 @@ package org.alocacreche.relatorios.config;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import org.alocacreche.relatorios.evento.EventoDominioInvalidoException;
+import org.alocacreche.relatorios.evento.exception.EventoDominioInvalidoException;
 import org.junit.jupiter.api.Test;
 import org.springframework.amqp.rabbit.support.ListenerExecutionFailedException;
 import org.springframework.retry.RetryContext;

@@ -16,7 +16,7 @@ import jakarta.persistence.Query;
 import java.time.LocalDate;
 import java.util.Optional;
 import org.alocacreche.core.comum.excecao.RecursoNaoEncontradoException;
-import org.alocacreche.core.comum.seguranca.SessaoTenantResolver;
+import org.alocacreche.core.comum.seguranca.service.SessaoTenantResolver;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

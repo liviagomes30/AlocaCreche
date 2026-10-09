@@ -6,7 +6,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.alocacreche.core.comum.Endereco;
 import org.alocacreche.core.comum.geolocalizacao.GeolocalizacaoService;
-import org.alocacreche.core.comum.seguranca.SessaoTenantResolver;
+import org.alocacreche.core.comum.seguranca.service.SessaoTenantResolver;
 import org.alocacreche.core.comum.tenant.TenantContext;
 import org.alocacreche.core.matricula.Creche;
 import org.alocacreche.core.matricula.Turma;

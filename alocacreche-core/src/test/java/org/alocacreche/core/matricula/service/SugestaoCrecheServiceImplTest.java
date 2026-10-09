@@ -15,7 +15,7 @@ import java.lang.reflect.Method;
 import java.util.List;
 import org.alocacreche.core.comum.Endereco;
 import org.alocacreche.core.comum.geolocalizacao.GeolocalizacaoServiceImpl;
-import org.alocacreche.core.comum.seguranca.SessaoTenantResolver;
+import org.alocacreche.core.comum.seguranca.service.SessaoTenantResolver;
 import org.alocacreche.core.matricula.Creche;
 import org.alocacreche.core.matricula.FaixaEtaria;
 import org.alocacreche.core.matricula.Turma;

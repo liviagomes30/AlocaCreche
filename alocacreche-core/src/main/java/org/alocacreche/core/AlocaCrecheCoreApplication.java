@@ -6,7 +6,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 
 /**
  * {@code @EnableScheduling} habilita o Publicador Outbox ({@code
- * org.alocacreche.core.outbox.OutboxPublicadorScheduler}), primeiro {@code @Scheduled} do modulo.
+ * org.alocacreche.core.outbox.scheduler.OutboxPublicadorScheduler}), primeiro {@code @Scheduled} do modulo.
  */
 @SpringBootApplication
 @EnableScheduling

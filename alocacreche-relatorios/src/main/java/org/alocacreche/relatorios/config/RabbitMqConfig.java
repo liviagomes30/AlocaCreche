@@ -1,7 +1,7 @@
 package org.alocacreche.relatorios.config;
 
 import java.util.Map;
-import org.alocacreche.relatorios.evento.EventoDominioInvalidoException;
+import org.alocacreche.relatorios.evento.exception.EventoDominioInvalidoException;
 import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.BindingBuilder;
 import org.springframework.amqp.core.DirectExchange;
