@@ -25,13 +25,14 @@ substitui a necessidade de saga, outbox de compensação ou consumidor idempoten
 
 ## Regras específicas deste módulo
 
-- **`alocarProximoElegivel` sempre recalcula o score on-the-fly** a partir dos fatores brutos da
-  `Inscricao` (renda, vulnerabilidade, distância, irmão matriculado) e da `ConfiguracaoPriorizacao`
-  vigente do município — nunca confia no campo `scorePrioridade` persistido nem no cache Redis (esses
-  são só estimativa de exibição, mantidos pelo módulo Inscrição & Fila).
-- **Desempate declarado:** `ORDER BY score DESC, dataInscricao ASC` (FIFO em caso de empate). Numa fila
-  pública, quem vence o empate precisa ser auditável — nunca deixe isso como efeito colateral da ordem
-  física das linhas do banco.
+- **`alocarProximoElegivel` convoca a posição 1 da fila da turma** (ADR 0007). Quem ordena a fila é o
+  módulo Inscrição & Fila: `RenumeracaoFila` atribui as posições por score decrescente, `dataInscricao`
+  crescente e `id` crescente, usando o score gravado na inscrição. A alocação não recalcula o score.
+  O desempate é declarado, nunca efeito colateral da ordem física das linhas do banco.
+- **A alocação escreve na fila sob o mesmo lock da inscrição.** Logo depois do `TenantContext.aplicar`,
+  ela toma `TravaFilaTurma` (advisory lock da turma) e, depois de remover a convocada, chama
+  `RenumeracaoFila` na mesma transação: quem estava atrás sobe uma posição no banco e no Redis.
+  Desistência e expiração não mexem na fila; a vaga devolvida passa por uma nova alocação.
 - **`aoLiberarVaga` (listener) e `alocarProximoElegivel` (serviço de domínio) precisam estar em beans
   diferentes.** Se o listener chamar `alocarProximoElegivel` via `this`, a chamada não atravessa o proxy
   do Spring e tanto `@Transactional` quanto `@Retryable` deixam de valer — silenciosamente, sem exceção.
@@ -67,8 +68,9 @@ chamada de geocodificação.
 
 ## Fora de escopo deste módulo
 
-Calcular o score de prioridade em si é do módulo Inscrição & Fila (ver
-`docs/context/inscricao-fila.md`) — este módulo só consome o score recalculado no momento da alocação.
+Calcular o score de prioridade e ordenar a fila são do módulo Inscrição & Fila (ver
+`docs/context/inscricao-fila.md` e a ADR 0007). Este módulo só convoca o primeiro da fila e pede a
+renumeração.
 Publicar no RabbitMQ é do módulo Notificação + plataforma (ver
 `docs/context/notificacao-plataforma.md`) — este módulo só grava na Outbox.
 
@@ -91,9 +93,10 @@ fora. O contrato está fixado em `MatriculaControllerIT`.
 matrícula, devolve a vaga com o mesmo `@Version` da alocação e grava `vaga.liberada` e
 `matricula.atualizada` (status `CANCELADA`) na Outbox, tudo numa transação. Ela publica
 `VagaLiberadaInternalEvent`; `AlocacaoAutomaticaListener` (`@TransactionalEventListener(AFTER_COMMIT)`,
-bean próprio) chama `AlocacaoVagaService.alocarProximoElegivel` por injeção. Por rodar depois do
-commit, `AlocacaoVagaTransacional.executar` usa `REQUIRES_NEW`: com `REQUIRED` a alocação se juntaria à
-transação já confirmada e nada seria gravado. Uma falha da realocação é só registrada em log e não
+bean próprio) chama `AlocacaoVagaService.alocarProximoElegivelNoMunicipio` por injeção, com o
+município do evento (sem depender do token). Por rodar depois do commit,
+`AlocacaoVagaTransacional.executarNoMunicipio` usa `REQUIRES_NEW`: com `REQUIRED` a alocação se
+juntaria à transação já confirmada e nada seria gravado. Uma falha da realocação é só registrada em log e não
 desfaz a desistência.
 
 **Job de manutenção (expiração + reconciliação).** `ManutencaoMatriculaScheduler` roda a cada

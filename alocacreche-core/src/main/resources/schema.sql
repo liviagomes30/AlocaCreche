@@ -85,6 +85,11 @@ CREATE POLICY usuario_tenant_isolation ON usuario
 CREATE UNIQUE INDEX IF NOT EXISTS uk_inscricao_crianca_ativa ON inscricao (crianca_id)
     WHERE status IN ('AGUARDANDO', 'CONVOCADA', 'MATRICULADA');
 
+-- A fila nao tem mais unico (turma_id, posicao) (ADR 0007): a renumeracao em lote passa por posicoes
+-- repetidas dentro da transacao. O ddl-auto=update nunca apaga uma restricao, entao um banco criado
+-- enquanto ela existia na entidade ainda a teria e a renumeracao falharia a partir da segunda inscricao.
+ALTER TABLE fila_espera DROP CONSTRAINT IF EXISTS uk_fila_espera_turma_posicao;
+
 -- Versao monotonica dos snapshots da fila de espera publicados no Redis (VersaoFila). Pedida sob o
 -- advisory lock da turma, para que a ordem das versoes seja a ordem dos commits e o Redis descarte
 -- um snapshot que chegue atrasado.
