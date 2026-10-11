@@ -1,6 +1,7 @@
 package org.alocacreche.core.matricula.controller;
 
 import cn.dev33.satoken.annotation.SaCheckPermission;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +23,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
+@Tag(name = "Creches e turmas", description = "Cadastro de creches e turmas e sugestão de creches próximas.")
 @RequestMapping("/api/v1/matricula")
 @RequiredArgsConstructor
 public class CrecheTurmaController {

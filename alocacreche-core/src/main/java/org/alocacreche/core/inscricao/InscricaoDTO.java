@@ -1,6 +1,7 @@
 package org.alocacreche.core.inscricao;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotNull;
@@ -14,12 +15,19 @@ import java.math.BigDecimal;
  * opcional; quando informado precisa ser o mesmo do token.
  */
 public record InscricaoDTO(
+        @Schema(description = "Opcional; quando informado precisa ser o município do token.", example = "1")
         Long municipioId,
+        @Schema(description = "Modo 1: criança já cadastrada. Não combine com responsavel e crianca.", example = "10")
         Long criancaId,
+        @Schema(description = "Modo 2 (cadastro inline): responsável. Exige também crianca.")
         @Valid ResponsavelDTO responsavel,
+        @Schema(description = "Modo 2 (cadastro inline): criança. Exige também responsavel.")
         @Valid CriancaDTO crianca,
+        @Schema(description = "Turma em cuja fila a criança entra.", example = "1")
         @NotNull @Positive Long turmaId,
+        @Schema(description = "Renda familiar per capita (dado sensível; valor fictício no exemplo).", example = "450.00")
         @NotNull @PositiveOrZero BigDecimal rendaPerCapita,
+        @Schema(description = "Critério de vulnerabilidade social (dado sensível).", example = "false")
         @NotNull Boolean criterioVulnerabilidade) {
 
     /**
