@@ -1,9 +1,9 @@
-package org.alocacreche.core.comum.seguranca;
+package org.alocacreche.core.comum.seguranca.config;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.concurrent.atomic.AtomicInteger;
-import org.alocacreche.core.comum.seguranca.SegurancaConfig.SaInterceptorSemRedespachoDeErro;
+import org.alocacreche.core.comum.seguranca.config.SegurancaConfig.SaInterceptorSemRedespachoDeErro;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
