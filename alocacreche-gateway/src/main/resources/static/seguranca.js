@@ -329,7 +329,16 @@ async function executarMatriz() {
   botao.disabled = false;
 }
 
+// Destaca, na tabela de perfis, a coluna do perfil do usuário logado.
+function destacarPerfilAtual() {
+  var perfil = perfilDoToken();
+  $$('#s_perfis [data-perfil]').forEach(function (celula) {
+    celula.classList.toggle('atual', celula.getAttribute('data-perfil') === perfil);
+  });
+}
+
 function iniciarSeguranca() {
+  destacarPerfilAtual();
   renderizarCartoesDeTeste();
   renderizarUsuario();
   $('s_btnTodos').onclick = executarTodosOsTestes;
