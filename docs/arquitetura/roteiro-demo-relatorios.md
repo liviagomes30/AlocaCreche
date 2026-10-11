@@ -425,3 +425,10 @@ Passo a passo:
 
 Cada operação protegida mostra, na descrição, a "Permissão exigida". Em prod o Swagger fica desligado por
 padrão (`/v3/api-docs` e `/swagger-ui.html` respondem 401).
+
+**Atalho pela interface web.** Depois de entrar em `http://localhost:8090/login.html`, os botões
+**Swagger core** e **Swagger relatórios** do cabeçalho copiam o token da sessão para a área de
+transferência (ele nunca aparece na tela) e abrem o Swagger do serviço em outra aba. Lá, clique em
+**Authorize**, cole com Ctrl+V e confirme: não é preciso chamar o login de novo pelo Swagger. O
+Swagger guarda o token ao recarregar a página (`persist-authorization`). O token não é repassado
+sozinho porque o navegador isola o armazenamento por porta (8090, 8083 e 8082 são origens diferentes).

@@ -117,6 +117,8 @@ springdoc:
   swagger-ui:
     enabled: ${alocacreche.swagger.habilitado}
     tags-sorter: alpha
+    # Mantem o token do Authorize ao recarregar a pagina do Swagger (so no navegador local).
+    persist-authorization: true
 
 management:
   endpoints:
