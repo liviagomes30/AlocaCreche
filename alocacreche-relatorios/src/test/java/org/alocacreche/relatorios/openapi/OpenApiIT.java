@@ -162,6 +162,19 @@ class OpenApiIT {
     }
 
     @Test
+    @DisplayName("filtros opcionais nao trazem exemplo: o Swagger UI pre-preenche e enviaria o filtro sem querer")
+    void filtrosOpcionaisNaoTrazemExemplo() {
+        for (String caminho : List.of("ocupacao", "fila-espera")) {
+            for (JsonNode parametro : documento.at("/paths/~1api~1v1~1relatorios~1" + caminho + "/get/parameters")) {
+                if (!parametro.get("required").asBoolean()) {
+                    assertThat(parametro.has("example")).as(caminho + "/" + parametro.get("name").asText()).isFalse();
+                    assertThat(parametro.path("schema").has("example")).as(caminho).isFalse();
+                }
+            }
+        }
+    }
+
+    @Test
     @DisplayName("toda operacao com @SaIgnore no codigo esta sem cadeado no documento")
     void operacoesPublicasFicamSemCadeado() {
         List<Method> publicos = metodosDosControllers().stream()

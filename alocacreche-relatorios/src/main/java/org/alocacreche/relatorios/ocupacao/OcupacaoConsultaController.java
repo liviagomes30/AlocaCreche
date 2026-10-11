@@ -29,8 +29,8 @@ public class OcupacaoConsultaController {
     @Transactional(readOnly = true)
     public List<OcupacaoTurmaDTO> consultar(
             @Parameter(description = "Município consultado; precisa ser o mesmo do token.", example = "1") @RequestParam Long municipioId,
-            @Parameter(description = "Filtra por creche (opcional).", example = "1") @RequestParam(required = false) Long crecheId,
-            @Parameter(description = "Filtra por turma (opcional).", example = "1") @RequestParam(required = false) Long turmaId) {
+            @Parameter(description = "Filtra por creche (opcional).") @RequestParam(required = false) Long crecheId,
+            @Parameter(description = "Filtra por turma (opcional).") @RequestParam(required = false) Long turmaId) {
         municipioDoToken.exigir(municipioId);
         TenantContext.aplicar(entityManager, municipioId);
 
