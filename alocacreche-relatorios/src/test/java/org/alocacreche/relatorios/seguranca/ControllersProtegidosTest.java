@@ -117,7 +117,7 @@ class ControllersProtegidosTest {
     void interceptorNaoDeclaraCaminhoDeExclusao() {
         InterceptorRegistry registry = new InterceptorRegistry();
 
-        new SegurancaConfig().addInterceptors(registry);
+        new SegurancaConfig(true).addInterceptors(registry);
 
         List<?> registros = (List<?>) ReflectionTestUtils.getField(registry, "registrations");
         assertThat(registros).hasSize(1);

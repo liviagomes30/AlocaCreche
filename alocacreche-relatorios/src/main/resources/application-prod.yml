@@ -1,0 +1,5 @@
+# Perfil prod: o Swagger fica DESLIGADO por padrao (documentacao aberta ajuda reconhecimento da API).
+# So liga se ALOCACRECHE_SWAGGER_HABILITADO=true for definido de forma explicita (ADR 0008).
+alocacreche:
+  swagger:
+    habilitado: ${ALOCACRECHE_SWAGGER_HABILITADO:false}
