@@ -317,6 +317,7 @@ iniciar_core() {
     "ALOCACRECHE_SEGURANCA_USUARIOINICIAL_EMAIL=${EMAIL_ADMIN}" \
     "ALOCACRECHE_SEGURANCA_USUARIOINICIAL_SENHA=${SENHA_DEMO}" \
     "ALOCACRECHE_SEGURANCA_USUARIOINICIAL_MUNICIPIOID=${MUNICIPIO_ID}" \
+    "ALOCACRECHE_SWAGGER_HABILITADO=true" \
     "${extras[@]}"
 }
 
@@ -345,7 +346,8 @@ iniciar_relatorios() {
   info "Relatorios: subindo na porta ${DEMO_PORTA_RELATORIOS}"
   iniciar_servico relatorios \
     "SERVER_PORT=${DEMO_PORTA_RELATORIOS}" \
-    "SA_TOKEN_JWT_SECRET=${JWT_SECRET}"
+    "SA_TOKEN_JWT_SECRET=${JWT_SECRET}" \
+    "ALOCACRECHE_SWAGGER_HABILITADO=true"
 }
 
 iniciar_gateway() {
@@ -399,6 +401,11 @@ imprimir_quadro() {
  $(printf '%-10s  %-24s  %s' ATENDENTE "$EMAIL_ATENDENTE" "$SENHA_DEMO")
 
  Servicos      core ${DEMO_PORTA_CORE} | relatorios ${DEMO_PORTA_RELATORIOS} | gateway ${DEMO_PORTA_GATEWAY}
+ Swagger core  http://localhost:${DEMO_PORTA_CORE}/swagger-ui.html
+ Swagger relat http://localhost:${DEMO_PORTA_RELATORIOS}/swagger-ui.html
+   1) POST /api/v1/auth/login (Try it out) com e-mail, senha e municipio acima
+   2) copie o campo "token" da resposta e clique em Authorize (cole so o token)
+   3) as demais operacoes passam a valer conforme o perfil; sem token, 401
  RabbitMQ      http://localhost:15672  (guest / guest)
  Job manutencao: ${job}
 
