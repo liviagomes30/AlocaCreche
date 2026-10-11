@@ -51,6 +51,13 @@
             <scope>runtime</scope>
         </dependency>
 
+        <!-- springdoc: documenta e permite testar a API pelo Swagger UI (ADR 0008) -->
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+            <version>${springdoc.version}</version>
+        </dependency>
+
         <!-- Sa-Token: valida o JWT emitido pelo core e exige permissao (modo stateless) -->
         <dependency>
             <groupId>cn.dev33</groupId>
