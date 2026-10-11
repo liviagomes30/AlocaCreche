@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vagas em creches · Painel público</title>
+<style>
+  :root {
+    --roxo: #8B5CF6;
+    --roxo-escuro: #4c1d95;
+    --roxo-medio: #6d28d9;
+    --roxo-claro: #ede9fe;
+    --roxo-borda: #ddd6fe;
+    --texto: #1f2328;
+    --suave: #5b6472;
+    --ok: #15803d;
+    --ok-fundo: #dcfce7;
+    --erro: #b42318;
+    --erro-fundo: #fee4e2;
+    --aviso: #92400e;
+    --aviso-fundo: #fef3c7;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; min-height: 100vh; color: var(--texto);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background:
+      radial-gradient(1200px 500px at 85% -10%, rgba(139, 92, 246, .22), transparent 60%),
+      radial-gradient(900px 450px at -10% 110%, rgba(109, 40, 217, .14), transparent 60%),
+      #f7f5ff;
+    display: flex; flex-direction: column;
+  }
+
+  /* Cabecalho */
+  header {
+    background: linear-gradient(135deg, var(--roxo-escuro), var(--roxo));
+    color: #fff; padding: 28px 20px 84px;
+  }
+  .topo { max-width: 1080px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  .marca { display: flex; align-items: center; gap: 12px; }
+  .marca svg { width: 40px; height: 40px; flex: none; }
+  .marca b { font-size: 1.15rem; letter-spacing: .2px; display: block; }
+  .marca span { font-size: .82rem; opacity: .85; }
+  .acoes { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .titulo { max-width: 1080px; margin: 26px auto 0; }
+  .titulo h1 { font-size: clamp(1.7rem, 4vw, 2.6rem); line-height: 1.15; margin: 0 0 8px; }
+  .titulo p { margin: 0; max-width: 640px; font-size: 1.02rem; opacity: .92; line-height: 1.5; }
+
+  /* Botoes */
+  button, .btn {
+    font: inherit; font-size: .9rem; border: 1px solid rgba(255, 255, 255, .55); color: #fff;
+    background: rgba(255, 255, 255, .12); padding: 8px 14px; border-radius: 999px; cursor: pointer;
+    text-decoration: none; display: inline-flex; align-items: center; gap: 6px;
+  }
+  button:hover, .btn:hover { background: rgba(255, 255, 255, .22); }
+  button:focus-visible, .btn:focus-visible, input:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+
+  main { max-width: 1080px; width: 100%; margin: -56px auto 0; padding: 0 20px 40px; flex: 1; }
+
+  /* Barra de controle */
+  .controle {
+    background: #fff; border: 1px solid var(--roxo-borda); border-radius: 16px; padding: 14px 18px;
+    box-shadow: 0 10px 30px rgba(76, 29, 149, .12);
+    display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap;
+  }
+  .campo { display: flex; align-items: center; gap: 10px; }
+  .campo label { font-size: .85rem; color: var(--suave); font-weight: 600; }
+  .campo input {
+    width: 96px; padding: 8px 10px; border: 1px solid var(--roxo-borda); border-radius: 10px; font: inherit; font-size: 1rem;
+  }
+  .campo input:focus { border-color: var(--roxo); outline: 3px solid var(--roxo-claro); }
+  .controle button {
+    color: var(--roxo-medio); border-color: var(--roxo-borda); background: #fff;
+  }
+  .controle button:hover { background: var(--roxo-claro); }
+  .controle button[aria-pressed="true"] { background: var(--roxo); color: #fff; border-color: var(--roxo); }
+  .estado { display: inline-flex; align-items: center; gap: 8px; font-size: .88rem; padding: 6px 12px; border-radius: 999px; font-weight: 600; }
+  .estado i { width: 9px; height: 9px; border-radius: 50%; background: currentColor; display: inline-block; }
+  .estado.ao-vivo { background: var(--ok-fundo); color: var(--ok); }
+  .estado.ao-vivo i { animation: pulsa 1.6s ease-in-out infinite; }
+  .estado.pausado { background: var(--aviso-fundo); color: var(--aviso); }
+  .estado.erro { background: var(--erro-fundo); color: var(--erro); }
+  @keyframes pulsa { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .35; transform: scale(.7); } }
+
+  /* Cartoes */
+  .cartoes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; margin-top: 22px; }
+  .cartao {
+    background: #fff; border: 1px solid var(--roxo-borda); border-radius: 20px; padding: 26px 22px;
+    box-shadow: 0 8px 24px rgba(76, 29, 149, .08); position: relative; overflow: hidden;
+    transition: transform .2s ease, box-shadow .2s ease;
+  }
+  .cartao:hover { transform: translateY(-3px); box-shadow: 0 14px 32px rgba(76, 29, 149, .14); }
+  .cartao::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 5px; background: linear-gradient(90deg, var(--roxo), var(--roxo-medio)); }
+  .cartao.destaque { background: linear-gradient(160deg, var(--roxo-medio), var(--roxo)); color: #fff; border-color: transparent; }
+  .cartao.destaque::before { background: rgba(255, 255, 255, .45); }
+  .icone { width: 46px; height: 46px; border-radius: 14px; background: var(--roxo-claro); color: var(--roxo-medio); display: grid; place-items: center; margin-bottom: 14px; }
+  .cartao.destaque .icone { background: rgba(255, 255, 255, .2); color: #fff; }
+  .icone svg { width: 26px; height: 26px; }
+  .valor { font-size: clamp(2.6rem, 7vw, 4.2rem); font-weight: 800; line-height: 1; letter-spacing: -1px; font-variant-numeric: tabular-nums; }
+  .rotulo { margin-top: 8px; font-size: 1rem; font-weight: 600; }
+  .detalhe { margin-top: 4px; font-size: .86rem; color: var(--suave); line-height: 1.4; }
+  .cartao.destaque .detalhe { color: rgba(255, 255, 255, .85); }
+  .mudou { animation: realce 1.4s ease; }
+  @keyframes realce { 0% { transform: scale(1.12); color: #f59e0b; } 100% { transform: scale(1); } }
+
+  /* Esqueleto de carregamento */
+  .carregando .valor { color: transparent; background: linear-gradient(90deg, #ece8fb 25%, #f6f3ff 50%, #ece8fb 75%); background-size: 200% 100%; animation: brilho 1.2s linear infinite; border-radius: 10px; width: 3ch; }
+  .cartao.destaque.carregando .valor { background: linear-gradient(90deg, rgba(255,255,255,.2) 25%, rgba(255,255,255,.35) 50%, rgba(255,255,255,.2) 75%); background-size: 200% 100%; }
+  @keyframes brilho { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+  .defasado .valor { opacity: .45; }
+
+  /* Mensagens */
+  .aviso {
+    margin-top: 18px; padding: 12px 16px; border-radius: 12px; display: none; font-size: .95rem; line-height: 1.45;
+  }
+  .aviso.ativo { display: block; }
+  .aviso.erro { background: var(--erro-fundo); color: var(--erro); border: 1px solid #fecdca; }
+  .aviso.info { background: var(--roxo-claro); color: var(--roxo-escuro); border: 1px solid var(--roxo-borda); }
+
+  .rodape-cartoes { margin-top: 18px; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; color: var(--suave); font-size: .9rem; }
+  .rodape-cartoes b { color: var(--texto); }
+
+  .explica { margin-top: 26px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+  .explica section { background: #fff; border: 1px solid var(--roxo-borda); border-radius: 16px; padding: 18px 20px; }
+  .explica h2 { margin: 0 0 6px; font-size: 1rem; color: var(--roxo-escuro); }
+  .explica p { margin: 0; color: var(--suave); font-size: .93rem; line-height: 1.55; }
+
+  footer { text-align: center; color: var(--suave); font-size: .82rem; padding: 18px 20px 26px; }
+  footer a { color: var(--roxo-medio); }
+
+  /* Modo tela cheia (projetor): numeros maiores */
+  body.tela-cheia header { padding-bottom: 70px; }
+  body.tela-cheia .valor { font-size: clamp(3.4rem, 11vw, 7rem); }
+  body.tela-cheia .explica { display: none; }
+
+  @media (max-width: 820px) {
+    .cartoes, .explica { grid-template-columns: 1fr; }
+    header { padding-bottom: 76px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="topo">
+    <div class="marca">
+      <svg viewBox="0 0 48 48" fill="none" aria-hidden="true">
+        <rect width="48" height="48" rx="12" fill="rgba(255,255,255,.18)"/>
+        <path d="M10 22 24 11l14 11v14a2 2 0 0 1-2 2H12a2 2 0 0 1-2-2V22Z" stroke="#fff" stroke-width="2.4" stroke-linejoin="round"/>
+        <circle cx="19" cy="25" r="2.6" fill="#fff"/><circle cx="29" cy="25" r="2.6" fill="#fff"/>
+        <path d="M17 32c2 2.4 12 2.4 14 0" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/>
+      </svg>
+      <div><b>AlocaCreche</b><span>Painel público de vagas</span></div>
+    </div>
+    <div class="acoes">
+      <button type="button" id="btnTelaCheia" title="Ocupa a tela toda, com números maiores">Tela cheia</button>
+      <a class="btn" href="/login.html">Acesso da secretaria</a>
+    </div>
+  </div>
+  <div class="titulo">
+    <h1>Vagas em creches municipais, em tempo quase real</h1>
+    <p>Acompanhe quantas vagas estão disponíveis agora. Os números se atualizam sozinhos, poucos segundos depois de cada matrícula ou desistência.</p>
+  </div>
+</header>
+
+<main>
+  <div class="controle">
+    <div class="campo">
+      <label for="municipio">Município (código)</label>
+      <input id="municipio" type="number" min="1" inputmode="numeric" value="1" aria-describedby="dicaMunicipio">
+    </div>
+    <span id="estado" class="estado pausado" role="status" aria-live="polite"><i></i><span id="estadoTexto">Conectando...</span></span>
+    <div class="acoes">
+      <button type="button" id="btnAtualizar">Atualizar agora</button>
+      <button type="button" id="btnPausar" aria-pressed="false">Pausar atualização</button>
+    </div>
+  </div>
+  <p id="dicaMunicipio" class="detalhe" style="margin:8px 4px 0">Digite o código do município para ver os números dele. Os dados são agregados e não contêm informações de pessoas.</p>
+
+  <div id="aviso" class="aviso" role="alert"></div>
+
+  <div id="cartoes" class="cartoes carregando">
+    <article class="cartao destaque">
+      <div class="icone" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/><circle cx="9" cy="8" r="3.2"/><path d="M17 11a3 3 0 1 0 0-6M21 20v-2a4 4 0 0 0-3-3.8"/></svg>
+      </div>
+      <div class="valor" id="vVagas">0</div>
+      <div class="rotulo">Vagas disponíveis</div>
+      <div class="detalhe">Total de vagas livres somando todas as turmas do município.</div>
+    </article>
+    <article class="cartao">
+      <div class="icone" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21V10l9-6 9 6v11"/><path d="M9 21v-6h6v6"/></svg>
+      </div>
+      <div class="valor" id="vCreches">0</div>
+      <div class="rotulo">Creches com vaga</div>
+      <div class="detalhe">Creches que têm pelo menos uma turma com vaga livre agora.</div>
+    </article>
+    <article class="cartao">
+      <div class="icone" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 4v16"/></svg>
+      </div>
+      <div class="valor" id="vTurmas">0</div>
+      <div class="rotulo">Turmas acompanhadas</div>
+      <div class="detalhe">Turmas cadastradas pelas creches do município.</div>
+    </article>
+  </div>
+
+  <div class="rodape-cartoes">
+    <span>Última atualização dos dados: <b id="atualizadoEm">-</b></span>
+    <span>Consultado: <b id="consultadoHa">-</b></span>
+  </div>
+
+  <div class="explica">
+    <section>
+      <h2>Como esses números chegam aqui?</h2>
+      <p>Cada matrícula, desistência ou nova vaga gera um evento. Ele passa por uma fila de mensagens e atualiza uma tabela de consulta, por isso pode haver uma defasagem de poucos segundos entre o que acontece na secretaria e o que aparece nesta tela.</p>
+    </section>
+    <section>
+      <h2>Quais dados são mostrados?</h2>
+      <p>Apenas totais do município. Nenhum nome, CPF, renda ou dado de família aparece aqui, em respeito à Lei Geral de Proteção de Dados (LGPD).</p>
+    </section>
+  </div>
+</main>
+
+<footer>
+  AlocaCreche · Plataforma de gestão de vagas em creches municipais · Esta página é pública e não exige login.
+</footer>
+
+<script>
+  var INTERVALO_MS = 4000;
+  var CHAVE_URL = 'municipioId';
+
+  var estado = {
+    municipio: lerMunicipioInicial(),
+    pausado: false,
+    temporizador: null,
+    ultimoSucesso: null,
+    valores: { vagas: null, creches: null, turmas: null },
+    emVoo: false
+  };
+
+  function $(id) { return document.getElementById(id); }
+
+  function lerMunicipioInicial() {
+    var url = new URLSearchParams(window.location.search).get(CHAVE_URL);
+    var n = Number(url);
+    return n > 0 ? Math.floor(n) : 1;
+  }
+
+  function mostrarEstado(classe, texto) {
+    var el = $('estado');
+    el.className = 'estado ' + classe;
+    $('estadoTexto').textContent = texto;
+  }
+
+  function mostrarAviso(tipo, texto) {
+    var el = $('aviso');
+    if (!texto) { el.className = 'aviso'; el.textContent = ''; return; }
+    el.className = 'aviso ativo ' + tipo;
+    el.textContent = texto;
+  }
+
+  function formatarDataHora(iso) {
+    if (!iso) { return '-'; }
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) { return '-'; }
+    return d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  }
+
+  function textoHa(ms) {
+    var s = Math.max(0, Math.round(ms / 1000));
+    if (s < 2) { return 'agora mesmo'; }
+    if (s < 60) { return 'há ' + s + ' s'; }
+    return 'há ' + Math.floor(s / 60) + ' min';
+  }
+
+  function definirNumero(id, chave, novo) {
+    var el = $(id);
+    var antigo = estado.valores[chave];
+    el.textContent = String(novo);
+    if (antigo !== null && antigo !== novo) {
+      el.classList.remove('mudou');
+      void el.offsetWidth;
+      el.classList.add('mudou');
+    }
+    estado.valores[chave] = novo;
+  }
+
+  async function consultar() {
+    if (estado.emVoo) { return; }
+    estado.emVoo = true;
+    var cartoes = $('cartoes');
+    try {
+      var url = '/api/v1/relatorios/painel-publico?municipioId=' + encodeURIComponent(estado.municipio);
+      var resposta = await fetch(url, { headers: { 'Accept': 'application/json' }, cache: 'no-store' });
+      if (resposta.status === 400) {
+        mostrarAviso('erro', 'Código de município inválido. Digite um número maior que zero.');
+        mostrarEstado('erro', 'Município inválido');
+        return;
+      }
+      if (!resposta.ok) {
+        throw new Error('HTTP ' + resposta.status);
+      }
+      var dados = await resposta.json();
+      cartoes.classList.remove('carregando', 'defasado');
+      definirNumero('vVagas', 'vagas', Number(dados.totalVagasDisponiveis || 0));
+      definirNumero('vCreches', 'creches', Number(dados.totalCrechesComVaga || 0));
+      definirNumero('vTurmas', 'turmas', Number(dados.totalTurmas || 0));
+      $('atualizadoEm').textContent = formatarDataHora(dados.atualizadoEm);
+      estado.ultimoSucesso = Date.now();
+      if (Number(dados.totalTurmas || 0) === 0) {
+        mostrarAviso('info', 'Ainda não há turmas cadastradas para o município ' + estado.municipio + '. Quando a secretaria cadastrar, os números aparecem aqui.');
+      } else {
+        mostrarAviso('', '');
+      }
+      if (!estado.pausado) { mostrarEstado('ao-vivo', 'Ao vivo'); }
+    } catch (erro) {
+      cartoes.classList.add('defasado');
+      mostrarAviso('erro', 'Não foi possível atualizar agora. Mostrando os últimos números recebidos; tentaremos novamente em instantes.');
+      mostrarEstado('erro', 'Sem conexão');
+    } finally {
+      estado.emVoo = false;
+      atualizarRelogio();
+    }
+  }
+
+  function atualizarRelogio() {
+    $('consultadoHa').textContent = estado.ultimoSucesso ? textoHa(Date.now() - estado.ultimoSucesso) : '-';
+  }
+
+  function agendar() {
+    if (estado.temporizador) { clearInterval(estado.temporizador); estado.temporizador = null; }
+    if (!estado.pausado) { estado.temporizador = setInterval(consultar, INTERVALO_MS); }
+  }
+
+  function trocarMunicipio(valor) {
+    var n = Math.floor(Number(valor));
+    if (!(n > 0)) {
+      mostrarAviso('erro', 'Código de município inválido. Digite um número maior que zero.');
+      return;
+    }
+    estado.municipio = n;
+    estado.valores = { vagas: null, creches: null, turmas: null };
+    $('cartoes').classList.add('carregando');
+    var parametros = new URLSearchParams(window.location.search);
+    parametros.set(CHAVE_URL, String(n));
+    window.history.replaceState(null, '', window.location.pathname + '?' + parametros.toString());
+    mostrarAviso('', '');
+    consultar();
+  }
+
+  $('municipio').value = String(estado.municipio);
+  $('municipio').addEventListener('change', function () { trocarMunicipio($('municipio').value); });
+  $('municipio').addEventListener('keydown', function (e) { if (e.key === 'Enter') { trocarMunicipio($('municipio').value); } });
+  $('btnAtualizar').addEventListener('click', consultar);
+
+  $('btnPausar').addEventListener('click', function () {
+    estado.pausado = !estado.pausado;
+    $('btnPausar').setAttribute('aria-pressed', String(estado.pausado));
+    $('btnPausar').textContent = estado.pausado ? 'Retomar atualização' : 'Pausar atualização';
+    if (estado.pausado) { mostrarEstado('pausado', 'Atualização pausada'); } else { mostrarEstado('ao-vivo', 'Ao vivo'); consultar(); }
+    agendar();
+  });
+
+  $('btnTelaCheia').addEventListener('click', function () {
+    var cheia = document.body.classList.toggle('tela-cheia');
+    if (cheia && document.documentElement.requestFullscreen) { document.documentElement.requestFullscreen().catch(function () {}); }
+    if (!cheia && document.fullscreenElement && document.exitFullscreen) { document.exitFullscreen().catch(function () {}); }
+    $('btnTelaCheia').textContent = cheia ? 'Sair da tela cheia' : 'Tela cheia';
+  });
+  document.addEventListener('fullscreenchange', function () {
+    if (!document.fullscreenElement) {
+      document.body.classList.remove('tela-cheia');
+      $('btnTelaCheia').textContent = 'Tela cheia';
+    }
+  });
+
+  setInterval(atualizarRelogio, 1000);
+  consultar();
+  agendar();
+</script>
+</body>
+</html>

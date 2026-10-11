@@ -95,6 +95,9 @@ function definirIntervaloAuto(ms) {
 
 function urlPainelPublico() { return '/api/v1/relatorios/painel-publico?municipioId=' + municipioDosRelatorios(); }
 
+// Página pública e estilizada do painel (o link abre esta página; a consulta continua usando a URL da API acima).
+function urlPaginaPublica() { return '/painel.html?municipioId=' + municipioDosRelatorios(); }
+
 // Barra de controle compartilhada (município, período, atualização e painel público)
 function montarBarraRelatorios(destino) {
   destino.innerHTML =
@@ -113,7 +116,7 @@ function montarBarraRelatorios(destino) {
   mun.value = municipioDosRelatorios();
   per.value = periodoSelecionado();
   auto.value = String(estado.intervalo || 0);
-  destino.querySelector('.b-link').href = urlPainelPublico();
+  destino.querySelector('.b-link').href = urlPaginaPublica();
   mun.onchange = function () {
     estado.municipioRel = Number(mun.value) || municipioId;
     salvarEstado();
@@ -133,9 +136,9 @@ function montarBarraRelatorios(destino) {
 function sincronizarBarras() {
   $$('.b-mun').forEach(function (n) { n.value = municipioDosRelatorios(); });
   $$('.b-per').forEach(function (n) { n.value = periodoSelecionado(); });
-  $$('.b-link').forEach(function (n) { n.href = urlPainelPublico(); });
+  $$('.b-link').forEach(function (n) { n.href = urlPaginaPublica(); });
   var link = $('c_linkPublico');
-  if (link) { link.href = urlPainelPublico(); }
+  if (link) { link.href = urlPaginaPublica(); }
 }
 
 function atualizarAvisosDasBarras() {
@@ -359,7 +362,7 @@ function iniciarPainel() {
   $('c_btnConsultar').onclick = function () { consultarDetalhe(); };
   $('c_btnOutroMun').onclick = function () { consultarDetalhe({ municipio: municipioId + 1 }); };
   $('c_btnPublico').onclick = consultarPainelSemToken;
-  $('c_linkPublico').href = urlPainelPublico();
+  $('c_linkPublico').href = urlPaginaPublica();
   // Enquanto houver eventos aguardando (ex.: RabbitMQ parado), confere os relatórios a cada 5 s
   setInterval(function () {
     if (contarPendentes() > 0 && !acompanhando && snapshot && snapshot.status.ocupacao === 200) { atualizarRelatorios(); }
