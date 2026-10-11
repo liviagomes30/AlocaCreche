@@ -17,6 +17,8 @@
   <div class="grupo">
     <button id="btnModo" class="fantasma mini" style="background:transparent;color:#fff;border-color:#fff" title="Alterna entre o modo técnico e o modo apresentação">Modo: técnico</button>
     <button id="btnReiniciar" class="sec mini" title="Limpa as listas locais desta tela; não apaga o banco">Reiniciar sessão local</button>
+    <button id="btnSwaggerCore" class="fantasma mini" style="background:transparent;color:#fff;border-color:#fff" title="Copia o token desta sessão e abre o Swagger do core: clique em Authorize e cole (Ctrl+V)">Swagger core</button>
+    <button id="btnSwaggerRel" class="fantasma mini" style="background:transparent;color:#fff;border-color:#fff" title="Copia o token desta sessão e abre o Swagger dos relatórios: clique em Authorize e cole (Ctrl+V)">Swagger relatórios</button>
     <button id="btnSair" class="sec mini">Trocar usuário / Sair</button>
   </div>
   <div id="painelPermissoes" class="permissoes">
@@ -368,6 +370,31 @@
         <button id="s_btnTodos">Executar todos os testes</button>
         <span id="s_resumo" class="selo"></span>
       </div>
+      <div class="painel">
+        <h3>Perfis e permissões: quem pode fazer o quê</h3>
+        <p class="dica" style="margin-top:0">O login é igual para todos os perfis; o que muda é a lista de permissões dentro do token. Cada endpoint confere a sua (<code>@SaCheckPermission</code>) e responde <b>403</b> quando o perfil não a tem. Sem token, qualquer endpoint protegido responde <b>401</b>. A coluna do seu perfil atual fica destacada.</p>
+        <div class="rolagem">
+          <table class="tabela" id="s_perfis">
+            <thead><tr><th>Ação</th><th>Endpoint</th><th>Permissão exigida</th><th data-perfil="ADMIN">ADMIN</th><th data-perfil="GESTOR">GESTOR</th><th data-perfil="ATENDENTE">ATENDENTE</th></tr></thead>
+            <tbody>
+              <tr><td>Cadastrar responsável</td><td><code>POST /inscricao/responsaveis</code></td><td><code>inscricao:responsavel:add</code></td><td data-perfil="ADMIN"><span class="selo ok">Sim</span></td><td data-perfil="GESTOR"><span class="selo erro">403</span></td><td data-perfil="ATENDENTE"><span class="selo ok">Sim</span></td></tr>
+              <tr><td>Cadastrar criança</td><td><code>POST /inscricao/criancas</code></td><td><code>inscricao:crianca:add</code></td><td data-perfil="ADMIN"><span class="selo ok">Sim</span></td><td data-perfil="GESTOR"><span class="selo erro">403</span></td><td data-perfil="ATENDENTE"><span class="selo ok">Sim</span></td></tr>
+              <tr><td>Inscrever</td><td><code>POST /inscricao/inscricoes</code></td><td><code>inscricao:inscricao:add</code></td><td data-perfil="ADMIN"><span class="selo ok">Sim</span></td><td data-perfil="GESTOR"><span class="selo erro">403</span></td><td data-perfil="ATENDENTE"><span class="selo ok">Sim</span></td></tr>
+              <tr><td>Consultar posição na fila</td><td><code>GET /inscricao/inscricoes/{id}/posicao</code></td><td><code>inscricao:fila:detail</code></td><td data-perfil="ADMIN"><span class="selo ok">Sim</span></td><td data-perfil="GESTOR"><span class="selo erro">403</span></td><td data-perfil="ATENDENTE"><span class="selo ok">Sim</span></td></tr>
+              <tr><td>Criar creche</td><td><code>POST /matricula/creches</code></td><td><code>matricula:creche:add</code></td><td data-perfil="ADMIN"><span class="selo ok">Sim</span></td><td data-perfil="GESTOR"><span class="selo ok">Sim</span></td><td data-perfil="ATENDENTE"><span class="selo erro">403</span></td></tr>
+              <tr><td>Criar turma</td><td><code>POST /matricula/turmas</code></td><td><code>matricula:turma:add</code></td><td data-perfil="ADMIN"><span class="selo ok">Sim</span></td><td data-perfil="GESTOR"><span class="selo ok">Sim</span></td><td data-perfil="ATENDENTE"><span class="selo erro">403</span></td></tr>
+              <tr><td>Alocar vaga</td><td><code>POST /matricula/vagas/alocar</code></td><td><code>matricula:vaga:alocar</code></td><td data-perfil="ADMIN"><span class="selo ok">Sim</span></td><td data-perfil="GESTOR"><span class="selo ok">Sim</span></td><td data-perfil="ATENDENTE"><span class="selo erro">403</span></td></tr>
+              <tr><td>Confirmar matrícula</td><td><code>POST /matricula/matriculas/{id}/confirmar</code></td><td><code>matricula:matricula:confirmar</code></td><td data-perfil="ADMIN"><span class="selo ok">Sim</span></td><td data-perfil="GESTOR"><span class="selo ok">Sim</span></td><td data-perfil="ATENDENTE"><span class="selo erro">403</span></td></tr>
+              <tr><td>Desistir da matrícula</td><td><code>POST /matricula/matriculas/{id}/desistir</code></td><td><code>matricula:matricula:status</code></td><td data-perfil="ADMIN"><span class="selo ok">Sim</span></td><td data-perfil="GESTOR"><span class="selo ok">Sim</span></td><td data-perfil="ATENDENTE"><span class="selo ok">Sim</span></td></tr>
+              <tr><td>Sugerir creches próximas</td><td><code>GET /matricula/creches/proximas</code></td><td><code>matricula:creche:list</code></td><td data-perfil="ADMIN"><span class="selo ok">Sim</span></td><td data-perfil="GESTOR"><span class="selo ok">Sim</span></td><td data-perfil="ATENDENTE"><span class="selo ok">Sim</span></td></tr>
+              <tr><td>Relatórios (ocupação, fila, taxa, distância)</td><td><code>GET /relatorios/...</code></td><td><code>relatorios:ocupacao|fila|matricula:list</code></td><td data-perfil="ADMIN"><span class="selo ok">Sim</span></td><td data-perfil="GESTOR"><span class="selo ok">Sim</span></td><td data-perfil="ATENDENTE"><span class="selo erro">403</span></td></tr>
+              <tr><td>Painel público e login</td><td><code>GET /relatorios/painel-publico</code>, <code>POST /auth/login</code></td><td>(abertos, sem login)</td><td data-perfil="ADMIN"><span class="selo ok">Sim</span></td><td data-perfil="GESTOR"><span class="selo ok">Sim</span></td><td data-perfil="ATENDENTE"><span class="selo ok">Sim</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="dica"><b>ADMIN:</b> acesso total (permissão <code>*</code>). <b>GESTOR:</b> a secretaria, que monta a oferta (creche e turma), aloca, confirma e lê todos os relatórios, mas não cadastra famílias nem inscreve. <b>ATENDENTE:</b> o balcão, que cadastra responsável e criança, inscreve e consulta a posição, mas não aloca, não cria creche e não vê relatórios.</p>
+        <p class="dica tecnico">Os três perfis só enxergam o próprio município (RLS). Os perfis são fixos no código (<code>PerfilUsuario</code>); o ADMIN inicial é criado na subida e GESTOR e ATENDENTE pelo script <code>docs/mock-data/usuarios-demo.sql</code> (o <code>demo-subir.sh</code> já o executa). O ATENDENTE pode desistir de qualquer matrícula porque a permissão <code>matricula:matricula:status</code> é a mesma do cancelamento.</p>
+      </div>
       <div class="grade g2">
         <div id="s_testes"></div>
         <div>
@@ -432,12 +459,12 @@
             <li>Aqui, aloque e confirme normalmente: a API continua respondendo (os eventos ficam <b>PENDENTE</b> na outbox) e os relatórios <b>não mudam</b>.</li>
             <li>Confira a outbox:</li>
           </ol>
-          <div class="cmd"><code>docker compose exec -T postgres-core psql -U alocacreche -d alocacreche -c "SELECT id, tipo_evento, status FROM outbox ORDER BY id DESC LIMIT 15"</code><button class="mini sec" data-copiar='docker compose exec -T postgres-core psql -U alocacreche -d alocacreche -c "SELECT id, tipo_evento, status FROM outbox ORDER BY id DESC LIMIT 15"'>Copiar</button></div>
+          <div class="cmd"><code>SELECT id, tipo_evento, status FROM outbox ORDER BY id DESC LIMIT 15;</code><button class="mini sec" data-copiar="SELECT id, tipo_evento, status FROM outbox ORDER BY id DESC LIMIT 15;">Copiar</button></div>
           <ol start="5" style="padding-left:18px;margin:0"><li>Suba o RabbitMQ de volta e veja a linha do tempo convergir:</li></ol>
           <div class="cmd"><code>docker compose start rabbitmq</code><button class="mini sec" data-copiar="docker compose start rabbitmq">Copiar</button></div>
           <p class="dica">Resumo da contagem por status:</p>
-          <div class="cmd"><code>docker compose exec -T postgres-core psql -U alocacreche -d alocacreche -c "SELECT status, count(*) FROM outbox GROUP BY status"</code><button class="mini sec" data-copiar='docker compose exec -T postgres-core psql -U alocacreche -d alocacreche -c "SELECT status, count(*) FROM outbox GROUP BY status"'>Copiar</button></div>
-          <p class="dica">Se a porta do Postgres do core no seu ambiente for outra, ajuste o serviço no <code>docker compose</code>; os comandos acima usam o serviço, não a porta.</p>
+          <div class="cmd"><code>SELECT status, count(*) FROM outbox GROUP BY status;</code><button class="mini sec" data-copiar="SELECT status, count(*) FROM outbox GROUP BY status;">Copiar</button></div>
+          <p class="dica">As consultas SQL acima rodam no <b>DBeaver</b>: conexão PostgreSQL em <code>localhost:5434</code>, banco <code>alocacreche</code>, usuário e senha <code>alocacreche_app</code> (a porta é a <code>POSTGRES_CORE_PORT</code> da demo). Só a parada e a subida do RabbitMQ usam o <code>docker compose</code>, porque não existe equivalente em SQL.</p>
           <p class="dica tecnico">Não existe endpoint de Outbox na API: a consulta é feita direto no banco.</p>
         </div>
       </div>
@@ -460,17 +487,17 @@
               <li>Aloque uma vaga (matrícula PENDENTE) e escolha-a aqui, de preferência numa turma com mais gente na fila:</li>
             </ol>
             <select id="e_expSel" aria-label="Matrícula PENDENTE para expirar"></select>
-            <ol start="2" style="padding-left:18px;margin:6px 0 0"><li>Vença o prazo por SQL (o comando já usa a matrícula escolhida e o município do token):</li></ol>
+            <ol start="2" style="padding-left:18px;margin:6px 0 0"><li>Vença o prazo por SQL no DBeaver (o comando já usa a matrícula escolhida e o município do token; execute como script, Alt+X):</li></ol>
             <div class="cmd"><code id="e_expSql"></code><button class="mini sec" id="e_btnCopiarSql">Copiar</button></div>
             <ol start="3" style="padding-left:18px;margin:0"><li>Marque a expiração para acompanhar nos eventos (a tela assume que o job vai rodar):</li></ol>
             <div class="linha-botoes"><button id="e_btnExpiracao" class="fantasma">Acompanhar a expiração</button></div>
             <ol start="4" style="padding-left:18px;margin:0"><li>Espere a próxima rodada do job (até 2 min) ou acelere subindo o core com a variável abaixo (propriedade <code>alocacreche.matricula.manutencao.intervalo-ms</code>, em ms; para desligar o job use <code>ALOCACRECHE_MATRICULA_MANUTENCAO_HABILITADO=false</code>):</li></ol>
             <div class="cmd"><code>ALOCACRECHE_MATRICULA_MANUTENCAO_INTERVALO_MS=10000</code><button class="mini sec" data-copiar="ALOCACRECHE_MATRICULA_MANUTENCAO_INTERVALO_MS=10000">Copiar</button></div>
             <p class="dica">Depois confira o status no banco e a linha do tempo (vaga devolvida, próximo da fila convocado):</p>
-            <div class="cmd"><code>docker compose exec -T postgres-core psql -U alocacreche -d alocacreche -c "SELECT id, status, prazo_confirmacao FROM matricula ORDER BY id DESC LIMIT 10"</code><button class="mini sec" data-copiar='docker compose exec -T postgres-core psql -U alocacreche -d alocacreche -c "SELECT id, status, prazo_confirmacao FROM matricula ORDER BY id DESC LIMIT 10"'>Copiar</button></div>
+            <div class="cmd"><code id="e_sqlMatriculas"></code><button class="mini sec" id="e_btnCopiarSqlMatriculas">Copiar</button></div>
           </div>
         </div>
-        <p class="dica tecnico">A tabela matricula tem RLS: o UPDATE por psql precisa definir o tenant com SET LOCAL na mesma transação, como no comando acima. O prazo vencido é uma data fixa de 2000 de propósito: a JVM grava o prazo no próprio fuso e o now() do Postgres (em container, geralmente UTC) pode estar horas à frente, o que faria o prazo "nunca vencer".</p>
+        <p class="dica tecnico">A tabela matricula tem RLS: no DBeaver, defina o município da sessão com <code>set_config</code> antes do UPDATE, como no comando acima (as consultas prontas estão em <code>docs/apresentacao/consultas-dbeaver.sql</code>). O prazo vencido é uma data fixa de 2000 de propósito: a JVM grava o prazo no próprio fuso e o now() do Postgres (em container, geralmente UTC) pode estar horas à frente, o que faria o prazo "nunca vencer".</p>
       </div>
     </section>
 

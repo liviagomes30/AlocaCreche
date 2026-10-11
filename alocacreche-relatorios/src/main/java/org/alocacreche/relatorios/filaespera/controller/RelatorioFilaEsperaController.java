@@ -1,6 +1,8 @@
 package org.alocacreche.relatorios.filaespera.controller;
 
 import cn.dev33.satoken.annotation.SaCheckPermission;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.persistence.EntityManager;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -15,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
+@Tag(name = "Relatórios - fila de espera", description = "Quantidade aguardando e tempo médio de espera, escopados por município.")
 @RequestMapping("/api/v1/relatorios/fila-espera")
 @RequiredArgsConstructor
 public class RelatorioFilaEsperaController {
@@ -27,9 +30,9 @@ public class RelatorioFilaEsperaController {
     @SaCheckPermission("relatorios:fila:list")
     @Transactional(readOnly = true)
     public List<RelatorioFilaEsperaDTO> consultar(
-            @RequestParam Long municipioId,
-            @RequestParam(required = false) Long crecheId,
-            @RequestParam(required = false) Long turmaId) {
+            @Parameter(description = "Município consultado; precisa ser o mesmo do token.", example = "1") @RequestParam Long municipioId,
+            @Parameter(description = "Filtra por creche (opcional).") @RequestParam(required = false) Long crecheId,
+            @Parameter(description = "Filtra por turma (opcional).") @RequestParam(required = false) Long turmaId) {
         municipioDoToken.exigir(municipioId);
         TenantContext.aplicar(entityManager, municipioId);
 

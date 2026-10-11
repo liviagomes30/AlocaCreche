@@ -62,6 +62,10 @@ Gateway só roteia, não valida token.
 - **Nega por padrão**: o `SaInterceptor` do módulo exige login em `/**`, sem nenhum
   `excludePathPatterns` (proibido pelo `CLAUDE.md`). Endpoint sem anotação responde 401 sem token.
   Exceção explícita e única: o `PainelPublicoController` usa `@SaIgnore` e continua público.
+  Há ainda uma exceção de leitura, por método do interceptor (não por `excludePathPatterns`): `GET` da
+  documentação do Swagger (`/swagger-ui.html`, `/swagger-ui/**`, `/v3/api-docs/**`), só quando
+  `alocacreche.swagger.habilitado` está ligado (desligado por padrão em prod). Ver
+  `docs/adr/0008-swagger-openapi-para-documentar-e-testar-a-api.md`.
 - **Permissões** (`modulo:funcionalidade:operacao`): `relatorios:ocupacao:list` (ocupação),
   `relatorios:fila:list` (fila de espera) e `relatorios:matricula:list` (distância média e taxa de
   confirmação).

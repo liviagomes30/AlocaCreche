@@ -1,6 +1,8 @@
 package org.alocacreche.relatorios.matricula.controller;
 
 import cn.dev33.satoken.annotation.SaCheckPermission;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.persistence.EntityManager;
 import java.time.LocalDate;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +19,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
+@Tag(name = "Relatórios - matrícula", description = "Distância média de alocação e taxa de confirmação por período.")
 @RequestMapping("/api/v1/relatorios/matricula")
 @RequiredArgsConstructor
 public class RelatorioMatriculaController {
@@ -29,7 +32,8 @@ public class RelatorioMatriculaController {
     @SaCheckPermission("relatorios:matricula:list")
     @Transactional(readOnly = true)
     public DistanciaMediaAlocacaoDTO distanciaMedia(
-            @RequestParam Long municipioId, @RequestParam LocalDate periodo) {
+            @Parameter(description = "Município consultado; precisa ser o mesmo do token.", example = "1") @RequestParam Long municipioId,
+            @Parameter(description = "Data de referência do período, no formato AAAA-MM-DD.", example = "2026-10-01") @RequestParam LocalDate periodo) {
         municipioDoToken.exigir(municipioId);
         TenantContext.aplicar(entityManager, municipioId);
 
@@ -41,7 +45,8 @@ public class RelatorioMatriculaController {
     @SaCheckPermission("relatorios:matricula:list")
     @Transactional(readOnly = true)
     public RelatorioConfirmacaoMatriculaDTO taxaConfirmacao(
-            @RequestParam Long municipioId, @RequestParam LocalDate periodo) {
+            @Parameter(description = "Município consultado; precisa ser o mesmo do token.", example = "1") @RequestParam Long municipioId,
+            @Parameter(description = "Data de referência do período, no formato AAAA-MM-DD.", example = "2026-10-01") @RequestParam LocalDate periodo) {
         municipioDoToken.exigir(municipioId);
         TenantContext.aplicar(entityManager, municipioId);
 

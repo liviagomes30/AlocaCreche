@@ -1,6 +1,7 @@
 package org.alocacreche.core.inscricao;
 
 import cn.dev33.satoken.annotation.SaCheckPermission;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -11,6 +12,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
+@Tag(name = "Crianças", description = "Cadastro de crianças vinculadas a um responsável.")
 @RequestMapping("/api/v1/inscricao/criancas")
 @RequiredArgsConstructor
 public class CriancaController {

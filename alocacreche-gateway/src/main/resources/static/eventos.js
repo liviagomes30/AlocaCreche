@@ -156,17 +156,24 @@ function atualizarEstadoFinalDoFluxo() {
   }
 }
 
-// Comando SQL que vence o prazo da matrícula escolhida (a tabela tem RLS: o tenant vai no SET LOCAL).
+// SQL (para o DBeaver) que vence o prazo da matrícula escolhida (a tabela tem RLS: o município vai no set_config da sessão).
 // Usa uma data fixa no passado porque o prazo é gravado no fuso da JVM e o now() do Postgres pode estar em outro fuso.
 function comandoDeExpiracao(matriculaId) {
-  var sql = "BEGIN; SET LOCAL app.current_tenant = '" + municipioId + "'; UPDATE matricula SET prazo_confirmacao = timestamp '2000-01-01 00:00:00' WHERE id = " + (matriculaId || 0) + " AND status = 'PENDENTE'; COMMIT";
-  return 'docker compose exec -T postgres-core psql -U alocacreche -d alocacreche -c "' + sql + '"';
+  return "SELECT set_config('app.current_tenant', '" + municipioId + "', false);\n"
+    + "UPDATE matricula SET prazo_confirmacao = TIMESTAMP '2000-01-01 00:00:00' WHERE id = " + (matriculaId || 0) + " AND status = 'PENDENTE';";
+}
+
+// Consulta das matrículas para o DBeaver (a tabela tem RLS: o município vai no set_config da sessão).
+function comandoDeMatriculas() {
+  return "SELECT set_config('app.current_tenant', '" + municipioId + "', false);\n"
+    + "SELECT id, status, prazo_confirmacao FROM matricula ORDER BY id DESC LIMIT 10;";
 }
 
 function renderizarJobDeExpiracao() {
   var pendentes = matriculasComId().filter(function (m) { return m.status === 'PENDENTE'; });
   preencherSelect($('e_expSel'), pendentes.map(function (m) { return { valor: m.id, rotulo: '#' + m.id + ' ' + m.nome + ' (turma #' + m.turmaId + ', ' + filaLocalDaTurma(m.turmaId).length + ' na fila)' }; }), '(nenhuma matrícula PENDENTE nesta sessão)');
   $('e_expSql').textContent = comandoDeExpiracao(Number($('e_expSel').value));
+  $('e_sqlMatriculas').textContent = comandoDeMatriculas();
 }
 
 function aoAcompanharExpiracao() {
@@ -178,7 +185,8 @@ function aoAcompanharExpiracao() {
 
 function iniciarEventos() {
   $('e_expSel').onchange = renderizarJobDeExpiracao;
-  $('e_btnCopiarSql').onclick = function () { copiar($('e_expSql').textContent, 'Comando copiado.'); };
+  $('e_btnCopiarSql').onclick = function () { copiar($('e_expSql').textContent, 'SQL copiado.'); };
+  $('e_btnCopiarSqlMatriculas').onclick = function () { copiar($('e_sqlMatriculas').textContent, 'SQL copiado.'); };
   $('e_btnExpiracao').onclick = aoAcompanharExpiracao;
   renderizarJobDeExpiracao();
   $$('[data-copiar]').forEach(function (b) { b.onclick = function () { copiar(b.getAttribute('data-copiar'), 'Comando copiado.'); }; });

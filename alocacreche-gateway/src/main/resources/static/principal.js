@@ -82,10 +82,26 @@ async function atalhoConfirmar() {
   avisar(r.ok ? 'Matrícula #' + estado.matriculaAtual + ' confirmada.' : 'Confirmação: ' + mensagemDeErro(r), r.ok ? 'ok' : 'erro');
 }
 
+// Copia o token da sessão para a área de transferência (nunca o exibe na tela) e abre o Swagger do
+// serviço em outra aba; lá basta clicar em Authorize e colar. O navegador isola o sessionStorage por
+// porta, por isso o token não pode ser repassado sozinho entre a tela (8090) e o Swagger (8083/8082).
+async function abrirSwagger(porta, nome) {
+  var url = location.protocol + '//' + location.hostname + ':' + porta + '/swagger-ui.html';
+  try {
+    await navigator.clipboard.writeText(token);
+    avisar('Token copiado. No Swagger do ' + nome + ', clique em Authorize, cole (Ctrl+V) e confirme.', 'ok');
+  } catch (e) {
+    avisar('Não consegui copiar o token automaticamente. Faça o login pelo próprio Swagger.', 'erro');
+  }
+  window.open(url, '_blank', 'noopener');
+}
+
 function iniciarNavegacao() {
   $$('.nav-item').forEach(function (b) { b.onclick = function () { irParaAba(b.getAttribute('data-aba')); }; });
   $('btnModo').onclick = function () { aplicarModo(document.body.classList.contains('apresentacao') ? 'tecnico' : 'apresentacao'); };
   $('btnSair').onclick = irParaLogin;
+  $('btnSwaggerCore').onclick = function () { abrirSwagger(8083, 'core'); };
+  $('btnSwaggerRel').onclick = function () { abrirSwagger(8082, 'relatórios'); };
   $('btnReiniciar').onclick = function () {
     reiniciarEstadoLocal();
     snapshot = null;

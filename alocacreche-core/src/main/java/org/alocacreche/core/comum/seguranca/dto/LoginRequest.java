@@ -1,5 +1,6 @@
 package org.alocacreche.core.comum.seguranca.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Constraint;
 import jakarta.validation.ConstraintValidator;
 import jakarta.validation.ConstraintValidatorContext;
@@ -16,8 +17,11 @@ import java.lang.annotation.Target;
 import java.nio.charset.StandardCharsets;
 
 public record LoginRequest(
+        @Schema(description = "E-mail do usuário.", example = "admin@demo.local")
         @NotBlank @Email @Size(max = 254) String email,
+        @Schema(description = "Senha do usuário (valor fictício no exemplo).", example = "SenhaFicticia#123")
         @NotBlank @MaximoBytesUtf8(72) String senha,
+        @Schema(description = "Município em que o usuário está cadastrado.", example = "1")
         @NotNull @Positive Long municipioId) {
 
     @Override

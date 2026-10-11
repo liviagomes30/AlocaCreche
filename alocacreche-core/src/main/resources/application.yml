@@ -65,6 +65,11 @@ server:
   port: ${SERVER_PORT:8081}
 
 alocacreche:
+  swagger:
+    # Liga/desliga a pagina do Swagger UI e o documento OpenAPI (e a excecao de leitura no
+    # interceptor do Sa-Token). Ligado em desenvolvimento; o perfil prod o desliga por padrao
+    # (application-prod.yml) - ver docs/adr/0008-swagger-openapi-para-documentar-e-testar-a-api.md.
+    habilitado: ${ALOCACRECHE_SWAGGER_HABILITADO:true}
   seguranca:
     login:
       # Falhas de login por municipio+email dentro da janela antes de responder 429.
@@ -104,6 +109,16 @@ sa-token:
   is-share: false
   is-log: false
   jwt-secret-key: ${SA_TOKEN_JWT_SECRET:troque-este-segredo-antes-de-qualquer-deploy}
+
+# As duas chaves do springdoc seguem a MESMA propriedade acima: nunca uma ligada sem a outra.
+springdoc:
+  api-docs:
+    enabled: ${alocacreche.swagger.habilitado}
+  swagger-ui:
+    enabled: ${alocacreche.swagger.habilitado}
+    tags-sorter: alpha
+    # Mantem o token do Authorize ao recarregar a pagina do Swagger (so no navegador local).
+    persist-authorization: true
 
 management:
   endpoints:

@@ -399,3 +399,36 @@ docker compose exec -T postgres-core psql -U alocacreche -d alocacreche -v ON_ER
 
 Esperado: dois `INSERT 0 1` (um por usuário) e exit code 0. Se o município não existir ou faltar uma variável, o script termina com erro e exit code diferente de zero (nada é inserido). Reexecutar é seguro: troca a senha e reativa o usuário. Depois,
 entre em `login.html` (ou no `curl` da seção 7) com o email e a senha informados.
+
+## 14. Swagger: documentar e testar a API pelo navegador
+
+O core e o MSRelatorios publicam a própria documentação (ver `docs/adr/0008-swagger-openapi-para-documentar-e-testar-a-api.md`).
+O `scripts/demo-subir.sh` já liga o Swagger e imprime as URLs; sem o script, defina
+`ALOCACRECHE_SWAGGER_HABILITADO=true` (já é o padrão fora do perfil `prod`).
+
+- Core: `http://localhost:<porta-core>/swagger-ui.html` (8083 na demo).
+- MSRelatorios: `http://localhost:<porta-relatorios>/swagger-ui.html` (8082 na demo).
+
+Passo a passo:
+
+1. Abra a página: ela e o contrato (`/v3/api-docs`) abrem **sem token** e listam todos os endpoints.
+2. Sem token, clique em "Try it out" e "Execute" numa operação com cadeado (por exemplo
+   `POST /api/v1/matricula/creches`): a resposta é **401**.
+3. Em "Autenticação", abra `POST /api/v1/auth/login` (sem cadeado), "Try it out", informe e-mail, senha e
+   `municipioId` de um usuário da demo (`.demo/credenciais.txt`) e execute.
+4. Copie o campo `token` da resposta, clique em "Authorize" (topo da página), cole **só o token** (sem
+   `Bearer`) e confirme.
+5. Repita a operação do passo 2: agora responde 201/200, conforme as permissões do perfil. Um perfil sem a
+   permissão (por exemplo ATENDENTE em `matricula:creche:add`) responde **403**.
+6. No Swagger dos relatórios use o **mesmo token** ("Authorize" de novo) e o `municipioId` do token; o
+   painel público (`GET /api/v1/relatorios/painel-publico`) não tem cadeado e funciona sem token.
+
+Cada operação protegida mostra, na descrição, a "Permissão exigida". Em prod o Swagger fica desligado por
+padrão (`/v3/api-docs` e `/swagger-ui.html` respondem 401).
+
+**Atalho pela interface web.** Depois de entrar em `http://localhost:8090/login.html`, os botões
+**Swagger core** e **Swagger relatórios** do cabeçalho copiam o token da sessão para a área de
+transferência (ele nunca aparece na tela) e abrem o Swagger do serviço em outra aba. Lá, clique em
+**Authorize**, cole com Ctrl+V e confirme: não é preciso chamar o login de novo pelo Swagger. O
+Swagger guarda o token ao recarregar a página (`persist-authorization`). O token não é repassado
+sozinho porque o navegador isola o armazenamento por porta (8090, 8083 e 8082 são origens diferentes).
