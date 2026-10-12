@@ -99,7 +99,7 @@ async function abrirSwagger(porta, nome) {
 function iniciarNavegacao() {
   $$('.nav-item').forEach(function (b) { b.onclick = function () { irParaAba(b.getAttribute('data-aba')); }; });
   $('btnModo').onclick = function () { aplicarModo(document.body.classList.contains('apresentacao') ? 'tecnico' : 'apresentacao'); };
-  $('btnSair').onclick = irParaLogin;
+  $('btnSair').onclick = function () { irParaLogin(true); };
   $('btnSwaggerCore').onclick = function () { abrirSwagger(8083, 'core'); };
   $('btnSwaggerRel').onclick = function () { abrirSwagger(8082, 'relatórios'); };
   $('btnReiniciar').onclick = function () {

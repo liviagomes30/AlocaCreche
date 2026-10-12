@@ -125,8 +125,11 @@ function limparSessao() {
   sessionStorage.removeItem(CHAVES.expira);
 }
 
-function irParaLogin() {
+// Com manterListas=true (troca de usuário) as listas locais da tela são preservadas no próximo login;
+// nos demais casos (sessão expirada, token inválido, demonstração reiniciada) o login as descarta.
+function irParaLogin(manterListas) {
   limparSessao();
+  if (manterListas === true) { sessionStorage.setItem('alocacreche.manterListas', '1'); }
   window.location.replace('/login.html');
 }
 

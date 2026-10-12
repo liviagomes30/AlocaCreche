@@ -77,6 +77,12 @@
       });
       if (resposta.ok) {
         var dados = await resposta.json();
+        // Login novo começa limpo: as listas locais (crianças, turmas, matrículas) de uma execução anterior
+        // não existem mais no banco. Só a troca de usuário na mesma execução as preserva.
+        if (sessionStorage.getItem('alocacreche.manterListas') !== '1') {
+          ['alocacreche.estado', 'alocacreche.log', 'alocacreche.roteiro'].forEach(function (k) { sessionStorage.removeItem(k); });
+        }
+        sessionStorage.removeItem('alocacreche.manterListas');
         sessionStorage.setItem(CHAVE_TOKEN, dados.token);
         sessionStorage.setItem(CHAVE_MUNICIPIO, String(municipioId));
         sessionStorage.setItem(CHAVE_EXPIRA, dados.expiraEm);

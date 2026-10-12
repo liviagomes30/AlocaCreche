@@ -343,6 +343,6 @@ function iniciarSeguranca() {
   renderizarUsuario();
   $('s_btnTodos').onclick = executarTodosOsTestes;
   $('s_btnMatriz').onclick = executarMatriz;
-  $('s_btnTrocar').onclick = irParaLogin;
+  $('s_btnTrocar').onclick = function () { irParaLogin(true); };
   preencherTabela($('s_matriz'), ['Endpoint', 'Permissão exigida', 'Esperado', 'Status', 'Observação', 'Resultado'], [], 'Clique em Executar matriz.');
 }
