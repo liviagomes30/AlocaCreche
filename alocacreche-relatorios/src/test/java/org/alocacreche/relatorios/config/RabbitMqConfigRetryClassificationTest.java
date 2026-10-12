@@ -6,6 +6,7 @@ import org.alocacreche.relatorios.evento.exception.EventoDominioInvalidoExceptio
 import org.junit.jupiter.api.Test;
 import org.springframework.amqp.rabbit.support.ListenerExecutionFailedException;
 import org.springframework.retry.RetryContext;
+import org.springframework.retry.backoff.ExponentialBackOffPolicy;
 import org.springframework.retry.policy.SimpleRetryPolicy;
 
 /**
@@ -54,6 +55,15 @@ class RabbitMqConfigRetryClassificationTest {
                                 "wrapper", new RuntimeException("falha transitoria simulada")));
 
         assertThat(retryPolicy.canRetry(context)).isTrue();
+    }
+
+    @Test
+    void esperaEntreTentativasCresceDeFormaExponencialComTeto() {
+        ExponentialBackOffPolicy espera = RabbitMqConfig.politicaDeEspera();
+
+        assertThat(espera.getInitialInterval()).isEqualTo(500);
+        assertThat(espera.getMultiplier()).isEqualTo(2.0);
+        assertThat(espera.getMaxInterval()).isEqualTo(4_000);
     }
 
     private RetryContext registrarFalha(SimpleRetryPolicy retryPolicy, Throwable falha) {
