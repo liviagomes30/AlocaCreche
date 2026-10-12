@@ -3,8 +3,10 @@ package org.alocacreche.core.matricula.controller;
 import cn.dev33.satoken.annotation.SaCheckPermission;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.alocacreche.core.matricula.service.AlocacaoVagaService;
+import org.alocacreche.core.matricula.service.ConsultaMatriculaService;
 import org.alocacreche.core.matricula.service.AlocarVagaRequest;
 import org.alocacreche.core.matricula.service.ConfirmacaoMatriculaService;
 import org.alocacreche.core.matricula.service.DesistenciaMatriculaService;
@@ -13,6 +15,7 @@ import org.alocacreche.core.matricula.service.MatriculaCanceladaResponse;
 import org.alocacreche.core.matricula.service.MatriculaConfirmadaResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -28,6 +31,13 @@ public class MatriculaController {
     private final AlocacaoVagaService alocacaoVagaService;
     private final ConfirmacaoMatriculaService confirmacaoMatriculaService;
     private final DesistenciaMatriculaService desistenciaMatriculaService;
+    private final ConsultaMatriculaService consultaMatriculaService;
+
+    @SaCheckPermission("matricula:matricula:list")
+    @GetMapping("/matriculas")
+    public List<ConsultaMatriculaService.MatriculaResumo> listar() {
+        return consultaMatriculaService.listarMatriculas();
+    }
 
     @SaCheckPermission("matricula:vaga:alocar")
     @PostMapping("/vagas/alocar")

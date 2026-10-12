@@ -2,11 +2,14 @@
 # Sobe TODA a demonstracao do AlocaCreche com um comando: infraestrutura (Postgres x2, Redis,
 # RabbitMQ), core, relatorios e gateway, mais os usuarios ADMIN, GESTOR e ATENDENTE.
 #
-# Uso: scripts/demo-subir.sh [--manter] [--com-job] [--sem-build]
+# Uso: scripts/demo-subir.sh [--manter] [--com-job] [--sem-build] [--reiniciar-core]
 #   --manter     nao zera os dados: pula "docker compose down -v" e reaproveita banco, usuarios e as
 #                credenciais de .demo/credenciais.txt
 #   --com-job    liga o job de manutencao de matriculas (intervalo de 20 s); o padrao e desligado
 #   --sem-build  nao recompila; usa os jars ja existentes em */target
+#   --reiniciar-core  reinicia SO o core (sem tocar em infra, relatorios, gateway, usuarios nem dados),
+#                     para ligar (--com-job) ou desligar (sem a flag) o job com a demo ja no ar;
+#                     reaproveita .demo/credenciais.txt e implica --sem-build
 #
 # Portas (variaveis opcionais): POSTGRES_CORE_PORT (5434), DEMO_PORTA_CORE (8083),
 # DEMO_PORTA_RELATORIOS (8082), DEMO_PORTA_GATEWAY (8090).
@@ -23,17 +26,19 @@ source "$RAIZ/scripts/lib/demo-comum.sh"
 MANTER=0
 COM_JOB=0
 SEM_BUILD=0
+SO_CORE=0
 for arg in "$@"; do
   case "$arg" in
     --manter) MANTER=1 ;;
     --com-job) COM_JOB=1 ;;
     --sem-build) SEM_BUILD=1 ;;
+    --reiniciar-core) SO_CORE=1 ;;
     -h | --help)
-      sed -n '2,15p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+      sed -n '2,18p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
       exit 0
       ;;
     *)
-      erro "Opcao desconhecida: $arg (use --manter, --com-job, --sem-build)"
+      erro "Opcao desconhecida: $arg (use --manter, --com-job, --sem-build, --reiniciar-core)"
       exit 2
       ;;
   esac
@@ -318,6 +323,7 @@ iniciar_core() {
     "ALOCACRECHE_SEGURANCA_USUARIOINICIAL_SENHA=${SENHA_DEMO}" \
     "ALOCACRECHE_SEGURANCA_USUARIOINICIAL_MUNICIPIOID=${MUNICIPIO_ID}" \
     "ALOCACRECHE_SWAGGER_HABILITADO=true" \
+    "ALOCACRECHE_OUTBOX_CONTROLE_DEMO_HABILITADO=true" \
     "${extras[@]}"
 }
 
@@ -408,6 +414,9 @@ imprimir_quadro() {
    3) as demais operacoes passam a valer conforme o perfil; sem token, 401
  RabbitMQ      http://localhost:15672  (guest / guest)
  Job manutencao: ${job}
+$(if [[ $COM_JOB -eq 1 ]]; then echo ' ATENCAO: com o job ligado ele aloca vagas durante o roteiro e a "Demonstracao completa"
+ pode falhar. Use o job so para o cenario do prazo vencido; para a demo completa:
+ scripts/demo-subir.sh --reiniciar-core   (job desligado, sem apagar dados)'; fi)
 
  Logs          .demo/core.log  .demo/relatorios.log  .demo/gateway.log
  Credenciais   .demo/credenciais.txt  (ignorado pelo git; reaproveitado com --manter)
@@ -419,7 +428,33 @@ QUADRO
 }
 
 # ---------------------------------------------------------------------------------------------
+# Reinicia apenas o core, com o job ligado (--com-job) ou desligado, sem mexer em mais nada.
+reiniciar_core() {
+  info "Reiniciando so o core; dados e demais servicos ficam como estao"
+  command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1 || falhar "O Docker nao esta rodando."
+  [[ -n "$(docker compose ps -q --status running postgres-core 2>/dev/null)" ]]     || falhar "A infraestrutura nao esta no ar. Suba antes com scripts/demo-subir.sh --manter"
+  [[ -f "$DEMO_DIR/credenciais.txt" ]] || falhar "Sem .demo/credenciais.txt; suba antes com scripts/demo-subir.sh"
+  JWT_SECRET=$(ler_credencial JWT_SECRET)
+  SENHA_DEMO=$(ler_credencial SENHA_DEMO)
+  [[ ${#JWT_SECRET} -ge 32 && -n "$SENHA_DEMO" ]] || falhar ".demo/credenciais.txt esta incompleto; suba com scripts/demo-subir.sh"
+  if [[ -f "$DEMO_DIR/portas.env" ]]; then
+    DEMO_PORTA_CORE=$(grep '^core=' "$DEMO_DIR/portas.env" | cut -d= -f2)
+  fi
+  parar_servico core
+  esperar_porta_livre "$DEMO_PORTA_CORE" 20 || falhar "A porta ${DEMO_PORTA_CORE} nao foi liberada."
+  iniciar_core none
+  esperar_servico core "$DEMO_PORTA_CORE"
+  ARMADO=0
+  info "Core no ar na porta ${DEMO_PORTA_CORE}. Job de manutencao: $([[ $COM_JOB -eq 1 ]] && echo 'LIGADO (rodada a cada 20 s)' || echo desligado)"
+}
+
+# ---------------------------------------------------------------------------------------------
 main() {
+  if [[ $SO_CORE -eq 1 ]]; then
+    mkdir -p "$DEMO_DIR"
+    reiniciar_core
+    return
+  fi
   pre_checagens
   mkdir -p "$DEMO_DIR"
   ARMADO=1

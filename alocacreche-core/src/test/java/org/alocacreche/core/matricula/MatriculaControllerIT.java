@@ -822,6 +822,56 @@ class MatriculaControllerIT {
         });
     }
 
+    @Test
+    @DisplayName("GETs de listagem devolvem so os dados do municipio do token, sem CPF, e exigem permissao")
+    void listagensDevolvemOsDadosDoMunicipioDoToken() throws Exception {
+        Long municipioVazio = criarMunicipio();
+        Long municipioComDados = criarMunicipio();
+        Long turmaId = criarTurmaPorHttp(municipioComDados, 3);
+        Long inscricaoId = inscreverPorHttp(municipioComDados, turmaId, true);
+        Long matriculaId = idDe(alocar(turmaId, tokenCom(municipioComDados, List.of("*"))), "matriculaId");
+        String token = tokenCom(municipioComDados, List.of("*"));
+
+        JsonNode creches = listar("/api/v1/matricula/creches", token);
+        JsonNode turmas = listar("/api/v1/matricula/turmas", token);
+        JsonNode matriculas = listar("/api/v1/matricula/matriculas", token);
+        JsonNode inscricoes = listar("/api/v1/inscricao/inscricoes", token);
+        JsonNode responsaveis = listar("/api/v1/inscricao/responsaveis", token);
+        JsonNode criancas = listar("/api/v1/inscricao/criancas", token);
+
+        assertThat(creches).hasSize(1);
+        assertThat(turmas).hasSize(1);
+        assertThat(turmas.get(0).get("id").asLong()).isEqualTo(turmaId);
+        assertThat(turmas.get(0).get("vagasDisponiveis").asInt()).isEqualTo(2);
+        assertThat(matriculas).hasSize(1);
+        assertThat(matriculas.get(0).get("id").asLong()).isEqualTo(matriculaId);
+        assertThat(matriculas.get(0).get("status").asText()).isEqualTo("PENDENTE");
+        assertThat(inscricoes).hasSize(1);
+        assertThat(inscricoes.get(0).get("id").asLong()).isEqualTo(inscricaoId);
+        assertThat(responsaveis).hasSize(1);
+        assertThat(responsaveis.get(0).has("cpf")).isFalse();
+        assertThat(criancas).hasSize(1);
+        assertThat(inscricoes.get(0).has("rendaPerCapita")).isFalse();
+
+        String tokenVazio = tokenCom(municipioVazio, List.of("*"));
+        assertThat(listar("/api/v1/matricula/turmas", tokenVazio)).isEmpty();
+        assertThat(listar("/api/v1/inscricao/inscricoes", tokenVazio)).isEmpty();
+
+        ResponseEntity<String> semPermissao = restTemplate.exchange(
+                "/api/v1/matricula/turmas",
+                HttpMethod.GET,
+                new HttpEntity<>(cabecalhos(tokenCom(municipioComDados, List.of("matricula:creche:list")))),
+                String.class);
+        assertThat(semPermissao.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+    }
+
+    private JsonNode listar(String caminho, String token) throws Exception {
+        ResponseEntity<String> resposta =
+                restTemplate.exchange(caminho, HttpMethod.GET, new HttpEntity<>(cabecalhos(token)), String.class);
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+        return objectMapper.readTree(resposta.getBody());
+    }
+
     private List<HttpStatus> emParalelo(int quantidade, Supplier<ResponseEntity<String>> requisicao) throws Exception {
         java.util.concurrent.CyclicBarrier largada = new java.util.concurrent.CyclicBarrier(quantidade);
         java.util.concurrent.ExecutorService executor = java.util.concurrent.Executors.newFixedThreadPool(quantidade);

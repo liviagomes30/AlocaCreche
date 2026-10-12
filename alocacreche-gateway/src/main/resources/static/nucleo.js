@@ -48,7 +48,7 @@ function novoEstado() {
   return {
     creches: [], turmas: [], responsaveis: [], criancas: [], inscricoes: [],
     matriculas: [], eventos: [], turmaAtual: null, matriculaAtual: null,
-    municipioRel: null, periodo: null, intervalo: 0, seqEvento: 0
+    municipioRel: null, periodo: null, intervalo: 5000, seqEvento: 0
   };
 }
 

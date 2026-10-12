@@ -43,12 +43,17 @@
   <main class="conteudo" id="conteudo">
 
     <div id="narrador" class="narrador" role="status" aria-live="polite">
-      <div class="titulo" id="narradorTitulo"></div>
+      <div class="narrador-topo">
+        <div class="titulo" id="narradorTitulo"></div>
+        <div class="narrador-acoes">
+          <button id="btnDemoPausa">Pausar</button>
+          <button id="btnDemoParar">Parar</button>
+          <button id="btnDemoRecolher" aria-expanded="true" title="Recolhe o quadro para liberar a tela">Recolher</button>
+        </div>
+      </div>
       <div class="detalhe" id="narradorDetalhe"></div>
       <div class="progresso"><i id="narradorBarra" style="width:0"></i></div>
       <ul id="narradorLista"></ul>
-      <button id="btnDemoPausa">Pausar</button>
-      <button id="btnDemoParar">Parar</button>
     </div>
 
     <!-- 1. VISÃO GERAL -->
@@ -63,17 +68,29 @@
         <div class="cartao"><b data-k="fila">-</b><span>aguardando na fila</span></div>
         <div class="cartao"><b data-k="taxa">-</b><span>taxa de confirmação</span></div>
         <div class="cartao"><b data-k="dist">-</b><span>distância média (km)</span></div>
+        <div class="cartao"><b data-k="oPend">-</b><span>eventos pendentes na Outbox (só ADMIN)</span></div>
+        <div class="cartao"><b data-k="oErro">-</b><span>eventos com erro na Outbox (só ADMIN)</span></div>
         <div class="cartao publico"><b data-k="pVagas">-</b><span>painel público: vagas</span></div>
         <div class="cartao publico"><b data-k="pCreches">-</b><span>painel público: creches com vaga</span></div>
         <div class="cartao publico"><b data-k="pTurmas">-</b><span>painel público: turmas</span></div>
       </div>
 
+      <div class="painel">
+        <h3>Evolução ao vivo: relatório x banco <span class="selo" id="gr_selo"></span></h3>
+        <p class="dica" style="margin-top:0">Soma das vagas disponíveis a cada atualização. As linhas se afastam quando um evento ainda não chegou ao relatório (pontos laranja) e voltam a se encontrar quando ele é aplicado.</p>
+        <div class="grafico" id="gr_area"><span class="vazio">Aguardando atualizações.</span></div>
+        <div class="legenda">
+          <span class="leg"><i class="traco"></i>Relatório (projeção)</span>
+          <span class="leg"><i class="traco core"></i>Banco (core)</span>
+          <span class="leg"><i class="ponto"></i>Defasagem</span>
+        </div>
+      </div>
+
       <div class="grade g2">
         <div class="painel">
-          <h3>Ocupação por turma
-            <label style="display:inline;margin-left:10px"><input type="checkbox" id="soSessao" checked> somente turmas desta sessão</label></h3>
+          <h3>Ocupação por turma: relatório x banco</h3>
           <div class="rolagem"><table class="tabela" id="tabelaOcupacaoVisao"></table></div>
-          <p class="dica">A barra mostra as vagas já ocupadas (total da turma menos vagas disponíveis). O total só é conhecido para turmas criadas nesta sessão.</p>
+          <p class="dica">A barra mostra as vagas já ocupadas (total da turma menos vagas disponíveis). "Vagas no banco" vem direto do core; o relatório é uma projeção alimentada por eventos e pode atrasar alguns segundos. Enquanto os dois diferem, a sincronia aparece como "sincronizando...", e a tela confere de novo sozinha até igualar.</p>
         </div>
         <div class="painel">
           <h3>Atalhos de ação</h3>
@@ -333,6 +350,30 @@
     <section class="aba" id="aba-relatorios">
       <h2>Stack C: Relatórios e painel público</h2>
       <p class="lead">Consulta de cada relatório do MSRelatorios, com filtros. O painel público não exige token.</p>
+
+      <div class="painel destaque">
+        <h3>Demonstração guiada da Stack C <span class="selo info">cerca de 2 minutos</span></h3>
+        <p class="dica" style="margin-top:0">Percorre, passo a passo e com narração, tudo o que a Stack C entrega, com a evidência de cada etapa:</p>
+        <ol class="resumo-demo">
+          <li>Segurança própria do MSRelatorios (401, 401 e 403) e o painel público sem login, só com totais.</li>
+          <li>Outbox transacional: uma ação do core grava o evento na mesma transação.</li>
+          <li>Publicador em lote enviando ao RabbitMQ e o MSRelatorios aplicando as projeções.</li>
+          <li>Os quatro relatórios gerenciais conferidos contra o que foi feito.</li>
+          <li>Falha do envio e recuperação automática, sem perder nenhum evento.</li>
+          <li>Idempotência (evento antigo ignorado), fila de rejeição e limite do gateway no painel público.</li>
+        </ol>
+        <div class="linha-botoes">
+          <button id="c_btnDemoC">Executar demonstração da Stack C</button>
+          <label style="display:inline;margin:0">Ritmo
+            <select id="c_ritmo" style="width:auto;display:inline-block">
+              <option value="1200">rápido</option>
+              <option value="2500" selected>normal</option>
+              <option value="4500">lento (apresentação)</option>
+            </select></label>
+          <label style="display:inline;margin:0"><input type="checkbox" id="c_demoLimite" checked> incluir o limite do painel público (bloqueia o painel deste computador por cerca de 1 minuto)</label>
+        </div>
+        <p class="dica">Requisitos: perfil ADMIN, serviços no ar e job de matrículas desligado (a verificação da aba Roteiro confere isso). Use Pausar e Parar no quadro roxo do topo. A demonstração cria uma creche e uma turma novas, sem mexer nas existentes.</p>
+      </div>
       <div class="painel"><div data-barra-relatorios></div></div>
 
       <div class="painel">
@@ -357,7 +398,10 @@
         <div class="linha-botoes">
           <button id="c_btnPublico" class="fantasma">Consultar sem token (fetch)</button>
           <a id="c_linkPublico" class="btn sec" target="_blank" rel="noopener">Abrir painel público em nova aba</a>
+          <button id="c_btnLimite" class="fantasma" title="Dispara 150 consultas seguidas para mostrar o limite por IP do gateway">Simular excesso de consultas (429)</button>
         </div>
+        <div id="c_limiteRes" class="dica"></div>
+        <p class="dica">O painel público é a única rota sem login, então o gateway limita as consultas por IP (120 por minuto). A simulação bloqueia o painel público <b>deste computador por cerca de 1 minuto</b>; a página pública avisa e retoma sozinha.</p>
         <p class="dica">Dica para a demonstração: abra o link em uma janela anônima do navegador para provar que não há sessão envolvida.</p>
       </div>
     </section>
@@ -449,7 +493,30 @@
           <p class="dica">Eventos reconhecidos: <code>vaga.liberada</code>, <code>fila.atualizada</code> e <code>matricula.atualizada</code> (PENDENTE, CONFIRMADA, CANCELADA ou EXPIRADA). Uma desistência gera <code>vaga.liberada</code> + <code>matricula.atualizada</code> (CANCELADA) e, havendo fila, os três eventos da alocação automática.</p>
         </div>
         <div class="painel">
-          <h3>Demonstrar a resiliência com o RabbitMQ</h3>
+          <h3>Falha e recuperação do envio <span class="selo" id="res_selo"></span></h3>
+          <p class="dica" style="margin-top:0">Pausa o envio da Outbox para o RabbitMQ (como se o broker estivesse fora do ar), gera eventos e mostra que nada se perde: eles esperam como <b>PENDENTE</b> e, ao retomar, o relatório alcança o banco sozinho.</p>
+          <div class="cartoes status-outbox">
+            <div class="cartao"><b id="res_pend">-</b><span>pendentes</span></div>
+            <div class="cartao"><b id="res_proc">-</b><span>enviados</span></div>
+            <div class="cartao"><b id="res_erro">-</b><span>com erro</span></div>
+            <div class="cartao" title="Mensagens que o MSRelatorios rejeitou depois das tentativas (fila de mensagens mortas)"><b id="res_dlq">-</b><span>na DLQ</span></div>
+            <div class="cartao"><b id="res_broker">-</b><span>RabbitMQ</span></div>
+          </div>
+          <div class="alerta-pausa" id="res_aviso" style="display:none" role="alert">
+            <span><b>O envio está pausado.</b> Os relatórios não vão atualizar enquanto estiver assim.</span>
+            <button id="res_btnRetomarAviso" class="mini">Retomar agora</button>
+          </div>
+          <ol class="lista-guiada" id="res_passos"></ol>
+          <div class="linha-botoes">
+            <button id="res_btnCenario">Executar cenário guiado</button>
+            <button id="res_btnParar" class="sec">Interromper</button>
+            <button id="res_btnPausar" class="fantasma">Pausar envio</button>
+            <button id="res_btnRetomar" class="fantasma">Retomar envio</button>
+          </div>
+          <p class="dica" id="res_motivo"></p>
+          <p class="dica" id="res_resumo" style="font-weight:600"></p>
+          <details>
+            <summary class="dica" style="cursor:pointer">Alternativa: parar o RabbitMQ de verdade (terminal)</summary>
           <ol style="padding-left:18px;margin:0">
             <li>Abra o <a href="http://localhost:15672" target="_blank" rel="noopener">RabbitMQ Management</a> (usuário e senha padrão do ambiente local).</li>
             <li>Pare o RabbitMQ:</li>
@@ -465,8 +532,21 @@
           <p class="dica">Resumo da contagem por status:</p>
           <div class="cmd"><code>SELECT status, count(*) FROM outbox GROUP BY status;</code><button class="mini sec" data-copiar="SELECT status, count(*) FROM outbox GROUP BY status;">Copiar</button></div>
           <p class="dica">As consultas SQL acima rodam no <b>DBeaver</b>: conexão PostgreSQL em <code>localhost:5434</code>, banco <code>alocacreche</code>, usuário e senha <code>alocacreche_app</code> (a porta é a <code>POSTGRES_CORE_PORT</code> da demo). Só a parada e a subida do RabbitMQ usam o <code>docker compose</code>, porque não existe equivalente em SQL.</p>
-          <p class="dica tecnico">Não existe endpoint de Outbox na API: a consulta é feita direto no banco.</p>
+          <p class="dica">O botão "Executar cenário guiado" acima faz o mesmo sem tocar no Docker: ele só pausa o publicador do core.</p>
+          </details>
         </div>
+      </div>
+
+      <div class="painel">
+        <h3>Evento antigo ou duplicado: o relatório não regride</h3>
+        <p class="dica" style="margin-top:0">O RabbitMQ entrega cada mensagem <b>pelo menos uma vez</b>, então um evento pode chegar repetido ou atrasado. Aqui você reenvia o evento mais antigo de uma turma (de quando ela foi criada, com todas as vagas livres) e confere que o MSRelatorios o descarta.</p>
+        <div class="linha-botoes" style="margin-top:0">
+          <label for="id_turma" style="display:inline;margin:0">Turma</label>
+          <select id="id_turma" style="width:auto;display:inline-block"></select>
+          <button id="id_btn">Reenviar evento antigo</button>
+        </div>
+        <p class="dica" id="id_dica"></p>
+        <div id="id_res" class="dica"></div>
       </div>
 
       <div class="painel">
@@ -505,6 +585,13 @@
     <section class="aba" id="aba-roteiro">
       <h2>Roteiro de apresentação</h2>
       <p class="lead">Passo a passo para a apresentação. Marque os passos feitos (a marcação fica salva nesta aba do navegador).</p>
+
+      <div class="painel">
+        <h3>Antes de apresentar: verificação do ambiente <span class="selo" id="pre_resumo"></span></h3>
+        <p class="dica" style="margin-top:0">Confere serviços, Outbox, RabbitMQ e o job de manutenção. A verificação roda ao abrir esta aba. Se algo mudou na interface, recarregue a página com Ctrl+F5.</p>
+        <ul class="lista-guiada compacta" id="pre_lista"></ul>
+        <div class="linha-botoes"><button id="pre_btn" class="fantasma">Verificar de novo</button></div>
+      </div>
 
       <div class="painel">
         <h3>Demo completa automática</h3>
@@ -583,6 +670,8 @@
 <script src="/matricula.js"></script>
 <script src="/seguranca.js"></script>
 <script src="/eventos.js"></script>
+<script src="/resiliencia.js"></script>
+<script src="/demostackc.js"></script>
 <script src="/roteiro.js"></script>
 <script src="/principal.js"></script>
 </body>

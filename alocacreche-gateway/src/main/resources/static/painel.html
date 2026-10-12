@@ -241,6 +241,7 @@
     temporizador: null,
     ultimoSucesso: null,
     valores: { vagas: null, creches: null, turmas: null },
+    bloqueadoAte: 0,
     emVoo: false
   };
 
@@ -293,6 +294,7 @@
 
   async function consultar() {
     if (estado.emVoo) { return; }
+    if (Date.now() < estado.bloqueadoAte) { return; }
     estado.emVoo = true;
     var cartoes = $('cartoes');
     try {
@@ -303,11 +305,21 @@
         mostrarEstado('erro', 'Município inválido');
         return;
       }
+      if (resposta.status === 429) {
+        // Limite de consultas por minuto: espera o tempo que o servidor pediu e retoma sozinho
+        var espera = Math.max(1, Number(resposta.headers.get('Retry-After')) || 30);
+        estado.bloqueadoAte = Date.now() + espera * 1000;
+        cartoes.classList.add('defasado');
+        mostrarAviso('info', 'Muitas consultas em pouco tempo. Mostrando os últimos números recebidos; a atualização retoma em cerca de ' + espera + ' s.');
+        mostrarEstado('pausado', 'Aguardando liberação');
+        return;
+      }
       if (!resposta.ok) {
         throw new Error('HTTP ' + resposta.status);
       }
       var dados = await resposta.json();
       cartoes.classList.remove('carregando', 'defasado');
+      estado.bloqueadoAte = 0;
       definirNumero('vVagas', 'vagas', Number(dados.totalVagasDisponiveis || 0));
       definirNumero('vCreches', 'creches', Number(dados.totalCrechesComVaga || 0));
       definirNumero('vTurmas', 'turmas', Number(dados.totalTurmas || 0));

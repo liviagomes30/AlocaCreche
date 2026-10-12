@@ -347,6 +347,80 @@ class OutboxPublicadorServiceTest {
         verify(repository, never()).save(any(OutboxEvent.class));
     }
 
+    @Test
+    @DisplayName("processarPendentes busca com lock, publica o lote e marca todos PROCESSADO")
+    void processarPendentesPublicaOLoteInteiro() {
+        OutboxEvent a = new OutboxEvent("vaga.liberada", "{}");
+        a.setId(20L);
+        OutboxEvent b = new OutboxEvent("fila.atualizada", "{}");
+        b.setId(21L);
+        when(repository.buscarPendentesParaPublicar(
+                        "PENDENTE", PageRequest.of(0, OutboxPublicadorService.TAMANHO_LOTE)))
+                .thenReturn(List.of(a, b));
+
+        service.processarPendentes();
+
+        assertThat(a.getStatus()).isEqualTo("PROCESSADO");
+        assertThat(b.getStatus()).isEqualTo("PROCESSADO");
+        verify(repository).save(a);
+        verify(repository).save(b);
+    }
+
+    @Test
+    @DisplayName("lote sem confirmacao custa um timeout so, e nao um timeout por evento")
+    void loteSemConfirmacaoCustaUmTimeoutSo() {
+        doAnswer(invocacao -> null)
+                .when(rabbitTemplate)
+                .send(anyString(), anyString(), any(Message.class), any(CorrelationData.class));
+        OutboxPublicadorService comTimeout = new OutboxPublicadorService(repository, rabbitTemplate, objectMapper, 300);
+        List<OutboxEvent> eventos = new ArrayList<>();
+        for (long id = 30; id < 40; id++) {
+            OutboxEvent evento = new OutboxEvent("vaga.liberada", "{}");
+            evento.setId(id);
+            eventos.add(evento);
+        }
+        when(repository.buscarPendentesParaPublicar(
+                        "PENDENTE", PageRequest.of(0, OutboxPublicadorService.TAMANHO_LOTE)))
+                .thenReturn(eventos);
+
+        long inicio = System.nanoTime();
+        comTimeout.processarPendentes();
+        long decorridoMs = (System.nanoTime() - inicio) / 1_000_000;
+
+        // 10 eventos x 300 ms seriam 3000 ms; com o prazo compartilhado ficam perto de 300 ms.
+        assertThat(decorridoMs).isLessThan(1_500);
+        assertThat(eventos).allSatisfy(e -> assertThat(e.getStatus()).isEqualTo("PENDENTE"));
+    }
+
+    @Test
+    @DisplayName("evento recusado pelo broker nao e reenviado no ciclo seguinte (recuo)")
+    void eventoRecusadoEntraEmRecuo() {
+        OutboxEvent evento = new OutboxEvent("vaga.liberada", "{}");
+        evento.setId(50L);
+        brokerResponde(false, false);
+
+        service.publicarEvento(evento);
+        service.publicarEvento(evento);
+
+        verify(rabbitTemplate, org.mockito.Mockito.times(1))
+                .send(anyString(), anyString(), any(Message.class), any(CorrelationData.class));
+    }
+
+    @Test
+    @DisplayName("evento em recuo volta a ser tentado depois que o prazo passa")
+    void eventoVoltaASerTentadoDepoisDoRecuo() throws Exception {
+        OutboxEvent evento = new OutboxEvent("vaga.liberada", "{}");
+        evento.setId(51L);
+        brokerResponde(false, false);
+        service.publicarEvento(evento);
+
+        Thread.sleep(1_200);
+        service.publicarEvento(evento);
+
+        verify(rabbitTemplate, org.mockito.Mockito.times(2))
+                .send(anyString(), anyString(), any(Message.class), any(CorrelationData.class));
+    }
+
     private JsonNode payloadPublicado(String routingKey) throws Exception {
         Message mensagem = mensagemPublicada(routingKey);
         return objectMapper.readTree(new String(mensagem.getBody(), StandardCharsets.UTF_8));

@@ -18,6 +18,7 @@ import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.retry.interceptor.RetryOperationsInterceptor;
+import org.springframework.retry.backoff.ExponentialBackOffPolicy;
 import org.springframework.retry.policy.SimpleRetryPolicy;
 import org.springframework.retry.support.RetryTemplate;
 
@@ -151,6 +152,18 @@ public class RabbitMqConfig {
                 MessageConversionException.class, false);
     }
 
+    /**
+     * Espera entre as tentativas (0,5 s, depois 1 s): sem ela as 3 tentativas gastam-se em
+     * milissegundos e uma queda curta do banco manda mensagens boas direto para a DLQ.
+     */
+    static ExponentialBackOffPolicy politicaDeEspera() {
+        ExponentialBackOffPolicy espera = new ExponentialBackOffPolicy();
+        espera.setInitialInterval(500);
+        espera.setMultiplier(2.0);
+        espera.setMaxInterval(4_000);
+        return espera;
+    }
+
     private RetryOperationsInterceptor retryInterceptor() {
         boolean classificarPelaCausaRealDaExcecao = true;
         boolean excecoesNaoMapeadasSaoRetryablesPorPadrao = true;
@@ -162,6 +175,7 @@ public class RabbitMqConfig {
                         excecoesNaoMapeadasSaoRetryablesPorPadrao);
         RetryTemplate retryTemplate = new RetryTemplate();
         retryTemplate.setRetryPolicy(retryPolicy);
+        retryTemplate.setBackOffPolicy(politicaDeEspera());
 
         return RetryInterceptorBuilder.stateless()
                 .retryOperations(retryTemplate)

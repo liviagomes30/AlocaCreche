@@ -14,6 +14,7 @@ function irParaAba(nome) {
   if (nome === 'visao' || nome === 'relatorios') { renderizarVisao(); }
   if (nome === 'eventos') { renderizarTimeline(); }
   if (nome === 'seguranca') { renderizarUsuario(); }
+  if (nome === 'roteiro') { verificarAmbiente(); }
 }
 
 function aplicarModo(modo) {
@@ -54,6 +55,7 @@ function aoMudarEstado() {
   renderizarTimeline();
   renderizarJobDeExpiracao();
   renderizarVisao();
+  renderizarResiliencia();
 }
 
 async function atalhoCrecheETurma() {
@@ -106,6 +108,7 @@ function iniciarNavegacao() {
     reiniciarEstadoLocal();
     snapshot = null;
     snapshotAnterior = null;
+    definirIntervaloAuto(estado.intervalo);
     $('narrador').classList.remove('visivel');
     aoMudarEstado();
     atualizarRelatorios();
@@ -121,7 +124,54 @@ function iniciarNavegacao() {
   $('vz_btnConfirmar').onclick = atalhoConfirmar;
 }
 
-function iniciar() {
+// Busca no banco as listagens reais e substitui as listas locais; lista que falhar (ex.: 403 por
+// falta de permissão do perfil) mantém o que já existia no estado local.
+async function carregarDoBanco() {
+  var r = await Promise.all([
+    api('GET', '/api/v1/matricula/creches', { automatica: true, rotulo: 'Carregar creches' }),
+    api('GET', '/api/v1/matricula/turmas', { automatica: true, rotulo: 'Carregar turmas' }),
+    api('GET', '/api/v1/inscricao/responsaveis', { automatica: true, rotulo: 'Carregar responsáveis' }),
+    api('GET', '/api/v1/inscricao/criancas', { automatica: true, rotulo: 'Carregar crianças' }),
+    api('GET', '/api/v1/inscricao/inscricoes', { automatica: true, rotulo: 'Carregar inscrições' }),
+    api('GET', '/api/v1/matricula/matriculas', { automatica: true, rotulo: 'Carregar matrículas' })
+  ]);
+  var creches = r[0], turmas = r[1], responsaveis = r[2], criancas = r[3], inscricoes = r[4], matriculas = r[5];
+  if (creches.ok) {
+    estado.creches = creches.dados.map(function (c) { return { id: c.id, nome: c.nome, capacidade: c.capacidadeTotal, lat: c.latitude, lon: c.longitude }; });
+  }
+  if (turmas.ok) {
+    estado.turmas = turmas.dados.map(function (t) {
+      return { id: t.id, crecheId: t.crecheId, faixa: t.faixaEtaria, vagas: t.vagasTotais, alocadas: t.vagasTotais - t.vagasDisponiveis };
+    });
+    if (!acharPorId(estado.turmas, estado.turmaAtual)) { estado.turmaAtual = estado.turmas.length ? estado.turmas[estado.turmas.length - 1].id : null; }
+  }
+  if (responsaveis.ok) {
+    estado.responsaveis = responsaveis.dados.map(function (x) { return { id: x.id, nome: x.nome, lat: x.latitude, lon: x.longitude }; });
+  }
+  if (criancas.ok) {
+    estado.criancas = criancas.dados.map(function (c) { return { id: c.id, responsavelId: c.responsavelId, nome: c.nome }; });
+  }
+  if (inscricoes.ok) {
+    estado.inscricoes = inscricoes.dados.map(function (i) {
+      var crianca = acharPorId(estado.criancas, i.criancaId);
+      var resp = crianca ? acharPorId(estado.responsaveis, crianca.responsavelId) : null;
+      return {
+        id: i.id, turmaId: i.turmaId, nome: i.nome, posicao: i.posicao, score: i.scorePrioridade, status: i.status,
+        origem: resp ? { lat: resp.lat, lon: resp.lon } : null, modo: 'banco', explicacao: 'carregada do banco'
+      };
+    });
+  }
+  if (matriculas.ok) {
+    estado.matriculas = matriculas.dados.map(function (m) {
+      var inscricao = acharPorId(estado.inscricoes, m.inscricaoId);
+      return { id: m.id, turmaId: m.turmaId, inscricaoId: m.inscricaoId, nome: inscricao ? inscricao.nome : '?', status: m.status, distanciaKm: m.distanciaKm };
+    });
+    if (!acharPorId(estado.matriculas, estado.matriculaAtual)) { estado.matriculaAtual = null; }
+  }
+  salvarEstado();
+}
+
+async function iniciar() {
   if (!token) { irParaLogin(); return; }
   // Página restaurada do cache de navegação (botão Voltar) sem token: volta ao login
   window.addEventListener('pageshow', function (evento) {
@@ -134,9 +184,12 @@ function iniciar() {
   iniciarMatricula();
   iniciarSeguranca();
   iniciarEventos();
+  iniciarResiliencia();
+  iniciarDemoStackC();
   iniciarRoteiro();
   renderizarCabecalhoDeUsuario();
   aplicarModo(sessionStorage.getItem(CHAVES.modo) || 'tecnico');
+  await carregarDoBanco();
   aoMudarEstado();
   irParaAba(sessionStorage.getItem(CHAVES.aba) || 'visao');
   atualizarRelatorios();

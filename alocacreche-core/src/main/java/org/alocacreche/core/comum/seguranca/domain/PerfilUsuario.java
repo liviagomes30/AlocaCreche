@@ -12,6 +12,11 @@ public enum PerfilUsuario {
             "matricula:creche:add",
             "matricula:turma:add",
             "matricula:creche:list",
+            "matricula:turma:list",
+            "matricula:matricula:list",
+            "inscricao:responsavel:list",
+            "inscricao:crianca:list",
+            "inscricao:inscricao:list",
             "matricula:vaga:alocar",
             "matricula:matricula:confirmar",
             "matricula:matricula:status")),
@@ -20,7 +25,12 @@ public enum PerfilUsuario {
             "inscricao:fila:detail",
             "inscricao:responsavel:add",
             "inscricao:crianca:add",
+            "inscricao:responsavel:list",
+            "inscricao:crianca:list",
+            "inscricao:inscricao:list",
             "matricula:creche:list",
+            "matricula:turma:list",
+            "matricula:matricula:list",
             "matricula:matricula:status"));
 
     private final List<String> permissoes;
