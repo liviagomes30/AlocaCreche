@@ -93,6 +93,10 @@ alocacreche:
       habilitado: ${ALOCACRECHE_OUTBOX_PUBLICADOR_HABILITADO:true}
       # Quanto esperar (em ms) pela confirmacao do broker antes de manter o evento PENDENTE.
       confirmacao-timeout-ms: ${ALOCACRECHE_OUTBOX_CONFIRMACAO_TIMEOUT_MS:5000}
+    controle-demo:
+      # Permite ao ADMIN pausar o envio da Outbox e reenviar um evento antigo (so para demonstracao).
+      # Desligado por padrao: em producao o publicador nao pode ser pausado por HTTP.
+      habilitado: ${ALOCACRECHE_OUTBOX_CONTROLE_DEMO_HABILITADO:false}
     purga:
       # Quantos dias um evento PROCESSADO fica na tabela outbox antes de ser apagado.
       retencao-dias: ${ALOCACRECHE_OUTBOX_RETENCAO_DIAS:7}

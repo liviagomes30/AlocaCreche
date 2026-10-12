@@ -1,9 +1,8 @@
 package org.alocacreche.core.outbox.scheduler;
 
-import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.alocacreche.core.outbox.domain.OutboxEvent;
+import org.alocacreche.core.outbox.service.OutboxPublicadorControle;
 import org.alocacreche.core.outbox.service.OutboxPublicadorService;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -19,21 +18,21 @@ import org.springframework.stereotype.Component;
 public class OutboxPublicadorScheduler {
 
     private final OutboxPublicadorService outboxPublicadorService;
+    private final OutboxPublicadorControle controle;
 
+    /**
+     * A transacao (e o lock das linhas) vive em {@code processarPendentes}, num bean injetado: chamar
+     * um metodo {@code @Transactional} por {@code this} nao abriria transacao.
+     */
     @Scheduled(fixedDelay = 1000)
     public void executar() {
-        // TODO: sem teto de tempo por ciclo (ate lote x timeout de confirmacao) e sem recuo para evento devolvido por falta de fila; exige coluna de tentativas na tabela outbox
-        List<OutboxEvent> pendentes = outboxPublicadorService.buscarPendentes();
-        for (OutboxEvent evento : pendentes) {
-            publicarIsolandoFalhaInesperada(evento);
+        if (controle.pausado()) {
+            return;
         }
-    }
-
-    private void publicarIsolandoFalhaInesperada(OutboxEvent evento) {
         try {
-            outboxPublicadorService.publicarEvento(evento);
+            outboxPublicadorService.processarPendentes();
         } catch (RuntimeException e) {
-            log.error("Falha inesperada ao processar OutboxEvent id={}", evento.getId(), e);
+            log.error("Falha inesperada ao processar a Outbox", e);
         }
     }
 }

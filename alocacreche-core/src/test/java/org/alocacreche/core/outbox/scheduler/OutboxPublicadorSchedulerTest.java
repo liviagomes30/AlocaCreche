@@ -2,19 +2,15 @@ package org.alocacreche.core.outbox.scheduler;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.util.Collections;
-import java.util.List;
-import org.alocacreche.core.outbox.domain.OutboxEvent;
 import org.alocacreche.core.outbox.repository.OutboxEventRepository;
+import org.alocacreche.core.outbox.service.OutboxPublicadorControle;
 import org.alocacreche.core.outbox.service.OutboxPublicadorService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -37,50 +33,43 @@ class OutboxPublicadorSchedulerTest {
 
     @Mock private OutboxPublicadorService service;
 
+    private final OutboxPublicadorControle controle = new OutboxPublicadorControle(true);
+
     private OutboxPublicadorScheduler scheduler;
 
     @BeforeEach
     void setUp() {
-        scheduler = new OutboxPublicadorScheduler(service);
+        scheduler = new OutboxPublicadorScheduler(service, controle);
     }
 
     @Test
-    @DisplayName("sem eventos pendentes, nao chama publicarEvento")
-    void semEventosPendentesNaoChamaPublicarEvento() {
-        when(service.buscarPendentes()).thenReturn(Collections.emptyList());
-
+    @DisplayName("cada ciclo delega ao service um unico processamento do lote (a transacao vive la)")
+    void cadaCicloDelegaUmProcessamentoDoLote() {
         scheduler.executar();
 
-        verify(service, never()).publicarEvento(any());
+        verify(service, times(1)).processarPendentes();
     }
 
     @Test
-    @DisplayName("chama publicarEvento uma vez por evento pendente")
-    void chamaPublicarEventoUmaVezPorEventoPendente() {
-        OutboxEvent evento1 = new OutboxEvent("vaga.liberada", "{}");
-        OutboxEvent evento2 = new OutboxEvent("fila.atualizada", "{}");
-        when(service.buscarPendentes()).thenReturn(List.of(evento1, evento2));
-
+    @DisplayName("com o publicador pausado, o ciclo nao processa nada; ao retomar, volta a processar")
+    void pausadoNaoProcessaERetomaDepois() {
+        controle.definirPausado(true);
         scheduler.executar();
+        verify(service, never()).processarPendentes();
 
-        verify(service, times(1)).publicarEvento(evento1);
-        verify(service, times(1)).publicarEvento(evento2);
+        controle.definirPausado(false);
+        scheduler.executar();
+        verify(service, times(1)).processarPendentes();
     }
 
     @Test
-    @DisplayName("falha inesperada num evento nao impede o processamento dos demais do mesmo poll")
-    void falhaInesperadaNumEventoNaoImpedeProcessamentoDosDemais() {
-        OutboxEvent eventoComFalha = new OutboxEvent("vaga.liberada", "{}");
-        OutboxEvent eventoOk = new OutboxEvent("fila.atualizada", "{}");
-        when(service.buscarPendentes()).thenReturn(List.of(eventoComFalha, eventoOk));
-        doThrow(new RuntimeException("falha inesperada, ex.: erro de banco ao salvar"))
+    @DisplayName("falha inesperada no ciclo nao propaga (o proximo ciclo continua agendado)")
+    void falhaInesperadaNoCicloNaoPropaga() {
+        doThrow(new RuntimeException("falha inesperada, ex.: erro de banco"))
                 .when(service)
-                .publicarEvento(eventoComFalha);
+                .processarPendentes();
 
         assertThatCode(() -> scheduler.executar()).doesNotThrowAnyException();
-
-        verify(service, times(1)).publicarEvento(eventoComFalha);
-        verify(service, times(1)).publicarEvento(eventoOk);
     }
 
     @Test
@@ -89,6 +78,7 @@ class OutboxPublicadorSchedulerTest {
         ApplicationContextRunner runner =
                 new ApplicationContextRunner()
                         .withBean(OutboxPublicadorService.class, () -> mock(OutboxPublicadorService.class))
+                        .withBean(OutboxPublicadorControle.class, () -> new OutboxPublicadorControle(false))
                         .withUserConfiguration(OutboxPublicadorScheduler.class);
 
         runner.run(contexto -> assertThat(contexto).hasSingleBean(OutboxPublicadorScheduler.class));

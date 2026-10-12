@@ -23,6 +23,7 @@ import org.springframework.amqp.rabbit.core.RabbitAdmin;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.scheduling.annotation.ScheduledAnnotationBeanPostProcessor;
 import org.springframework.scheduling.config.CronTask;
 import org.springframework.scheduling.config.ScheduledTask;
@@ -256,6 +257,68 @@ class OutboxPublicadorConsumerIT {
                     evento.setCriadoEm(criadoEm);
                     return repository.save(evento).getId();
                 });
+    }
+
+    @Test
+    @DisplayName("duas instancias nao pegam o mesmo evento: a segunda pula a linha travada (SKIP LOCKED)")
+    void segundaInstanciaPulaEventoTravado() throws Exception {
+        // matricula.atualizada nao tem fila neste teste: o evento fica PENDENTE e so o lock o protege.
+        Long id = inserirPendente("matricula.atualizada", "{\"matriculaId\":1}");
+        PageRequest lote = PageRequest.of(0, 100);
+
+        List<Long> vistosPelaSegunda =
+                transactionTemplate.execute(
+                        primeira -> {
+                            List<OutboxEvent> travados =
+                                    repository.buscarPendentesParaPublicar(OutboxEvent.STATUS_PENDENTE, lote);
+                            assertThat(travados).extracting(OutboxEvent::getId).contains(id);
+                            try {
+                                return java.util.concurrent.CompletableFuture
+                                        .supplyAsync(
+                                                () -> transactionTemplate.execute(
+                                                        segunda -> repository
+                                                                .buscarPendentesParaPublicar(
+                                                                        OutboxEvent.STATUS_PENDENTE, lote)
+                                                                .stream()
+                                                                .map(OutboxEvent::getId)
+                                                                .toList()))
+                                        .get(10, java.util.concurrent.TimeUnit.SECONDS);
+                            } catch (Exception e) {
+                                throw new IllegalStateException(e);
+                            }
+                        });
+
+        assertThat(vistosPelaSegunda).doesNotContain(id);
+        assertThat(buscarStatus(id)).isEqualTo("PENDENTE");
+    }
+
+    @Autowired private OutboxPublicadorService publicadorService;
+
+    @Test
+    @DisplayName("reenviarEventoAntigoDaTurma reenvia o vaga.liberada mais antigo da turma com o eventId original, sem mudar o status")
+    void reenviaEventoAntigoDaTurma() throws Exception {
+        Long antigo = inserirProcessado("{\"turmaId\":777,\"vagasDisponiveis\":3}");
+        inserirProcessado("{\"turmaId\":777,\"vagasDisponiveis\":1}");
+        drenarFila(FILA_TESTE_OCUPACAO);
+
+        java.util.Optional<Long> reenviado = publicadorService.reenviarEventoAntigoDaTurma(777L);
+
+        assertThat(reenviado).contains(antigo);
+        Message mensagem = rabbitTemplate.receive(FILA_TESTE_OCUPACAO, TIMEOUT_POLL_MS);
+        assertThat(mensagem).isNotNull();
+        var corpo = OBJECT_MAPPER.readTree(new String(mensagem.getBody(), StandardCharsets.UTF_8));
+        assertThat(corpo.get("eventId").asLong()).isEqualTo(antigo);
+        assertThat(corpo.get("vagasDisponiveis").asInt()).isEqualTo(3);
+        assertThat(buscarStatus(antigo)).isEqualTo("PROCESSADO");
+        assertThat(publicadorService.reenviarEventoAntigoDaTurma(99999L)).isEmpty();
+    }
+
+    private Long inserirProcessado(String payload) {
+        return transactionTemplate.execute(status -> {
+            OutboxEvent evento = new OutboxEvent("vaga.liberada", payload);
+            evento.marcarProcessado();
+            return repository.save(evento).getId();
+        });
     }
 
     private boolean existe(Long id) {
