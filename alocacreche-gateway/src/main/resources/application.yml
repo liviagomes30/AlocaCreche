@@ -15,6 +15,12 @@ spring:
               predicates:
                 - Path=/api/v1/**
 
+alocacreche:
+  gateway:
+    painel-publico:
+      # Requisicoes por minuto e por IP na unica rota publica (acima disso: 429 com Retry-After).
+      limite-por-minuto: ${ALOCACRECHE_PAINEL_LIMITE_POR_MINUTO:120}
+
 server:
   port: ${SERVER_PORT:8080}
 
