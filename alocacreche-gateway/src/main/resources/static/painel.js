@@ -4,6 +4,9 @@
  */
 
 var snapshot = null;
+// Soma das vagas no relatório e no banco a cada atualização (só em memória), para o gráfico ao vivo
+var historicoVagas = [];
+var LIMITE_HISTORICO = 40;
 var snapshotAnterior = null;
 var emAtualizacao = false;
 var temporizadorAuto = null;
@@ -12,6 +15,45 @@ var acompanhamentoAte = 0;
 
 function municipioDosRelatorios() { return estado.municipioRel || municipioId; }
 function periodoSelecionado() { return estado.periodo || periodoPadrao(); }
+
+function coreDaTurma(s, turmaId) {
+  if (!s || !s.turmasCore) { return null; }
+  for (var i = 0; i < s.turmasCore.length; i++) { if (s.turmasCore[i].id === turmaId) { return s.turmasCore[i]; } }
+  return null;
+}
+
+// Linhas de ocupação do relatório mais as turmas que já existem no core mas ainda não chegaram ao relatório
+function ocupacaoComAusentes(s) {
+  var lista = s.ocupacao.slice();
+  if (s.turmasCore && !s.temFiltro) {
+    var presentes = {};
+    s.ocupacao.forEach(function (o) { presentes[o.turmaId] = true; });
+    s.turmasCore.forEach(function (c) {
+      if (!presentes[c.id]) {
+        lista.push({ turmaId: c.id, crecheId: c.crecheId, vagasDisponiveis: null, ultimaSequenciaAplicada: null, atualizadoEm: null, ausente: true });
+      }
+    });
+  }
+  return lista;
+}
+
+// Quantas turmas têm vagas diferentes no core e no relatório (ou ainda nem aparecem nele)
+function contarDivergencias(ocupacao, turmasCore, temFiltro) {
+  if (!turmasCore) { return 0; }
+  var porId = {};
+  turmasCore.forEach(function (c) { porId[c.id] = c; });
+  var presentes = {};
+  var divergentes = 0;
+  ocupacao.forEach(function (o) {
+    presentes[o.turmaId] = true;
+    var c = porId[o.turmaId];
+    if (c && c.vagasDisponiveis !== o.vagasDisponiveis) { divergentes++; }
+  });
+  if (!temFiltro) {
+    turmasCore.forEach(function (c) { if (!presentes[c.id]) { divergentes++; } });
+  }
+  return divergentes;
+}
 
 // Consulta os cinco endpoints de relatório em paralelo e devolve um instantâneo
 async function consultarRelatorios(opcoes) {
@@ -28,12 +70,22 @@ async function consultarRelatorios(opcoes) {
     api('GET', base + 'fila-espera?municipioId=' + mun + filtros, { automatica: auto, rotulo: 'Relatório: fila de espera', sem401: opcoes.sem401 }),
     api('GET', base + 'matricula/taxa-confirmacao?municipioId=' + mun + '&periodo=' + periodo, { automatica: auto, rotulo: 'Relatório: taxa de confirmação', sem401: opcoes.sem401 }),
     api('GET', base + 'matricula/distancia-media?municipioId=' + mun + '&periodo=' + periodo, { automatica: auto, rotulo: 'Relatório: distância média', sem401: opcoes.sem401 }),
-    api('GET', base + 'painel-publico?municipioId=' + mun, { automatica: auto, rotulo: 'Painel público', token: null })
+    api('GET', base + 'painel-publico?municipioId=' + mun, { automatica: auto, rotulo: 'Painel público', token: null }),
+    api('GET', '/api/v1/matricula/turmas', { automatica: auto, rotulo: 'Banco (core): turmas' }),
+    api('GET', '/api/v1/notificacao/outbox', { automatica: auto, rotulo: 'Outbox: resumo' })
   ]);
+  var ocupacao = r[0].ok && Array.isArray(r[0].dados) ? r[0].dados : [];
+  // O core só responde pelo município do token: com outro município na consulta não há o que comparar
+  var turmasCore = r[5].ok && Array.isArray(r[5].dados) && Number(mun) === municipioId ? r[5].dados : null;
+  var temFiltro = !!(opcoes.turmaId || opcoes.crecheId);
   return {
     hora: new Date(), municipio: mun, respostas: r,
     status: { ocupacao: r[0].status, fila: r[1].status, taxa: r[2].status, dist: r[3].status, painel: r[4].status },
-    ocupacao: r[0].ok && Array.isArray(r[0].dados) ? r[0].dados : [],
+    ocupacao: ocupacao,
+    turmasCore: turmasCore,
+    temFiltro: temFiltro,
+    divergentes: contarDivergencias(ocupacao, turmasCore, temFiltro),
+    outbox: r[6].ok ? r[6].dados : null,
     fila: r[1].ok && Array.isArray(r[1].dados) ? r[1].dados : [],
     taxa: r[2].ok ? r[2].dados : null,
     dist: r[3].ok ? r[3].dados : null,
@@ -48,9 +100,12 @@ async function atualizarRelatorios() {
     var novo = await consultarRelatorios({ automatica: true });
     snapshotAnterior = snapshot;
     snapshot = novo;
+    registrarHistorico(snapshot);
     atualizarIndicadoresDeHora();
     renderizarVisao();
     atualizarAvisosDasBarras();
+    // O relatório atrasa em relação ao banco: ao surgir uma diferença, confere a cada 1,5 s até igualar
+    if (snapshot.divergentes > 0 && !(snapshotAnterior && snapshotAnterior.divergentes > 0) && !acompanhando) { iniciarAcompanhamento(); }
     if (typeof avaliarEventos === 'function') { avaliarEventos(); }
   } finally {
     emAtualizacao = false;
@@ -78,7 +133,7 @@ async function iniciarAcompanhamento() {
       await esperar(1500);
       await atualizarRelatorios();
       if (!snapshot || snapshot.status.ocupacao !== 200) { break; }
-      if (typeof contarPendentes === 'function' && contarPendentes() === 0) { break; }
+      if (typeof contarPendentes === 'function' && contarPendentes() === 0 && !snapshot.divergentes) { break; }
     }
   } finally {
     acompanhando = false;
@@ -155,14 +210,9 @@ function atualizarAvisosDasBarras() {
   $$('.b-aviso').forEach(function (n) { n.textContent = texto; n.style.color = texto ? 'var(--erro)' : ''; });
 }
 
-// Turmas exibidas na visão geral: só as desta sessão, quando houver e o filtro estiver ligado
+// Turmas exibidas na visão geral: as do relatório e as do core que o relatório ainda não recebeu
 function turmasExibidas() {
-  if (!snapshot) { return []; }
-  var idsLocais = estado.turmas.map(function (t) { return t.id; });
-  if ($('soSessao').checked && idsLocais.length) {
-    return snapshot.ocupacao.filter(function (o) { return idsLocais.indexOf(o.turmaId) >= 0; });
-  }
-  return snapshot.ocupacao;
+  return snapshot ? ocupacaoComAusentes(snapshot) : [];
 }
 
 function filaDaTurma(turmaId, fonte) {
@@ -217,30 +267,90 @@ function textoHora(iso) {
   return isNaN(d) ? String(iso) : d.toLocaleTimeString('pt-BR');
 }
 
+// Compara o que o relatório (projeção) mostra com o que o core (banco) tem agora
+function seloSincronia(o, core) {
+  if (!core) { return '-'; }
+  if (o.ausente) { return selo('aguardando evento', 'aviso'); }
+  return core.vagasDisponiveis === o.vagasDisponiveis ? selo('em dia', 'ok') : selo('sincronizando...', 'aviso');
+}
+
 function linhasDeOcupacao(turmas, fonteFila) {
   return turmas.map(function (o) {
     var local = turmaLocal(o.turmaId);
     var creche = local ? crecheLocal(local.crecheId) : null;
     var fila = filaDaTurma(o.turmaId, fonteFila);
-    var total = local ? local.vagas : null;
+    var core = coreDaTurma(fonteFila || snapshot, o.turmaId);
+    var total = core ? core.vagasTotais : (local ? local.vagas : null);
     var antesVagas = valorAnterior(o.turmaId, 'vagas');
     var antesFila = valorAnterior(o.turmaId, 'fila');
-    var disponiveisTxt = total !== null ? o.vagasDisponiveis + ' de ' + total : String(o.vagasDisponiveis);
+    var disponiveisTxt = o.ausente ? '-' : (total !== null ? o.vagasDisponiveis + ' de ' + total : String(o.vagasDisponiveis));
     return [
       '#' + o.turmaId,
       creche ? creche.nome + ' (#' + o.crecheId + ')' : '#' + o.crecheId,
       { c: disponiveisTxt, mudou: antesVagas !== undefined && antesVagas !== o.vagasDisponiveis },
-      total !== null ? barraOcupacao(total - o.vagasDisponiveis, total) : '-',
+      total !== null && !o.ausente ? barraOcupacao(total - o.vagasDisponiveis, total) : '-',
       { c: fila ? fila.quantidadeAguardando : 0, mudou: antesFila !== undefined && fila && antesFila !== fila.quantidadeAguardando },
-      textoHora(o.atualizadoEm)
+      textoHora(o.atualizadoEm),
+      core ? String(core.vagasDisponiveis) : '-',
+      seloSincronia(o, core)
     ];
   });
+}
+
+function registrarHistorico(s) {
+  if (!s.turmasCore || s.status.ocupacao !== 200) { return; }
+  var soma = function (lista, campo) { return lista.reduce(function (a, o) { return a + (o[campo] || 0); }, 0); };
+  historicoVagas.push({ rel: soma(s.ocupacao, 'vagasDisponiveis'), core: soma(s.turmasCore, 'vagasDisponiveis') });
+  if (historicoVagas.length > LIMITE_HISTORICO) { historicoVagas.shift(); }
+}
+
+// Gráfico de linhas em SVG: vagas no relatório (linha cheia) x vagas no banco (tracejada)
+function renderizarGrafico() {
+  var area = $('gr_area');
+  var selo = $('gr_selo');
+  if (!area) { return; }
+  var h = historicoVagas;
+  if (h.length < 2) {
+    area.innerHTML = '<span class="vazio">Aguardando atualizações: o gráfico começa com duas leituras.</span>';
+    selo.textContent = '';
+    return;
+  }
+  var W = 600, H = 190, E = 38, D = 84, T = 14, B = 24;
+  var maximo = Math.max.apply(null, h.map(function (p) { return Math.max(p.rel, p.core); }));
+  var topo = Math.max(4, Math.ceil(maximo * 1.15 / 2) * 2);
+  var x = function (i) { return E + (W - E - D) * i / (h.length - 1); };
+  var y = function (v) { return T + (H - T - B) * (1 - v / topo); };
+  var pontos = function (campo) { return h.map(function (p, i) { return x(i).toFixed(1) + ',' + y(p[campo]).toFixed(1); }).join(' '); };
+  var ultimo = h[h.length - 1];
+  var grade = [0, topo / 2, topo].map(function (v) {
+    return '<line class="grade-y" x1="' + E + '" x2="' + (W - D) + '" y1="' + y(v).toFixed(1) + '" y2="' + y(v).toFixed(1) + '"/>' +
+      '<text x="' + (E - 6) + '" y="' + (y(v) + 4).toFixed(1) + '" text-anchor="end">' + Math.round(v) + '</text>';
+  }).join('');
+  var diferencas = h.map(function (p, i) {
+    return p.rel !== p.core ? '<circle class="ponto-dif" cx="' + x(i).toFixed(1) + '" cy="' + y(p.rel).toFixed(1) + '" r="4.5"/>' : '';
+  }).join('');
+  var xf = x(h.length - 1) + 8;
+  area.innerHTML =
+    '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Vagas disponíveis: relatório ' + ultimo.rel + ', banco ' + ultimo.core + ', nas últimas ' + h.length + ' atualizações">' +
+    grade +
+    '<polyline class="linha-core" points="' + pontos('core') + '"/>' +
+    '<polyline class="linha-rel" points="' + pontos('rel') + '"/>' +
+    diferencas +
+    '<text x="' + xf + '" y="' + (y(ultimo.rel) - 6).toFixed(1) + '">relatório ' + ultimo.rel + '</text>' +
+    '<text x="' + xf + '" y="' + (y(ultimo.core) + 12).toFixed(1) + '">banco ' + ultimo.core + '</text>' +
+    '<text x="' + E + '" y="' + (H - 6) + '">mais antigo</text>' +
+    '<text x="' + (W - D) + '" y="' + (H - 6) + '" text-anchor="end">agora</text>' +
+    '</svg>';
+  var dif = Math.abs(ultimo.rel - ultimo.core);
+  selo.textContent = dif === 0 ? 'em dia' : 'defasagem de ' + dif + ' vaga(s)';
+  selo.className = 'selo ' + (dif === 0 ? 'ok' : 'aviso');
 }
 
 function renderizarVisao() {
   if (!snapshot) { return; }
   var s = snapshot;
   var turmas = turmasExibidas();
+  var projetadas = turmas.filter(function (o) { return !o.ausente; });
   var somaVagas = turmas.reduce(function (a, o) { return a + (o.vagasDisponiveis || 0); }, 0);
   var somaFila = turmas.reduce(function (a, o) {
     var f = filaDaTurma(o.turmaId);
@@ -249,15 +359,18 @@ function renderizarVisao() {
   var ok = s.status.ocupacao === 200;
   var k = function (nome) { return $('cartoesVisao').querySelector('[data-k="' + nome + '"]'); };
   definirValor(k('vagas'), ok ? somaVagas : '-');
-  definirValor(k('turmas'), ok ? turmas.length : '-');
+  definirValor(k('turmas'), ok ? projetadas.length : '-');
   definirValor(k('fila'), s.status.fila === 200 ? somaFila : '-');
   definirValor(k('taxa'), s.taxa && s.taxa.taxaConfirmacao !== null && s.taxa.taxaConfirmacao !== undefined ? numero(s.taxa.taxaConfirmacao * 100, 0) + '%' : '-');
   definirValor(k('dist'), s.dist && s.dist.distanciaMediaKm !== null && s.dist.distanciaMediaKm !== undefined ? numero(s.dist.distanciaMediaKm, 2) : '-');
+  definirValor(k('oPend'), s.outbox ? s.outbox.pendentes : '-');
+  definirValor(k('oErro'), s.outbox ? s.outbox.erros : '-');
   definirValor(k('pVagas'), s.painel ? s.painel.totalVagasDisponiveis : '-');
   definirValor(k('pCreches'), s.painel ? s.painel.totalCrechesComVaga : '-');
   definirValor(k('pTurmas'), s.painel ? s.painel.totalTurmas : '-');
-  preencherTabela($('tabelaOcupacaoVisao'), ['Turma', 'Creche', 'Vagas disponíveis', 'Ocupação', 'Na fila', 'Atualizado'],
+  preencherTabela($('tabelaOcupacaoVisao'), ['Turma', 'Creche', 'Vagas no relatório', 'Ocupação', 'Na fila', 'Atualizado', 'Vagas no banco (core)', 'Sincronia'],
     linhasDeOcupacao(turmas, s), ok ? 'Nenhuma turma ainda. Crie uma creche e uma turma.' : 'Relatórios indisponíveis para esta consulta (veja o aviso acima).');
+  renderizarGrafico();
 }
 
 // ---------------------------------------------------------------------------
@@ -283,9 +396,10 @@ async function consultarDetalhe(opcoes) {
   blocoOcup.textContent = '';
   if (r[0].ok) {
     var tabela = el('table', { class: 'tabela' });
-    preencherTabela(tabela, ['Turma', 'Creche', 'Vagas disponíveis', 'Ocupação', 'Na fila', 'Seq. aplicada', 'Atualizado'],
-      linhasDeOcupacao(s.ocupacao, s).map(function (linha, i) {
-        return linha.slice(0, 5).concat([String(s.ocupacao[i].ultimaSequenciaAplicada), linha[5]]);
+    var turmasDetalhe = ocupacaoComAusentes(s);
+    preencherTabela(tabela, ['Turma', 'Creche', 'Vagas no relatório', 'Ocupação', 'Na fila', 'Seq. aplicada', 'Atualizado', 'Vagas no banco (core)', 'Sincronia'],
+      linhasDeOcupacao(turmasDetalhe, s).map(function (linha, i) {
+        return linha.slice(0, 5).concat([String(turmasDetalhe[i].ultimaSequenciaAplicada), linha[5], linha[6], linha[7]]);
       }),
       'Nenhuma turma para o filtro.');
     blocoOcup.appendChild(tabela);
@@ -358,7 +472,6 @@ function renderizarFiltrosDetalhe() {
 function iniciarPainel() {
   $$('[data-barra-relatorios]').forEach(montarBarraRelatorios);
   definirIntervaloAuto(estado.intervalo || 0);
-  $('soSessao').onchange = renderizarVisao;
   $('c_btnConsultar').onclick = function () { consultarDetalhe(); };
   $('c_btnOutroMun').onclick = function () { consultarDetalhe({ municipio: municipioId + 1 }); };
   $('c_btnPublico').onclick = consultarPainelSemToken;

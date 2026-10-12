@@ -86,7 +86,7 @@ async function pausarSeNecessario() {
 }
 
 async function esperarRitmo() {
-  var total = Number($('r_ritmo').value);
+  var total = Number($(demo.ritmoId || 'r_ritmo').value);
   var gasto = 0;
   while (gasto < total) {
     await pausarSeNecessario();
@@ -101,8 +101,13 @@ function checar(resposta, rotulo) {
 }
 
 // Espera os relatórios refletirem o estado final esperado (consistência eventual)
+// Id do último evento esperado antes da demo: eventos de rodadas anteriores não entram na espera
+var seqEventoInicialDaDemo = 0;
+
+// Espera os relatórios refletirem a turma da demo e devolve null se convergiram, ou o motivo da falha
 async function aguardarRelatorios(turmaId, vagasEsperadas, filaEsperada) {
   var limite = Date.now() + 40000;
+  var motivo = 'sem resposta dos relatórios';
   while (Date.now() < limite) {
     await pausarSeNecessario();
     await atualizarRelatorios();
@@ -110,22 +115,78 @@ async function aguardarRelatorios(turmaId, vagasEsperadas, filaEsperada) {
     snapshot.ocupacao.forEach(function (o) { if (o.turmaId === turmaId) { linha = o; } });
     var fila = filaDaTurma(turmaId);
     var filaAtual = fila ? fila.quantidadeAguardando : 0;
-    if (linha && linha.vagasDisponiveis === vagasEsperadas && filaAtual === filaEsperada && contarPendentes() === 0) { return true; }
+    var pendentesDaDemo = eventosPendentes().filter(function (e) { return e.id > seqEventoInicialDaDemo; }).length;
+    if (snapshot.status.ocupacao !== 200) {
+      motivo = 'o relatório de ocupação respondeu ' + snapshot.status.ocupacao;
+    } else if (!linha) {
+      motivo = 'a turma #' + turmaId + ' ainda não aparece no relatório de ocupação';
+    } else if (linha.vagasDisponiveis !== vagasEsperadas || filaAtual !== filaEsperada) {
+      motivo = 'relatório mostra ' + linha.vagasDisponiveis + ' vaga(s) e ' + filaAtual + ' na fila; esperado ' + vagasEsperadas + ' e ' + filaEsperada;
+    } else if (pendentesDaDemo > 0) {
+      motivo = 'números corretos, mas ' + pendentesDaDemo + ' evento(s) desta demonstração seguem como "aguardando relatórios" (veja a aba Eventos)';
+    } else {
+      return null;
+    }
     await esperar(1500);
   }
-  return false;
+  return motivo;
+}
+
+// Deixa o quadro do narrador pronto e bloqueia os botões das demos automáticas enquanto uma roda
+var botoesDaDemoEmExecucao = [];
+
+function prepararNarracao(idsBotoes, idRitmo) {
+  demo = { rodando: true, pausado: false, parar: false, ritmoId: idRitmo };
+  botoesDaDemoEmExecucao = idsBotoes;
+  idsBotoes.forEach(function (id) { $(id).disabled = true; });
+  definirNarradorRecolhido(false);
+  $('narradorLista').textContent = '';
+  $('btnDemoPausa').textContent = 'Pausar';
+  $('btnDemoParar').textContent = 'Parar';
+}
+
+/*
+ * Executa passos {aba, titulo, detalhe, rodar} narrando cada um no quadro do topo. Compartilhado
+ * pelas demos automáticas: textos.concluido = [título, detalhe] e textos.aviso = toast final.
+ */
+async function executarPassosNarrados(passos, textos) {
+  var total = passos.length;
+  var passo = 0;
+  try {
+    for (passo = 0; passo < total; passo++) {
+      await pausarSeNecessario();
+      var item = passos[passo];
+      irParaAba(item.aba);
+      narrar('Passo ' + (passo + 1) + '/' + total + ': ' + item.titulo, item.detalhe, passo / total);
+      await esperarRitmo();
+      try {
+        var resultado = await item.rodar();
+        if (passo < total - 1) { registrarNaLista(item.titulo + ': ' + resultado, true); }
+        else { registrarNaLista('Resumo: ' + resultado, true); }
+      } catch (erro) {
+        if (demo.parar) { throw erro; }
+        registrarNaLista(item.titulo + ': ' + erro.message, false);
+        narrar('Demo interrompida no passo ' + (passo + 1), erro.message, passo / total);
+        return;
+      }
+    }
+    narrar(textos.concluido[0], textos.concluido[1], 1);
+    avisar(textos.aviso, 'ok');
+  } catch (erro) {
+    narrar('Demo interrompida', 'Interrompida pelo usuário.', passo / total);
+  } finally {
+    demo.rodando = false;
+    botoesDaDemoEmExecucao.forEach(function (id) { $(id).disabled = false; });
+    $('btnDemoPausa').textContent = 'Pausar';
+    $('btnDemoParar').textContent = 'Fechar';
+  }
 }
 
 async function executarDemoCompleta() {
   if (demo.rodando) { return; }
-  demo = { rodando: true, pausado: false, parar: false };
-  $('r_btnDemo').disabled = true;
-  $('narradorLista').textContent = '';
-  $('btnDemoPausa').textContent = 'Pausar';
-  $('btnDemoParar').textContent = 'Parar';
-  var total = 0;
-  var passo = 0;
+  prepararNarracao(['r_btnDemo', 'c_btnDemoC'], 'r_ritmo');
   var contexto = {};
+  seqEventoInicialDaDemo = estado.seqEvento || 0;
   var sufixo = new Date().toTimeString().slice(0, 5).replace(':', 'h');
   // Valores dos relatórios antes da demo: os totais de matrículas são do município inteiro
   await atualizarRelatorios();
@@ -202,8 +263,8 @@ async function executarDemoCompleta() {
       return 'Matrícula #' + contexto.matriculaDesistida + ' CANCELADA (vaga voltou a ' + resumo.vagasAposCancelar + ') e a inscrição #' + resumo.proximo.id + ' foi convocada automaticamente: turma com 1 vaga e fila vazia.';
     } },
     { aba: 'visao', titulo: 'Aguardar os relatórios (consistência eventual)', detalhe: 'Core grava na Outbox, o Publicador envia ao RabbitMQ e o MSRelatorios atualiza as projeções.', rodar: async function () {
-      var ok = await aguardarRelatorios(contexto.turmaId, 1, 0);
-      if (!ok) { throw new Error('os relatórios não convergiram em 40 s (RabbitMQ ou MSRelatorios parados?)'); }
+      var motivo = await aguardarRelatorios(contexto.turmaId, 1, 0);
+      if (motivo) { throw new Error('os relatórios não convergiram em 40 s: ' + motivo + ' (RabbitMQ ou MSRelatorios parados?)'); }
       return 'Relatórios convergiram.';
     } },
     { aba: 'visao', titulo: 'Conferir os números esperados', detalhe: 'Ocupação 1 de 3 vagas disponíveis, fila vazia, 3 matrículas novas no período (1 confirmada), distância e painel público.', rodar: async function () {
@@ -227,36 +288,17 @@ async function executarDemoCompleta() {
       return 'Todos os números conferem.';
     } }
   ];
-  total = roteiro.length;
+  await executarPassosNarrados(roteiro, {
+    concluido: ['Demo concluída com sucesso', 'Todos os passos e números esperados conferem. Veja a linha do tempo na aba Eventos e Outbox.'],
+    aviso: 'Demo completa concluída.'
+  });
+}
 
-  try {
-    for (passo = 0; passo < roteiro.length; passo++) {
-      await pausarSeNecessario();
-      var item = roteiro[passo];
-      irParaAba(item.aba);
-      narrar('Passo ' + (passo + 1) + '/' + total + ': ' + item.titulo, item.detalhe, passo / total);
-      await esperarRitmo();
-      try {
-        var resultado = await item.rodar();
-        if (passo < total - 1) { registrarNaLista(item.titulo + ': ' + resultado, true); }
-        else { registrarNaLista('Resumo: ' + resultado, true); }
-      } catch (erro) {
-        if (demo.parar) { throw erro; }
-        registrarNaLista(item.titulo + ': ' + erro.message, false);
-        narrar('Demo interrompida no passo ' + (passo + 1), erro.message, passo / total);
-        return;
-      }
-    }
-    narrar('Demo concluída com sucesso', 'Todos os passos e números esperados conferem. Veja a linha do tempo na aba Eventos e Outbox.', 1);
-    avisar('Demo completa concluída.', 'ok');
-  } catch (erro) {
-    narrar('Demo interrompida', 'Interrompida pelo usuário.', passo / total);
-  } finally {
-    demo.rodando = false;
-    $('r_btnDemo').disabled = false;
-    $('btnDemoPausa').textContent = 'Pausar';
-    $('btnDemoParar').textContent = 'Fechar';
-  }
+// Recolhe ou expande o quadro do narrador (recolhido, ele não cobre o conteúdo da tela)
+function definirNarradorRecolhido(recolher) {
+  $('narrador').classList.toggle('recolhido', recolher);
+  $('btnDemoRecolher').textContent = recolher ? 'Expandir' : 'Recolher';
+  $('btnDemoRecolher').setAttribute('aria-expanded', String(!recolher));
 }
 
 function alternarPausa() {
@@ -277,5 +319,6 @@ function iniciarRoteiro() {
   $('r_btnDemo').onclick = executarDemoCompleta;
   $('btnDemoPausa').onclick = alternarPausa;
   $('btnDemoParar').onclick = pararOuFecharDemo;
+  $('btnDemoRecolher').onclick = function () { definirNarradorRecolhido(!$('narrador').classList.contains('recolhido')); };
   $('r_btnLimpar').onclick = function () { marcados = {}; salvarMarcas(); renderizarListaDoRoteiro('r_larissa', PASSOS_LARISSA); renderizarListaDoRoteiro('r_leticia', PASSOS_LETICIA); renderizarListaDoRoteiro('r_voce', PASSOS_VOCE); };
 }

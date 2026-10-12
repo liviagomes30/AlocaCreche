@@ -216,16 +216,22 @@ aside.registro {
 .toast.erro { background: var(--erro); }
 
 /* Narrador da demonstração automática */
-.narrador { position: sticky; top: 0; z-index: 20; display: none; background: #4c1d95; color: #fff; border-radius: 10px; padding: 12px 16px; margin-bottom: 14px; }
+.narrador { position: sticky; top: 0; z-index: 20; display: none; background: #4c1d95; color: #fff; border-radius: 10px; padding: 10px 14px; margin-bottom: 14px; font-size: 14px; box-shadow: 0 4px 12px rgba(0,0,0,.25); }
 .narrador.visivel { display: block; }
-.narrador .titulo { font-weight: 700; font-size: 1.05rem; }
-.narrador .detalhe { margin-top: 4px; color: #ede9fe; }
+.narrador-topo { display: flex; gap: 12px; align-items: flex-start; justify-content: space-between; }
+.narrador .titulo { font-weight: 700; font-size: 1.1em; min-width: 0; }
+.narrador-acoes { display: flex; gap: 6px; flex-shrink: 0; }
+.narrador .detalhe { margin-top: 4px; color: #ede9fe; white-space: pre-line; max-height: 15vh; overflow-y: auto; }
 .narrador .progresso { background: rgba(255,255,255,.2); height: 6px; border-radius: 3px; margin: 8px 0; overflow: hidden; }
 .narrador .progresso i { display: block; height: 100%; background: #7ee787; transition: width .4s; }
-.narrador ul { max-height: 34vh; overflow-y: auto; list-style: none; margin: 6px 0 0; padding: 0; font-size: .9rem; }
+.narrador ul { max-height: 16vh; overflow-y: auto; list-style: none; margin: 6px 0 0; padding: 0; font-size: .92em; }
 .narrador li.ok { color: #7ee787; }
 .narrador li.erro { color: #ffa198; }
-.narrador button { background: rgba(255,255,255,.2); margin-right: 6px; margin-top: 8px; }
+.narrador button { background: rgba(255,255,255,.2); padding: 4px 10px; }
+/* Recolhido: só o título, a barra de progresso e os botões, para não cobrir a tela */
+.narrador.recolhido .detalhe, .narrador.recolhido ul { display: none; }
+.narrador.recolhido .titulo { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.narrador.recolhido .progresso { margin: 6px 0 0; }
 
 /* Fluxo de eventos (Core, Outbox, RabbitMQ, MSRelatorios) */
 .fluxo { display: flex; align-items: center; gap: 0; margin: 14px 0; overflow-x: auto; padding: 6px 4px 10px; }
@@ -294,3 +300,35 @@ aside.registro {
 
 /* Coluna do perfil atual na tabela de perfis e permissões */
 .tabela td.atual, .tabela th.atual { background: var(--info-fundo); }
+
+
+/* ---- Stack C: gráfico ao vivo, cenário guiado e checklist ---- */
+.grafico svg { width: 100%; height: auto; display: block; }
+.grafico text { fill: var(--suave); font-size: 11px; font-family: inherit; }
+.grafico .grade-y { stroke: #e5e9ef; stroke-width: 1; }
+.grafico .linha-rel { stroke: var(--azul); stroke-width: 2.6; fill: none; stroke-linejoin: round; }
+.grafico .linha-core { stroke: var(--ok); stroke-width: 2; fill: none; stroke-dasharray: 6 4; stroke-linejoin: round; }
+.grafico .ponto-dif { fill: #f59e0b; stroke: #fff; stroke-width: 1.5; }
+.legenda { display: flex; flex-wrap: wrap; gap: 16px; font-size: .8rem; color: var(--suave); margin-top: 6px; }
+.legenda .leg { display: inline-flex; align-items: center; gap: 6px; }
+.legenda .traco { display: inline-block; width: 24px; height: 0; border-top: 3px solid var(--azul); }
+.legenda .traco.core { border-top: 3px dashed var(--ok); }
+.legenda .ponto { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #f59e0b; }
+
+.lista-guiada { list-style: none; margin: 8px 0 0; padding: 0; }
+li.guiado { display: grid; grid-template-columns: 92px 1fr auto; gap: 10px; align-items: start; padding: 8px 6px; border-bottom: 1px solid #eaeef2; font-size: .9rem; }
+li.guiado:last-child { border-bottom: 0; }
+li.guiado[data-situacao="andamento"] { background: var(--aviso-fundo); border-radius: 6px; }
+li.guiado[data-situacao="falhou"] { background: var(--erro-fundo); border-radius: 6px; }
+li.guiado .selo { text-align: center; justify-self: start; }
+.lista-guiada.compacta li.guiado { grid-template-columns: 4.8rem 1fr auto; }
+
+.status-outbox { margin: 10px 0; grid-template-columns: repeat(auto-fit, minmax(78px, 1fr)); gap: 8px; }
+.status-outbox .cartao { padding: 8px 6px; }
+.status-outbox .cartao b { font-size: 1.25rem; }
+.alerta-pausa { background: var(--erro-fundo); border: 1px solid var(--erro); color: var(--erro); border-radius: 8px; padding: 8px 12px; display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; font-size: .88rem; margin: 8px 0; }
+
+/* ---- Demonstração guiada da Stack C ---- */
+.painel.destaque { border-left: 4px solid var(--azul); }
+.resumo-demo { margin: 6px 0 0; padding-left: 20px; font-size: .9rem; }
+.resumo-demo li { margin: 2px 0; }
