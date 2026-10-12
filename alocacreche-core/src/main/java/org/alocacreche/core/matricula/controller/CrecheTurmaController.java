@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.alocacreche.core.matricula.service.ConsultaMatriculaService;
 import org.alocacreche.core.matricula.service.CrecheCriadaResponse;
 import org.alocacreche.core.matricula.service.CrecheProximaResponse;
 import org.alocacreche.core.matricula.service.CrecheTurmaService;
@@ -30,6 +31,19 @@ public class CrecheTurmaController {
 
     private final CrecheTurmaService crecheTurmaService;
     private final SugestaoCrecheService sugestaoCrecheService;
+    private final ConsultaMatriculaService consultaMatriculaService;
+
+    @SaCheckPermission("matricula:creche:list")
+    @GetMapping("/creches")
+    public List<ConsultaMatriculaService.CrecheResumo> listarCreches() {
+        return consultaMatriculaService.listarCreches();
+    }
+
+    @SaCheckPermission("matricula:turma:list")
+    @GetMapping("/turmas")
+    public List<ConsultaMatriculaService.TurmaResumo> listarTurmas() {
+        return consultaMatriculaService.listarTurmas();
+    }
 
     @SaCheckPermission("matricula:creche:add")
     @PostMapping("/creches")

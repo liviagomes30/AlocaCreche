@@ -6,6 +6,7 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -61,6 +62,13 @@ public class InscricaoController {
             """;
 
     private final InscricaoService inscricaoService;
+    private final ConsultaInscricaoService consultaInscricaoService;
+
+    @SaCheckPermission("inscricao:inscricao:list")
+    @GetMapping
+    public List<ConsultaInscricaoService.InscricaoResumo> listar() {
+        return consultaInscricaoService.listarInscricoes();
+    }
 
     @Operation(
             summary = "Registra a inscrição da criança na fila de uma turma",

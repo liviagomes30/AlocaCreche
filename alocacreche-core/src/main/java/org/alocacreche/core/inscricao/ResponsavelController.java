@@ -4,7 +4,9 @@ import cn.dev33.satoken.annotation.SaCheckPermission;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import java.util.List;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -18,6 +20,13 @@ import org.springframework.web.bind.annotation.RestController;
 public class ResponsavelController {
 
     private final ResponsavelService responsavelService;
+    private final ConsultaInscricaoService consultaInscricaoService;
+
+    @SaCheckPermission("inscricao:responsavel:list")
+    @GetMapping
+    public List<ConsultaInscricaoService.ResponsavelResumo> listar() {
+        return consultaInscricaoService.listarResponsaveis();
+    }
 
     @SaCheckPermission("inscricao:responsavel:add")
     @PostMapping
