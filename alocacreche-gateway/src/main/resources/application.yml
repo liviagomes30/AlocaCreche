@@ -1,6 +1,13 @@
 spring:
   application:
     name: alocacreche-gateway
+  web:
+    resources:
+      cache:
+        cachecontrol:
+          # A interface estática muda a cada entrega da demo: o navegador revalida a cada abertura (304 se não mudou)
+          # em vez de reaproveitar um JavaScript antigo por conta própria
+          no-cache: true
   cloud:
     gateway:
       server:
