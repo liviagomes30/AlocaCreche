@@ -273,7 +273,7 @@ deixe marcada a opção do limite só se for o último passo). Ela **cadastra so
 |---|---|
 | Ambiente | core, MSRelatorios, painel público e RabbitMQ no ar; ADMIN; job desligado |
 | Segurança | sem token **401** · token adulterado **401** · município de outra prefeitura **403** |
-| Painel público | **200** sem token, só os campos de totais (sem dados pessoais) |
+| Painel público | **200** sem token: totais, vagas por faixa, creches com vaga e fila agregada (oculta se < 5 famílias; sem dados pessoais) |
 | Creches e turmas | **7 turmas** em 5 creches; um `vaga.liberada` por turma na Outbox |
 | 8 famílias na fila | posições finais da tabela 1.3 (Ana 1 … Fábio 8; empate Gisele 4 × Diego 5) |
 | Alocar e confirmar | matrícula da **Ana**; turma com **2 vagas**, fila com **7** |
@@ -287,13 +287,14 @@ deixe marcada a opção do limite só se for o último passo). Ela **cadastra so
 | Job de manutenção | prazo da Carla vencido (confirmar dá **409**) + uma rodada do job: Carla **EXPIRADA**, o job convoca **Gisele e Diego**; relatório **0 vagas** e fila **4** |
 | Outra creche lotada | Creche Esperança (2 vagas): Karina e Leandro lotam a turma, nova alocação **409**; relatório **0 vagas**, fila vazia |
 | Turma lotada com fila | Creche Aurora (1 vaga): Júlio entra na fila sem vaga (**posição 1**), turma lotada segue na sugestão (**0 vagas**); a Irene desiste e o Júlio é convocado |
+| Filas em várias turmas | Wagner e Vera entram na fila da Creche Esperança lotada (Vera passa para a posição 1) e a Olívia na da Creche Aurora; o painel mostra um bloco por turma (Sol 4, Esperança 2, Aurora 1) e o filtro por creche mostra só uma |
 | Painel público × banco | os totais do painel (sem login) batem com a soma do core: vagas livres, creches com vaga e turmas |
 | Idempotência | evento antigo reenviado; vagas e sequência **iguais** antes e depois |
 | DLQ | a demo publica uma mensagem inválida: a DLQ vai de **0 para 1** (card "na DLQ" e fila `relatorios.ocupacao.dlq` no RabbitMQ) e depois é limpa; RabbitMQ no ar |
 | Limite (opcional) | ~120 atendidas e o resto **429** com `Retry-After`; o painel público bloqueia ~1 min |
 
 ### C2. Números finais esperados (banco limpo, depois da demonstração guiada)
-- Turma Creche Sol MATERNAL: **0 vagas** disponíveis, **4** famílias aguardando (Hugo, Elisa, Fábio, Marcos, que se inscreve durante a falha). Creche Esperança e Creche Aurora (maternais): **0 vagas**, fila vazia.
+- Turma Creche Sol MATERNAL: **0 vagas** disponíveis, **4** famílias aguardando (Hugo, Elisa, Fábio, Marcos, que se inscreve durante a falha). Creche Esperança (maternal): **0 vagas**, **2** na fila (Vera e Wagner). Creche Aurora (maternal): **0 vagas**, **1** na fila (Olívia).
 - Matrículas no período: **9** (Ana, Karina e Leandro CONFIRMADAS; Bruno e Irene CANCELADAS; Carla EXPIRADA; Gisele, Diego e Júlio PENDENTES), **3 confirmadas** → taxa **33%**.
 - Distância média: **1,25 km** (média das 9 distâncias até a creche de cada uma).
 - Ocupação: **7 turmas** no relatório. Painel público: **11 vagas, 4 creches com vaga, 7 turmas**.

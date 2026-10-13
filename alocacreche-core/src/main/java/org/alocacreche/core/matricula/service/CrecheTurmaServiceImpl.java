@@ -12,7 +12,6 @@ import org.alocacreche.core.matricula.CrecheRepository;
 import org.alocacreche.core.matricula.Turma;
 import org.alocacreche.core.matricula.TurmaRepository;
 import org.alocacreche.core.outbox.service.OutboxEventWriter;
-import org.alocacreche.core.outbox.dto.OutboxPayloads.VagaLiberadaPayload;
 import org.alocacreche.core.outbox.config.OutboxRabbitConfig;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -70,13 +69,7 @@ public class CrecheTurmaServiceImpl implements CrecheTurmaService {
 
         outboxEventWriter.registrar(
                 OutboxRabbitConfig.VAGA_LIBERADA_ROUTING_KEY,
-                new VagaLiberadaPayload(
-                        OutboxRabbitConfig.VAGA_LIBERADA_ROUTING_KEY,
-                        municipioId,
-                        salva.getId(),
-                        creche.getId(),
-                        salva.getVagasDisponiveis(),
-                        LocalDateTime.now()));
+                VagaLiberadaPayloads.de(municipioId, salva, LocalDateTime.now()));
 
         log.info("Turma {} criada na creche {} do municipio {}", salva.getId(), creche.getId(), municipioId);
         return new TurmaCriadaResponse(salva.getId());

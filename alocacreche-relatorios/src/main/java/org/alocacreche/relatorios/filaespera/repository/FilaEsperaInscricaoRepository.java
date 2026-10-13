@@ -38,6 +38,18 @@ public interface FilaEsperaInscricaoRepository extends JpaRepository<FilaEsperaI
     @Query(
             value = """
                 SELECT
+                    COUNT(*) FILTER (WHERE data_saida IS NULL) AS aguardando,
+                    COUNT(*) AS total,
+                    AVG(COALESCE(data_saida, CURRENT_DATE) - data_entrada)::float8 AS esperaMediaDias
+                FROM fila_espera_inscricao
+                WHERE municipio_id = :municipioId
+                """,
+            nativeQuery = true)
+    org.alocacreche.relatorios.filaespera.projection.ResumoFilaProjection resumirFila(@Param("municipioId") Long municipioId);
+
+    @Query(
+            value = """
+                SELECT
                     turma_id AS turmaId,
                     creche_id AS crecheId,
                     municipio_id AS municipioId,

@@ -167,7 +167,7 @@ class VagaLiberadaConsumerIT {
 
         Message naDlq = rabbitTemplate.receive(RabbitMqConfig.OCUPACAO_DLQ, 5_000);
         assertThat(naDlq).isNotNull();
-        verify(repository, never()).upsert(eq(turmaId), any(), any(), any(), any());
+        verify(repository, never()).upsert(eq(turmaId), any(), any(), any(), any(), any(), any(), any());
         // Sinal decisivo: repositorio nunca chamado tambem seria verdade se a mensagem tivesse
         // sido retentada 3x antes de cair na DLQ (a excecao acontece antes do repositorio ser
         // tocado nas 3 tentativas). Só a contagem de invocacoes do listener distingue rejeicao
@@ -180,7 +180,7 @@ class VagaLiberadaConsumerIT {
         Long turmaId = 400L;
         doThrow(new RuntimeException("falha transitoria simulada"))
                 .when(repository)
-                .upsert(eq(turmaId), any(), any(), any(), any());
+                .upsert(eq(turmaId), any(), any(), any(), any(), any(), any(), any());
 
         VagaLiberadaEvent evento =
                 new VagaLiberadaEvent(1L, "VagaLiberada", 1L, turmaId, 40L, 2, LocalDateTime.now());
@@ -189,7 +189,7 @@ class VagaLiberadaConsumerIT {
 
         Message naDlq = rabbitTemplate.receive(RabbitMqConfig.OCUPACAO_DLQ, 5_000);
         assertThat(naDlq).isNotNull();
-        verify(repository, times(3)).upsert(eq(turmaId), any(), any(), any(), any());
+        verify(repository, times(3)).upsert(eq(turmaId), any(), any(), any(), any(), any(), any(), any());
     }
 
     private OcupacaoTurma buscarComRetry(Long turmaId, Long municipioId, long timeoutMillis)

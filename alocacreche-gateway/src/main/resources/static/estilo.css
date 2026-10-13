@@ -351,3 +351,6 @@ li.guiado .selo { text-align: center; justify-self: start; }
 .registro-esperado { background: var(--info-fundo); color: #5b21b6; border-radius: 6px; padding: 4px 8px; margin: 4px 0; }
 .registro-item.r-esperado { border-left: 4px solid #7c3aed; }
 .registro-item .s.esperado { background: var(--info-fundo); color: #5b21b6; border-radius: 8px; padding: 0 6px; font-weight: 600; }
+
+/* ---- Crianças na fila: um bloco por turma ---- */
+.tabela tr.grupo-turma td { background: var(--info-fundo); border-top: 2px solid var(--borda); padding-top: 8px; padding-bottom: 8px; }

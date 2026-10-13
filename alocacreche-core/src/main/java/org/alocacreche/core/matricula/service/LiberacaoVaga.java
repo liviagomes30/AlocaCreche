@@ -10,7 +10,6 @@ import org.alocacreche.core.matricula.Turma;
 import org.alocacreche.core.matricula.TurmaRepository;
 import org.alocacreche.core.outbox.service.OutboxEventWriter;
 import org.alocacreche.core.outbox.dto.OutboxPayloads.MatriculaAtualizadaPayload;
-import org.alocacreche.core.outbox.dto.OutboxPayloads.VagaLiberadaPayload;
 import org.alocacreche.core.outbox.config.OutboxRabbitConfig;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
@@ -52,13 +51,7 @@ public class LiberacaoVaga {
         Long crecheId = turma.getCreche().getId();
         outboxEventWriter.registrar(
                 OutboxRabbitConfig.VAGA_LIBERADA_ROUTING_KEY,
-                new VagaLiberadaPayload(
-                        OutboxRabbitConfig.VAGA_LIBERADA_ROUTING_KEY,
-                        municipioId,
-                        turma.getId(),
-                        crecheId,
-                        turma.getVagasDisponiveis(),
-                        agora));
+                VagaLiberadaPayloads.de(municipioId, turma, agora));
         outboxEventWriter.registrar(
                 OutboxRabbitConfig.MATRICULA_ATUALIZADA_ROUTING_KEY,
                 new MatriculaAtualizadaPayload(

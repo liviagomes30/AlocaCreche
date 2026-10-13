@@ -5,7 +5,8 @@
  * completa (roteiro.js) e os controles de demonstração do core (resiliencia.js).
  */
 
-var CAMPOS_DO_PAINEL_PUBLICO = ['municipioId', 'totalVagasDisponiveis', 'totalCrechesComVaga', 'totalTurmas', 'atualizadoEm'];
+var CAMPOS_DO_PAINEL_PUBLICO = ['municipioId', 'totalVagasDisponiveis', 'totalCrechesComVaga', 'totalTurmas', 'atualizadoEm',
+  'vagasPorFaixa', 'crechesComVaga', 'familiasAguardando', 'familiasAguardandoAbaixoDoMinimo', 'esperaMediaDias'];
 
 // Espera uma condição consultando a Outbox e os relatórios a cada segundo (respeita pausa e parada da demo)
 async function esperarCondicaoDemo(condicao, limiteMs) {
@@ -56,7 +57,7 @@ var URL_RABBIT = 'http://localhost:15672';
  */
 async function pausarParaMostrarRabbit(orientacao) {
   var texto = $('narradorDetalhe').textContent;
-  $('narradorDetalhe').textContent = texto + '\n\n' + orientacao + ' (usuário guest, senha guest)\nQuando terminar, clique em "Continuar" no quadro.';
+  $('narradorDetalhe').textContent = texto + '\n' + (orientacao ? orientacao + ' ' : '') + 'Usuário e senha: guest. Clique em "Continuar" quando terminar.';
   mostrarComandoNoNarrador(URL_RABBIT, null, URL_RABBIT);
   demo.pausado = true;
   $('btnDemoPausa').textContent = 'Continuar';
@@ -87,9 +88,7 @@ function descreverAmbiente(s) {
 
 function montarPassosDaStackC(contexto, base, incluirLimite) {
   var passos = [
-    { aba: 'relatorios', titulo: 'Conferir o ambiente', detalhe:
-      'Antes de começar, a demonstração confere se tudo o que a Stack C usa está no ar: core, MSRelatorios, painel público, RabbitMQ e Outbox.\n' +
-      'Também exige perfil ADMIN (para ver e controlar a Outbox) e o job de matrículas desligado, porque ele alocaria vagas no meio do roteiro.',
+    { aba: 'relatorios', titulo: 'Conferir o ambiente', detalhe: 'Confere se core, MSRelatórios, painel público, RabbitMQ e Outbox estão no ar, o perfil é ADMIN e o job está desligado.',
       rodar: async function () {
         var s = await consultarRelatorios({});
         var problemas = descreverAmbiente(s);
@@ -102,10 +101,7 @@ function montarPassosDaStackC(contexto, base, incluirLimite) {
         return 'core, MSRelatorios, painel público e RabbitMQ no ar; perfil ADMIN; job desligado.';
       } },
 
-    { aba: 'relatorios', titulo: 'Segurança: o MSRelatorios valida o token sozinho', detalhe:
-      'O que foi feito: o MSRelatorios é um serviço separado e não confia no gateway. Ele mesmo valida o JWT emitido pelo core (mesmo segredo, modo stateless) e exige uma permissão por endpoint, como relatorios:ocupacao:list. Por padrão, tudo é negado.\n' +
-      'Prova: sem token deve dar 401, com token adulterado 401 e, com um município diferente do token, 403 (isolamento entre prefeituras).\n' +
-      'Onde: seguranca/SegurancaConfig e MunicipioDoToken, no alocacreche-relatorios.',
+    { aba: 'relatorios', titulo: 'Segurança: o MSRelatorios valida o token sozinho', detalhe: 'O MSRelatórios valida o token sozinho e nega por padrão. Esperado: sem token 401, token adulterado 401, outro município 403.',
       rodar: async function () {
         var caminho = '/api/v1/relatorios/ocupacao?municipioId=';
         var semToken = await api('GET', caminho + municipioId, { token: null, sem401: true, esperado: [401], motivoEsperado: 'sem token o serviço recusa a chamada', rotulo: 'Sem token: relatório de ocupação' });
@@ -122,23 +118,17 @@ function montarPassosDaStackC(contexto, base, incluirLimite) {
         return 'o serviço se protege sozinho: 401, 401 e 403.';
       } },
 
-    { aba: 'relatorios', titulo: 'Painel público: a única rota sem login', detalhe:
-      'O que foi feito: o painel público mostra à população quantas vagas existem, sem exigir login. Só devolve totais por município: nenhum nome, CPF ou renda (LGPD). O resultado é cacheado e o cache é invalidado quando um evento é aplicado.\n' +
-      'Prova: chamada sem token deve responder 200 apenas com os campos de totais.\n' +
-      'Onde: PainelPublicoController (@SaIgnore) e PainelPublicoService.',
+    { aba: 'relatorios', titulo: 'Painel público: a única rota sem login', detalhe: 'Única rota sem login: só devolve totais, sem dados pessoais. Esperado: HTTP 200 sem token.',
       rodar: async function () {
         var r = checar(await api('GET', urlPainelPublico(), { token: null, rotulo: 'Painel público sem token' }), 'painel público');
         var campos = Object.keys(r.dados || {});
         var extras = campos.filter(function (c) { return CAMPOS_DO_PAINEL_PUBLICO.indexOf(c) < 0; });
         registrarNaLista('campos devolvidos: ' + campos.join(', '), extras.length === 0);
         if (extras.length) { throw new Error('campos inesperados no painel público: ' + extras.join(', ')); }
-        return 'HTTP 200 sem token: ' + r.dados.totalVagasDisponiveis + ' vaga(s) em ' + r.dados.totalTurmas + ' turma(s), só totais.';
+        return 'HTTP 200 sem token: ' + r.dados.totalVagasDisponiveis + ' vaga(s) em ' + r.dados.totalTurmas + ' turma(s), só totais e a lista pública de creches.';
       } },
 
-    { aba: 'matricula', titulo: 'Cadastrar as creches e turmas da apresentação', detalhe:
-      'São os mesmos dados que a Larissa e a Letícia cadastram na apresentação (veja a cola): 5 creches em bairros diferentes de São Paulo e 7 turmas, entre elas a turma Maternal da Creche Sol, com 3 vagas.\n' +
-      'O que foi feito na Stack C: Outbox transacional. Cada turma criada grava o evento vaga.liberada numa tabela outbox na MESMA transação da regra de negócio. Ou grava os dois, ou nenhum: nenhum evento se perde e nenhum evento fantasma é criado. Nada é enviado ao RabbitMQ agora; isso é do publicador, mais adiante.\n' +
-      'Onde: OutboxEventWriter (exige transação aberta) e a tabela outbox.',
+    { aba: 'matricula', titulo: 'Cadastrar as creches e turmas da apresentação', detalhe: 'Os mesmos dados da cola: 5 creches e 7 turmas. Cada turma grava o evento vaga.liberada na Outbox, na mesma transação.',
       rodar: async function () {
         var base = await cadastrarCrechesETurmasDaCola();
         contexto.turmas = base.turmas;
@@ -147,9 +137,7 @@ function montarPassosDaStackC(contexto, base, incluirLimite) {
         return Object.keys(base.turmas).length + ' turmas em 5 creches cadastradas; um evento vaga.liberada por turma gravado na Outbox, na mesma transação.';
       } },
 
-    { aba: 'inscricao', titulo: 'As 8 famílias entram na fila, por ordem de chegada', detalhe:
-      'Mesmas 8 famílias da cola, na mesma ordem de chegada: da menor para a maior prioridade (Fábio chega primeiro, Ana por último). O score é renda x 0,4 + vulnerabilidade x 0,3; a fila é ordenada por score, e quem chega depois com score maior passa na frente. Gisele e Diego empatam em 0,40: fica na frente quem chegou antes.\n' +
-      'Cada inscrição também grava um evento fila.atualizada na Outbox, que alimenta o relatório da fila de espera.',
+    { aba: 'inscricao', titulo: 'As 8 famílias entram na fila, por ordem de chegada', detalhe: 'As 8 famílias da cola entram por ordem de chegada. A fila é ordenada por score; Gisele e Diego empatam em 0,40 e vale quem chegou antes.',
       rodar: async function () {
         var fila = await inscreverTodasAsFamiliasDaCola(contexto.turmaId);
         contexto.inscricoes = fila.inscricoes;
@@ -167,9 +155,7 @@ function montarPassosDaStackC(contexto, base, incluirLimite) {
         return '8 inscrições; Ana (0,70) em 1º e Fábio (0,00), que chegou primeiro, em 8º; empate Gisele x Diego resolvido por ordem de chegada.' + (fila.cpfsSubstituidos ? ' (' + fila.cpfsSubstituidos + ' CPF(s) já existiam neste banco e foram trocados.)' : '');
       } },
 
-    { aba: 'matricula', titulo: 'Alocar a primeira vaga e confirmar a matrícula', detalhe:
-      'A alocação convoca o primeiro da fila (Ana, a de maior score), cria uma matrícula PENDENTE e grava mais eventos na Outbox: vaga.liberada, fila.atualizada e matricula.atualizada. A confirmação grava outro matricula.atualizada.\n' +
-      'A turma passa de 3 para 2 vagas e a fila de 8 para 7 famílias.',
+    { aba: 'matricula', titulo: 'Alocar a primeira vaga e confirmar a matrícula', detalhe: 'Aloca a vaga à Ana (maior score) e confirma. A turma vai de 3 para 2 vagas e a fila de 8 para 7.',
       rodar: async function () {
         var m = checar(await acaoAlocar(contexto.turmaId), 'alocar');
         if (m.matricula.inscricaoId !== contexto.inscricoes.ana) { throw new Error('a primeira vaga deveria ir para a Ana (inscrição #' + contexto.inscricoes.ana + ')'); }
@@ -178,10 +164,7 @@ function montarPassosDaStackC(contexto, base, incluirLimite) {
         return 'matrícula #' + contexto.matriculaId + ' da Ana alocada e confirmada (turma com 2 vagas e 7 famílias na fila).';
       } },
 
-    { aba: 'eventos', titulo: 'O publicador envia os eventos ao RabbitMQ', detalhe:
-      'O que foi feito: um publicador roda a cada segundo, pega os eventos PENDENTE da Outbox, envia todos de uma vez ao RabbitMQ e espera as confirmações do broker juntas (um prazo único por lote, e não um por evento). Só o evento confirmado vira PROCESSADO.\n' +
-      'Detalhes de robustez: o lote é travado com SKIP LOCKED (duas instâncias não enviam o mesmo evento) e um evento recusado entra em recuo (1 s, 2 s, 4 s, até 5 s) para não encher o log.\n' +
-      'Onde: OutboxPublicadorService e OutboxPublicadorScheduler, no core.',
+    { aba: 'eventos', titulo: 'O publicador envia os eventos ao RabbitMQ', detalhe: 'O publicador envia os eventos pendentes da Outbox ao RabbitMQ em lote e só marca como processado o que o broker confirma.',
       rodar: async function () {
         var ok = await esperarCondicaoDemo(function () { return resumoOutbox && resumoOutbox.pendentes === 0; }, 20000);
         if (!ok) { throw new Error('A Outbox ainda tem eventos pendentes depois de 20 s (RabbitMQ parado?).'); }
@@ -192,10 +175,7 @@ function montarPassosDaStackC(contexto, base, incluirLimite) {
         return enviados + ' evento(s) enviados e confirmados pelo broker.';
       } },
 
-    { aba: 'visao', titulo: 'O MSRelatorios aplica as projeções', detalhe:
-      'O que foi feito: o MSRelatorios tem banco próprio. Cada evento chega por uma fila e um consumidor grava, numa transação, a projeção de leitura (ocupação, fila de espera, matrículas) com um upsert por chave de negócio. É a consistência eventual: o relatório alcança o banco em instantes.\n' +
-      'Compare o gráfico: a linha do relatório (cheia) encontra a do banco (tracejada). A turma deve ficar com 2 vagas e 7 famílias na fila.\n' +
-      'Onde: os listeners em ocupacao, filaespera e matricula, no alocacreche-relatorios.',
+    { aba: 'visao', titulo: 'O MSRelatorios aplica as projeções', detalhe: 'O MSRelatórios aplica cada evento na sua projeção. Esperado: relatório igual ao banco, com 2 vagas e 7 na fila.',
       rodar: async function () {
         var motivo = await aguardarRelatorios(contexto.turmaId, 2, 7);
         if (motivo) { throw new Error(motivo); }
@@ -206,9 +186,7 @@ function montarPassosDaStackC(contexto, base, incluirLimite) {
         return 'o relatório alcançou o banco sozinho.';
       } },
 
-    { aba: 'relatorios', titulo: 'Os relatórios gerenciais', detalhe:
-      'O que foi feito: quatro relatórios sobre as projeções, todos escopados por município e protegidos por permissão: ocupação por turma, fila de espera (quantidade e espera média), taxa de confirmação de matrículas e distância média das alocações.\n' +
-      'A tela consulta os quatro agora. Esperado: pelo menos 1 matrícula nova e 1 confirmada no período, e 7 famílias aguardando na turma da demo.',
+    { aba: 'relatorios', titulo: 'Os relatórios gerenciais', detalhe: 'Consulta os quatro relatórios. Esperado: pelo menos 1 matrícula nova, 1 confirmada e 7 aguardando na turma.',
       rodar: async function () {
         $('c_fTurma').value = '';
         $('c_fCreche').value = '';
@@ -229,11 +207,8 @@ function montarPassosDaStackC(contexto, base, incluirLimite) {
       } },
 
     { aba: 'eventos', titulo: contexto.simulada ? 'Falha: o envio da Outbox para' : 'Falha: o RabbitMQ para', detalhe: contexto.simulada ?
-      'Vamos simular o RabbitMQ indisponível pausando o publicador do core. Depois, a segunda vaga é alocada normalmente (para o Bruno, o próximo da fila).\n' +
-      'Esperado: a API responde 201 (o usuário não percebe nada), os eventos ficam PENDENTE na Outbox e o relatório continua mostrando o valor antigo, enquanto o banco já tem o novo. Com o envio parado, a demo faz mais duas ações (a inscrição do Marcos e a confirmação da matrícula do Bruno): ao todo 5 eventos se acumulam na Outbox.' :
-      'Aqui o RabbitMQ para de verdade. Rode no terminal, na pasta do projeto, o comando que aparece no quadro (botão "Copiar comando"). A tela detecta sozinha quando o broker parar.\n' +
-      'Depois, a segunda vaga é alocada (para o Bruno, o próximo da fila). Esperado: a API responde 201 (o usuário não percebe nada), os eventos ficam PENDENTE na Outbox e o relatório mostra o valor antigo, enquanto o banco já tem o novo. Com o broker parado, a demo faz mais duas ações (a inscrição do Marcos e a confirmação da matrícula do Bruno): ao todo 5 eventos se acumulam na Outbox.\n' +
-      'Sem tempo para o terminal? Use "Simular em vez disso".',
+      'Pausa o publicador do core para simular o RabbitMQ fora. Com o envio parado, a demo aloca o Bruno, inscreve o Marcos e confirma a matrícula do Bruno: 5 eventos se acumulam na Outbox.' :
+      'Pare o RabbitMQ com o comando do quadro; a tela detecta sozinha. Com o broker parado, a demo aloca o Bruno, inscreve o Marcos e confirma a matrícula do Bruno: 5 eventos se acumulam na Outbox.',
       rodar: async function () {
         if (!contexto.simulada) {
           var parou = await aguardarAcaoNoTerminal({
@@ -278,9 +253,7 @@ function montarPassosDaStackC(contexto, base, incluirLimite) {
         return 'alocação #' + m.dados.matriculaId + ' respondeu HTTP ' + m.status + ' e, com as outras duas ações, a Outbox acumulou ' + resumoOutbox.pendentes + ' eventos, mas o relatório ainda está defasado.';
       } },
 
-    { aba: 'visao', titulo: 'Observar a defasagem', detalhe:
-      'Veja a Visão geral: o selo "sincronizando..." e os pontos laranja no gráfico mostram a diferença entre o banco e o relatório.\n' +
-      'Nada se perdeu: o evento está guardado na Outbox. A tela espera alguns segundos para a plateia enxergar.',
+    { aba: 'visao', titulo: 'Observar a defasagem', detalhe: 'O selo "sincronizando..." e os pontos laranja do gráfico mostram a diferença entre banco e relatório. Nada se perdeu: os eventos estão na Outbox.',
       rodar: async function () {
         var texto = $('narradorDetalhe').textContent;
         for (var s = 6; s > 0; s--) {
@@ -296,9 +269,8 @@ function montarPassosDaStackC(contexto, base, incluirLimite) {
       } },
 
     { aba: 'eventos', titulo: contexto.simulada ? 'Recuperação: o relatório converge sozinho' : 'Recuperação: o RabbitMQ volta e o relatório converge', detalhe: contexto.simulada ?
-      'O que foi feito: ao retomar o envio, o publicador manda os eventos pendentes em ordem (pelo id da Outbox) e o relatório os aplica. Ninguém precisa corrigir nada à mão.' :
-      'Rode no terminal o comando do quadro para subir o RabbitMQ de novo (botão "Copiar comando"). A tela detecta quando o broker voltar.\n' +
-      'O que acontece: o publicador manda os eventos pendentes em ordem (pelo id da Outbox) e o relatório os aplica. Ninguém precisa corrigir nada à mão. Costuma levar uns 15 segundos, porque o broker leva alguns segundos para aceitar conexões.',
+      'Ao retomar o envio, os eventos pendentes saem em ordem e o relatório converge sozinho.' :
+      'Suba o RabbitMQ com o comando do quadro. Os eventos pendentes saem em ordem e o relatório converge sozinho (uns 15 s).',
       rodar: async function () {
         if (contexto.rabbitParado) {
           await aguardarAcaoNoTerminal({
@@ -318,14 +290,12 @@ function montarPassosDaStackC(contexto, base, incluirLimite) {
         var segundos = ((Date.now() - inicio) / 1000).toFixed(1).replace('.', ',');
         var resultadoRecuperacao = 'convergiu em ' + segundos + ' s depois de ' + (contexto.simulada ? 'retomar o envio' : 'o RabbitMQ voltar') + '; nenhum evento perdido.';
         if (!contexto.simulada && contexto.mostrarRabbit) {
-          await pausarParaMostrarRabbit('Mostre as filas e os consumidores de volta (aba Queues): cada fila do relatório com 1 consumidor e 0 mensagens esperando.');
+          await pausarParaMostrarRabbit('Mostre as filas e os consumidores de volta (aba Queues).');
         }
         return resultadoRecuperacao;
       } },
 
-    { aba: 'matricula', titulo: 'Desistência: a vaga volta e o próximo da fila é convocado', detalhe:
-      'Mesmo cenário da Letícia: o Bruno desiste. A matrícula dele é cancelada, a vaga volta para a turma e, logo depois do commit, o servidor convoca sozinho o próximo da fila (Carla, a de maior score entre as que restam), criando uma nova matrícula PENDENTE.\n' +
-      'Isso gera vários eventos de uma vez (vaga.liberada, matricula.atualizada CANCELADA e os três da alocação automática). O relatório deve terminar com 1 vaga e 6 famílias na fila.',
+    { aba: 'matricula', titulo: 'Desistência: a vaga volta e o próximo da fila é convocado', detalhe: 'O Bruno desiste: a vaga volta e a Carla, próxima da fila, é convocada sozinha. Esperado: 1 vaga e 6 na fila.',
       rodar: async function () {
         var r = checar(await acaoDesistir(contexto.matriculaBruno, 'Desistir da matrícula do Bruno (demo)'), 'desistir');
         var resumo = r.resumo;
@@ -337,11 +307,7 @@ function montarPassosDaStackC(contexto, base, incluirLimite) {
         return 'relatório com 1 vaga e 6 famílias na fila, igual ao banco.';
       } },
 
-    { aba: 'eventos', titulo: 'Job de manutenção: o prazo vence e a matrícula expira', detalhe:
-      'O que foi feito: um job agendado do core (a cada 2 minutos) faz duas coisas por município: expira as matrículas PENDENTE com prazo vencido, devolvendo a vaga, e depois preenche com a fila toda turma que tenha vaga livre. É também a rede de segurança contra a alocação automática em memória que se perdeu.\n' +
-      'Para não esperar o relógio nem ligar o job agendado, a demo coloca o prazo da matrícula da Carla (a convocada) no passado e executa uma rodada do job na hora, com a mesma lógica do agendador.\n' +
-      'Esperado: a matrícula da Carla vira EXPIRADA, a vaga volta e o job convoca os próximos da fila (Gisele e Diego).\n' +
-      'Onde: ManutencaoMatriculaScheduler e ManutencaoMatriculaPorMunicipio, no core.',
+    { aba: 'eventos', titulo: 'Job de manutenção: o prazo vence e a matrícula expira', detalhe: 'A demo vence o prazo da matrícula da Carla e roda uma rodada do job. Esperado: ela vira EXPIRADA e o job convoca Gisele e Diego.',
       rodar: async function () {
         var antes = checar(await api('GET', '/api/v1/matricula/matriculas', { automatica: true, rotulo: 'Core: matrículas (antes do job)' }), 'listar matrículas');
         var carla = antes.dados.filter(function (m) { return m.inscricaoId === contexto.inscricoes.carla && m.status === 'PENDENTE'; })[0];
@@ -365,9 +331,7 @@ function montarPassosDaStackC(contexto, base, incluirLimite) {
         return 'matrícula da Carla expirada, vaga devolvida e preenchida pelo job; relatório com 0 vagas e 4 famílias na fila, igual ao banco.';
       } },
 
-    { aba: 'matricula', titulo: 'Outra creche: preencher todas as vagas de uma turma', detalhe:
-      'Agora outra creche, com outros dados: a Creche Esperança (Penha), turma Maternal com 2 vagas. Duas famílias novas entram na fila, as duas vagas são alocadas e confirmadas, e a turma fica lotada.\n' +
-      'Esperado: uma nova alocação nessa turma responde 409 (turma sem vaga) e o relatório mostra 0 vagas e fila vazia. Cada operação gera seus eventos, que o MSRelatórios aplica por turma, sem misturar com a Creche Sol.',
+    { aba: 'matricula', titulo: 'Outra creche: preencher todas as vagas de uma turma', detalhe: 'Creche Esperança, turma de 2 vagas: duas famílias ocupam as vagas e confirmam. Esperado: nova alocação dá 409 e o relatório mostra 0 vagas.',
       rodar: async function () {
         var turma = contexto.turmas['esperanca-MATERNAL'];
         var karina = checar(await inscreverFamiliaDaCola('karina', turma), 'inscrever a Karina');
@@ -387,9 +351,7 @@ function montarPassosDaStackC(contexto, base, incluirLimite) {
         return 'Creche Esperança lotada (2 de 2 vagas, as duas confirmadas); relatório com 0 vagas e fila vazia; alocar de novo responde 409.';
       } },
 
-    { aba: 'matricula', titulo: 'Turma lotada: a fila cresce sem vaga e a desistência convoca', detalhe:
-      'Terceira creche: a Creche Aurora (Pinheiros), turma Maternal com 1 vaga. A Irene fica com a única vaga. O Júlio se inscreve depois e entra na fila mesmo sem vaga: a fila continua aceitando famílias, o que muda é que ninguém é convocado.\n' +
-      'Duas conferências: a turma lotada continua na sugestão de creches próximas (com 0 vagas), porque a família ainda pode entrar na fila; e, quando a Irene desiste, o Júlio é convocado sozinho.',
+    { aba: 'matricula', titulo: 'Turma lotada: a fila cresce sem vaga e a desistência convoca', detalhe: 'Creche Aurora, turma de 1 vaga: a Irene fica com a vaga e o Júlio entra na fila sem vaga. A turma lotada segue na sugestão de creches; quando a Irene desiste, o Júlio é convocado.',
       rodar: async function () {
         var turma = contexto.turmas['aurora-MATERNAL'];
         var irene = checar(await inscreverFamiliaDaCola('irene', turma), 'inscrever a Irene');
@@ -415,9 +377,41 @@ function montarPassosDaStackC(contexto, base, incluirLimite) {
         return 'Creche Aurora: o Júlio entrou na fila sem vaga (0 vagas e 1 na fila); com a desistência da Irene ele foi convocado (0 vagas e fila vazia).';
       } },
 
-    { aba: 'relatorios', titulo: 'O painel público confere com o banco', detalhe:
-      'Com várias creches lotadas, a prova final: os totais do painel público (que qualquer cidadão vê, sem login) precisam ser os mesmos que o banco do core tem agora.\n' +
-      'A tela soma as vagas de todas as turmas direto do core e compara com o painel: vagas disponíveis, creches com pelo menos uma turma com vaga e total de turmas. O painel tem cache, que é invalidado quando um evento é aplicado, então os números chegam iguais em poucos segundos.',
+    { aba: 'relatorios', titulo: 'Filas em várias turmas e creches', detalhe: 'Mais famílias esperam nas turmas lotadas de Esperança e Aurora. O painel mostra um bloco por turma e a demo filtra por creche.',
+      rodar: async function () {
+        var esperanca = contexto.turmas['esperanca-MATERNAL'];
+        var aurora = contexto.turmas['aurora-MATERNAL'];
+        var wagner = checar(await inscreverFamiliaDaCola('wagner', esperanca), 'inscrever o Wagner');
+        var vera = checar(await inscreverFamiliaDaCola('vera', esperanca), 'inscrever a Vera');
+        var olivia = checar(await inscreverFamiliaDaCola('olivia', aurora), 'inscrever a Olívia');
+        var posicaoWagner = await acaoConsultarPosicao(wagner.dados.inscricaoId, esperanca);
+        registrarNaLista('Creche Esperança (turma lotada): a Vera (0,60) entrou na posição ' + vera.dados.posicao + ' e o Wagner (0,10) ficou na ' + posicaoWagner.dados.posicao, vera.dados.posicao === 1 && posicaoWagner.dados.posicao === 2);
+        registrarNaLista('Creche Aurora (turma lotada): a Olívia (0,40) entrou na posição ' + olivia.dados.posicao, olivia.dados.posicao === 1);
+        if (vera.dados.posicao !== 1 || posicaoWagner.dados.posicao !== 2 || olivia.dados.posicao !== 1) { throw new Error('posições diferentes do esperado nas filas das outras creches'); }
+        var turmasParaConferir = [[esperanca, 0, 2], [aurora, 0, 1], [contexto.turmaId, 0, 4]];
+        for (var i = 0; i < turmasParaConferir.length; i++) {
+          var motivo = await aguardarRelatorios(turmasParaConferir[i][0], turmasParaConferir[i][1], turmasParaConferir[i][2]);
+          if (motivo) { throw new Error(motivo); }
+        }
+        $('c_fTurma').value = '';
+        $('c_fCreche').value = '';
+        await consultarDetalhe();
+        var blocos = document.querySelectorAll('#c_criancas tr.grupo-turma').length;
+        var criancas = document.querySelectorAll('#c_criancas tbody tr:not(.grupo-turma)').length;
+        registrarNaLista('painel completo: ' + criancas + ' criança(s) em ' + blocos + ' turma(s) (Creche Sol 4, Creche Esperança 2, Creche Aurora 1)', blocos >= 3 && criancas >= 7);
+        var crecheEsperanca = snapshot.turmasCore.filter(function (t) { return t.id === esperanca; })[0].crecheId;
+        $('c_fCreche').value = String(crecheEsperanca);
+        await consultarDetalhe();
+        var blocosFiltrados = document.querySelectorAll('#c_criancas tr.grupo-turma').length;
+        var criancasFiltradas = document.querySelectorAll('#c_criancas tbody tr:not(.grupo-turma)').length;
+        registrarNaLista('filtrando pela Creche Esperança: ' + criancasFiltradas + ' criança(s) em ' + blocosFiltrados + ' turma(s)', blocosFiltrados === 1 && criancasFiltradas === 2);
+        $('c_fCreche').value = '';
+        await consultarDetalhe();
+        if (blocos < 3 || criancas < 7 || blocosFiltrados !== 1 || criancasFiltradas !== 2) { throw new Error('o painel de crianças na fila não mostrou as várias turmas como esperado'); }
+        return 'filas em 3 creches (Sol 4, Esperança 2, Aurora 1), cada turma em seu bloco, e o filtro por creche mostra só a fila escolhida.';
+      } },
+
+    { aba: 'relatorios', titulo: 'O painel público confere com o banco', detalhe: 'Os totais do painel público (sem login) precisam ser iguais à soma do banco: vagas livres, creches com vaga e turmas.',
       rodar: async function () {
         var inicio = Date.now();
         var core = null;
@@ -441,10 +435,7 @@ function montarPassosDaStackC(contexto, base, incluirLimite) {
         return 'o painel público mostra os mesmos totais do banco: ' + core.vagas + ' vaga(s), ' + core.creches + ' creche(s) com vaga e ' + core.turmas + ' turma(s).';
       } },
 
-    { aba: 'eventos', titulo: 'Idempotência: o evento antigo é ignorado', detalhe:
-      'O que foi feito: o RabbitMQ entrega cada mensagem pelo menos uma vez, então um evento pode chegar repetido ou atrasado. Cada evento leva o id da Outbox como sequência, e o consumidor só aplica um evento se a sequência dele for maior que a última já aplicada para aquela turma.\n' +
-      'Prova: reenviamos o evento mais antigo da turma (de quando ela tinha todas as vagas livres). O relatório não pode voltar para esse valor antigo.\n' +
-      'Onde: o upsert condicional no OcupacaoTurmaRepository.',
+    { aba: 'eventos', titulo: 'Idempotência: o evento antigo é ignorado', detalhe: 'Reenvia o evento mais antigo da turma. Esperado: o relatório o ignora (a sequência é menor que a já aplicada) e não volta atrás.',
       rodar: async function () {
         var prova = await executarProvaDeIdempotencia(contexto.turmaId);
         if (prova.erro) { throw new Error(prova.erro); }
@@ -454,10 +445,7 @@ function montarPassosDaStackC(contexto, base, incluirLimite) {
         return 'o evento #' + prova.eventId + ' foi reenviado e descartado; o relatório não regrediu.';
       } },
 
-    { aba: 'eventos', titulo: 'Fila de rejeição: uma mensagem inválida cai na DLQ', detalhe:
-      'O que foi feito: se um consumidor falha (por exemplo, o banco do relatório cai por um instante), o Spring tenta de novo até 3 vezes, esperando 0,5 s e depois 1 s. Erros de contrato (evento malformado) não são retentados e vão direto para a fila de rejeição (DLQ), que guarda a mensagem para análise em vez de perdê-la.\n' +
-      'Prova: a demo publica no RabbitMQ um vaga.liberada sem turmaId. O MSRelatórios o rejeita ("turmaId ausente") e a mensagem aparece em relatorios.ocupacao.dlq, e o card "na DLQ" da tela passa de 0 para 1. Depois a demo limpa essa mensagem de teste.\n' +
-      'Onde: RabbitMqConfig, no alocacreche-relatorios.',
+    { aba: 'eventos', titulo: 'Fila de rejeição: uma mensagem inválida cai na DLQ', detalhe: 'A demo publica uma mensagem inválida. Esperado: o MSRelatórios a rejeita e ela cai na DLQ (0 para 1); depois a demo a limpa.',
       rodar: async function () {
         await lerResumoOutbox();
         var base = resumoOutbox.dlqMensagens === null ? 0 : resumoOutbox.dlqMensagens;
@@ -482,11 +470,9 @@ function montarPassosDaStackC(contexto, base, incluirLimite) {
   ];
 
   if (contexto.mostrarRabbit) {
-    var passoMostrarRabbit = { aba: 'eventos', titulo: 'Mostrar o RabbitMQ por dentro', detalhe:
-      'Antes de provocar a falha, abra o painel do RabbitMQ (botão "Abrir no navegador" do quadro). Na aba Queues: as três filas do relatório (relatorios.ocupacao, relatorios.filaespera e relatorios.matricula), cada uma com 1 consumidor e 0 mensagens esperando, e as três filas de rejeição (.dlq) vazias. Na aba Exchanges: alocacreche.dominio, que roteia cada tipo de evento para a fila certa.\n' +
-      'É por esse caminho que os eventos da Outbox chegam ao relatório.',
+    var passoMostrarRabbit = { aba: 'eventos', titulo: 'Mostrar o RabbitMQ por dentro', detalhe: 'Abra o painel do RabbitMQ (botão do quadro): na aba Queues, as 3 filas do relatório com 1 consumidor cada e as 3 DLQs vazias; na aba Exchanges, alocacreche.dominio.',
+      antes: function () { return pausarParaMostrarRabbit(''); },
       rodar: async function () {
-        await pausarParaMostrarRabbit('Mostre as filas (aba Queues) e o exchange alocacreche.dominio (aba Exchanges).');
         await lerResumoOutbox();
         renderizarStatusOutbox();
         registrarNaLista('RabbitMQ: ' + (resumoOutbox.brokerDisponivel ? 'no ar' : 'fora do ar') + '; mensagens nas filas de rejeição: ' + (resumoOutbox.dlqMensagens === null ? 'filas ainda não criadas' : resumoOutbox.dlqMensagens), resumoOutbox.brokerDisponivel);
@@ -497,10 +483,7 @@ function montarPassosDaStackC(contexto, base, incluirLimite) {
   }
 
   if (incluirLimite) {
-    passos.push({ aba: 'relatorios', titulo: 'Gateway: limite de consultas no painel público', detalhe:
-      'O que foi feito: como o painel público é a única rota sem login, o gateway limita as consultas por IP (120 por minuto). Acima disso responde 429 com o cabeçalho Retry-After, e a página pública mostra "Aguardando liberação" e retoma sozinha.\n' +
-      'Agora a tela dispara 150 consultas seguidas. Atenção: o painel público deste computador fica bloqueado por cerca de 1 minuto.\n' +
-      'Onde: LimitadorPainelPublicoFilter, no alocacreche-gateway.',
+    passos.push({ aba: 'relatorios', titulo: 'Gateway: limite de consultas no painel público', detalhe: 'O gateway limita o painel público a 120 consultas por minuto por IP. A demo dispara 150: o excesso recebe 429, e o painel deste computador fica bloqueado por cerca de 1 minuto.',
       rodar: async function () {
         var r = await dispararConsultasAoPainel();
         registrarNaLista(r.liberadas + ' consulta(s) atendida(s) (200) e ' + r.barradas + ' recusada(s) (429); Retry-After: ' + (r.retryAfter || '-') + ' s', r.barradas > 0);
@@ -509,8 +492,7 @@ function montarPassosDaStackC(contexto, base, incluirLimite) {
       } });
   }
 
-  passos.push({ aba: 'relatorios', titulo: 'Resumo da Stack C', detalhe:
-    'Fechamento: o que a Stack C entrega e que acabou de ser demonstrado, do evento gravado no core até o painel público.',
+  passos.push({ aba: 'relatorios', titulo: 'Resumo da Stack C', detalhe: 'O que a Stack C entrega, do evento gravado no core até o painel público.',
     rodar: async function () {
       [
         'Outbox transacional: o evento nasce na mesma transação da regra de negócio (core/outbox)',
@@ -523,6 +505,7 @@ function montarPassosDaStackC(contexto, base, incluirLimite) {
         'RabbitMQ por dentro: filas, consumidores, exchange e a DLQ recebendo uma mensagem inválida',
         'Job de manutenção: matrícula com prazo vencido expira, a vaga volta e a fila é preenchida (ManutencaoMatriculaScheduler)',
         'Outras creches: turma lotada recusa alocação (409), a fila cresce sem vaga, a desistência convoca e o painel público confere com o banco',
+        'Filas em várias turmas e creches no painel, com a contagem do core ao lado da do relatório e filtro por creche',
         'Idempotência: evento antigo ou duplicado não regride o relatório',
         'Consumidor com tentativas e fila de rejeição; gateway com limite por IP no painel público'
       ].forEach(function (linha) { registrarNaLista(linha, true); });

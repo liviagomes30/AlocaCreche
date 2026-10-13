@@ -402,7 +402,8 @@ function rotuloDaTurmaDoCore(turma) {
   return '#' + turma.id + ' ' + (creche ? creche.nome + ', ' : '') + turma.faixaEtaria;
 }
 
-// Crianças na fila vêm do core (inscrição + fila de espera), não do relatório: o relatório só guarda a contagem
+// Crianças na fila vêm do core (inscrição + fila de espera), não do relatório: o relatório só guarda a contagem.
+// Cada turma é um bloco, com a contagem do core ao lado da do relatório.
 async function renderizarCriancasNaFila(s, turmaId, crecheId) {
   var alvo = $('c_criancas');
   alvo.textContent = '';
@@ -416,40 +417,41 @@ async function renderizarCriancasNaFila(s, turmaId, crecheId) {
     return !crecheId || (turmas[i.turmaId] && turmas[i.turmaId].crecheId === crecheId);
   }).sort(function (a, b) { return a.turmaId - b.turmaId || a.posicao - b.posicao; });
 
-  var tabela = el('table', { class: 'tabela' });
-  var turmaAnterior = null;
-  preencherTabela(tabela, ['Turma', 'Posição', 'Criança', 'Score', 'Inscrita em'],
-    fila.map(function (i) {
-      // O nome da turma aparece só na primeira linha de cada grupo, para a lista ficar legível
-      var rotuloTurma = i.turmaId === turmaAnterior ? '' : (turmas[i.turmaId] ? rotuloDaTurmaDoCore(turmas[i.turmaId]) : '#' + i.turmaId);
-      turmaAnterior = i.turmaId;
-      return [
-        rotuloTurma,
-        String(i.posicao),
-        i.nome,
-        numero(i.scorePrioridade, 2),
-        new Date(i.dataInscricao).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
-      ];
-    }), 'Nenhuma criança aguardando na fila para este filtro.');
-  alvo.appendChild(tabela);
-
-  // Confere, turma a turma, a contagem do core com a do relatório da fila de espera
-  var porTurma = {};
-  fila.forEach(function (i) { porTurma[i.turmaId] = (porTurma[i.turmaId] || 0) + 1; });
-  var contagens = el('p', { class: 'dica' });
-  Object.keys(porTurma).forEach(function (id) {
-    var noRelatorio = filaDaTurma(Number(id), s);
-    var qtdRelatorio = noRelatorio ? noRelatorio.quantidadeAguardando : 0;
-    var igual = qtdRelatorio === porTurma[id];
-    contagens.appendChild(el('span', { style: 'margin-right:12px' }, [
-      document.createTextNode('Turma #' + id + ': ' + porTurma[id] + ' no core, ' + qtdRelatorio + ' no relatório '),
-      selo(igual ? 'igual' : 'sincronizando...', igual ? 'ok' : 'aviso')
-    ]));
+  var grupos = [];
+  fila.forEach(function (i) {
+    var ultimo = grupos.length ? grupos[grupos.length - 1] : null;
+    if (!ultimo || ultimo.turmaId !== i.turmaId) { ultimo = { turmaId: i.turmaId, itens: [] }; grupos.push(ultimo); }
+    ultimo.itens.push(i);
   });
-  alvo.appendChild(contagens);
+
+  var tabela = el('table', { class: 'tabela' });
+  tabela.appendChild(el('thead', {}, [el('tr', {}, ['Posição', 'Criança', 'Score', 'Inscrita em'].map(function (t) { return el('th', { texto: t }); }))]));
+  var corpo = el('tbody');
+  if (!grupos.length) { corpo.appendChild(el('tr', {}, [el('td', { colspan: 4, class: 'vazio', texto: 'Nenhuma criança aguardando na fila para este filtro.' })])); }
+  grupos.forEach(function (g) {
+    var turma = turmas[g.turmaId];
+    var noRelatorio = filaDaTurma(g.turmaId, s);
+    var qtdRelatorio = noRelatorio ? noRelatorio.quantidadeAguardando : 0;
+    var igual = qtdRelatorio === g.itens.length;
+    corpo.appendChild(el('tr', { class: 'grupo-turma' }, [el('td', { colspan: 4 }, [
+      el('b', { texto: turma ? rotuloDaTurmaDoCore(turma) : '#' + g.turmaId }),
+      document.createTextNode(' · ' + g.itens.length + ' no core, ' + qtdRelatorio + ' no relatório '),
+      selo(igual ? 'igual' : 'sincronizando...', igual ? 'ok' : 'aviso')
+    ])]));
+    g.itens.forEach(function (i) {
+      corpo.appendChild(el('tr', {}, [
+        el('td', { texto: String(i.posicao) }),
+        el('td', { texto: i.nome }),
+        el('td', { texto: numero(i.scorePrioridade, 2) }),
+        el('td', { texto: new Date(i.dataInscricao).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) })
+      ]));
+    });
+  });
+  tabela.appendChild(corpo);
+  alvo.appendChild(tabela);
   alvo.appendChild(legendaDoRelatorio(
     'esta lista vem do banco do core (inscrição com status AGUARDANDO e a posição na fila de espera), e não do relatório. O relatório só guarda a contagem por turma, de propósito, para não expor dados pessoais. ' +
-    'A posição é a ordem por score (do maior para o menor) e, no empate, quem se inscreveu antes. Total listado: ' + fila.length + ' criança(s).'));
+    'A posição é a ordem por score (do maior para o menor) e, no empate, quem se inscreveu antes. Total listado: ' + fila.length + ' criança(s) em ' + grupos.length + ' turma(s). Use os filtros de turma e de creche acima para ver só uma.'));
 }
 
 async function consultarDetalhe(opcoes) {

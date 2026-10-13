@@ -31,17 +31,24 @@ class OutboxPayloadsContratoTest {
                     .featuresToDisable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
                     .build();
 
+    private static VagaLiberadaPayload vagaPayload() {
+        return new VagaLiberadaPayload("vaga.liberada", 1L, 2L, 3L, 5, "MATERNAL", "Creche Sol", "Centro", OCORRIDO_EM);
+    }
+
     @Test
     @DisplayName("VagaLiberada serializa exatamente os campos do consumidor, sem eventId")
     void vagaLiberadaTemExatamenteOsCamposDoConsumidor() throws Exception {
-        VagaLiberadaPayload payload =
-                new VagaLiberadaPayload("vaga.liberada", 1L, 2L, 3L, 5, OCORRIDO_EM);
+        VagaLiberadaPayload payload = vagaPayload();
 
         JsonNode json = objectMapper.readTree(objectMapper.writeValueAsString(payload));
 
         assertThat(nomesDosCampos(json))
                 .containsExactlyInAnyOrder(
-                        "tipoEvento", "municipioId", "turmaId", "crecheId", "vagasDisponiveis", "ocorridoEm");
+                        "tipoEvento", "municipioId", "turmaId", "crecheId", "vagasDisponiveis",
+                        "faixaEtaria", "crecheNome", "bairro", "ocorridoEm");
+        assertThat(json.get("faixaEtaria").asText()).isEqualTo("MATERNAL");
+        assertThat(json.get("crecheNome").asText()).isEqualTo("Creche Sol");
+        assertThat(json.get("bairro").asText()).isEqualTo("Centro");
         assertThat(json.get("tipoEvento").asText()).isEqualTo("vaga.liberada");
         assertThat(json.get("municipioId").isIntegralNumber()).isTrue();
         assertThat(json.get("turmaId").asLong()).isEqualTo(2L);
@@ -163,8 +170,7 @@ class OutboxPayloadsContratoTest {
     @Test
     @DisplayName("VagaLiberada serializada e igual ao fixture compartilhado com o MSRelatorios")
     void vagaLiberadaIgualAoFixture() throws Exception {
-        VagaLiberadaPayload payload =
-                new VagaLiberadaPayload("vaga.liberada", 1L, 2L, 3L, 5, OCORRIDO_EM);
+        VagaLiberadaPayload payload = vagaPayload();
 
         assertThat(objectMapper.readTree(objectMapper.writeValueAsString(payload)))
                 .isEqualTo(objectMapper.readTree(EventosContratoFixtures.VAGA_LIBERADA));

@@ -159,6 +159,8 @@ async function executarPassosNarrados(passos, textos) {
       var item = passos[passo];
       irParaAba(item.aba);
       narrar('Passo ' + (passo + 1) + '/' + total + ': ' + item.titulo, item.detalhe, passo / total);
+      // Passos que precisam do apresentador (ex.: mostrar o RabbitMQ) pausam logo que aparecem, antes da espera do ritmo
+      if (item.antes) { await item.antes(); }
       await esperarRitmo();
       try {
         var resultado = await item.rodar();

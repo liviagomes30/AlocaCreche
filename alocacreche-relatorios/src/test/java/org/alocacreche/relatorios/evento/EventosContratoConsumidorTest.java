@@ -69,7 +69,7 @@ class EventosContratoConsumidorTest {
 
         assertThatCode(() -> listener.receber(evento)).doesNotThrowAnyException();
 
-        verify(repository).upsert(2L, 1L, 3L, 5, EVENT_ID);
+        verify(repository).upsert(2L, 1L, 3L, 5, "MATERNAL", "Creche Sol", "Centro", EVENT_ID);
         verify(invalidador).invalidarAposCommit(1L);
     }
 

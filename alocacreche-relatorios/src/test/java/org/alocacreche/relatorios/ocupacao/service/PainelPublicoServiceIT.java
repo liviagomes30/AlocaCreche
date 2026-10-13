@@ -8,7 +8,9 @@ import static org.mockito.Mockito.verify;
 import com.redis.testcontainers.RedisContainer;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import org.alocacreche.relatorios.filaespera.repository.FilaEsperaInscricaoRepository;
 import org.alocacreche.relatorios.ocupacao.dto.PainelPublicoDTO;
 import org.alocacreche.relatorios.ocupacao.event.VagaLiberadaEvent;
 import org.alocacreche.relatorios.ocupacao.listener.VagaLiberadaListener;
@@ -59,6 +61,7 @@ class PainelPublicoServiceIT {
     @Autowired private PainelPublicoService service;
     @Autowired private VagaLiberadaListener vagaLiberadaListener;
     @MockitoSpyBean private OcupacaoTurmaRepository repository;
+    @Autowired private FilaEsperaInscricaoRepository filaRepository;
     @Autowired private PlatformTransactionManager transactionManager;
     @PersistenceContext private EntityManager entityManager;
 
@@ -74,6 +77,7 @@ class PainelPublicoServiceIT {
         transactionTemplate.executeWithoutResult(status -> {
             TenantContext.aplicar(entityManager, 1L);
             entityManager.createNativeQuery("DELETE FROM ocupacao_turma").executeUpdate();
+            entityManager.createNativeQuery("DELETE FROM fila_espera_inscricao").executeUpdate();
         });
     }
 
@@ -127,6 +131,86 @@ class PainelPublicoServiceIT {
 
         // Sem a invalidacao, o painel devolveria 3 por ate 60s (TTL do cache).
         assertThat(service.obterPainel(504L).totalVagasDisponiveis()).isEqualTo(5L);
+    }
+
+    @Test
+    void obterPainelSomaVagasPorFaixaNaOrdemDoBercarioAPreEscola() {
+        seedTurmaDetalhada(510L, 5101L, 70L, 2, "PRE_ESCOLA", "Creche Lua", "Centro", 1L);
+        seedTurmaDetalhada(510L, 5102L, 71L, 3, "BERCARIO", "Creche Sol", "Norte", 2L);
+        seedTurmaDetalhada(510L, 5103L, 72L, 4, "BERCARIO", "Creche Mar", "Sul", 3L);
+
+        PainelPublicoDTO painel = service.obterPainel(510L);
+
+        assertThat(painel.vagasPorFaixa())
+                .containsExactly(
+                        new PainelPublicoDTO.VagasPorFaixa("BERCARIO", 7L, 2L),
+                        new PainelPublicoDTO.VagasPorFaixa("PRE_ESCOLA", 2L, 1L));
+    }
+
+    @Test
+    void obterPainelListaCrechesComVagaOrdenadasEIgnoraTurmasLotadas() {
+        seedTurmaDetalhada(511L, 5111L, 80L, 1, "MATERNAL", "Creche Beta", "Centro", 1L);
+        seedTurmaDetalhada(511L, 5112L, 81L, 6, "BERCARIO", "Creche Alfa", "Norte", 2L);
+        seedTurmaDetalhada(511L, 5113L, 82L, 0, "MATERNAL", "Creche Lotada", "Sul", 3L);
+        seedTurma(511L, 5114L, 83L, 1, 4L);
+
+        PainelPublicoDTO painel = service.obterPainel(511L);
+
+        assertThat(painel.crechesComVaga())
+                .extracting(PainelPublicoDTO.CrecheComVaga::nome)
+                .containsExactly("Creche Alfa", "Creche #83", "Creche Beta");
+        assertThat(painel.crechesComVaga().get(0).bairro()).isEqualTo("Norte");
+        assertThat(painel.crechesComVaga().get(0).faixaEtaria()).isEqualTo("BERCARIO");
+    }
+
+    @Test
+    void obterPainelOcultaFilaAbaixoDoMinimoParaNaoIdentificarFamilias() {
+        seedFila(512L, 3);
+
+        PainelPublicoDTO painel = service.obterPainel(512L);
+
+        assertThat(painel.familiasAguardando()).isNull();
+        assertThat(painel.familiasAguardandoAbaixoDoMinimo()).isTrue();
+        assertThat(painel.esperaMediaDias()).isNull();
+    }
+
+    @Test
+    void obterPainelDivulgaFilaAgregadaQuandoHaFamiliasSuficientes() {
+        seedFila(513L, 6);
+
+        PainelPublicoDTO painel = service.obterPainel(513L);
+
+        assertThat(painel.familiasAguardando()).isEqualTo(6L);
+        assertThat(painel.familiasAguardandoAbaixoDoMinimo()).isFalse();
+        assertThat(painel.esperaMediaDias()).isNotNull().isGreaterThanOrEqualTo(0.0);
+    }
+
+    @Test
+    void obterPainelSemNinguemNaFilaNaoMarcaAbaixoDoMinimo() {
+        PainelPublicoDTO painel = service.obterPainel(514L);
+
+        assertThat(painel.familiasAguardando()).isZero();
+        assertThat(painel.familiasAguardandoAbaixoDoMinimo()).isFalse();
+    }
+
+    private void seedTurmaDetalhada(
+            Long municipioId, Long turmaId, Long crecheId, Integer vagas,
+            String faixa, String nome, String bairro, Long eventId) {
+        transactionTemplate.executeWithoutResult(status -> {
+            TenantContext.aplicar(entityManager, municipioId);
+            repository.upsert(turmaId, municipioId, crecheId, vagas, faixa, nome, bairro, eventId);
+        });
+    }
+
+    private void seedFila(Long municipioId, int familias) {
+        transactionTemplate.executeWithoutResult(status -> {
+            TenantContext.aplicar(entityManager, municipioId);
+            for (int i = 1; i <= familias; i++) {
+                filaRepository.upsert(
+                        municipioId * 100 + i, 9000L, 90L, municipioId,
+                        LocalDate.now().minusDays(i), null, (long) i);
+            }
+        });
     }
 
     private void seedTurma(

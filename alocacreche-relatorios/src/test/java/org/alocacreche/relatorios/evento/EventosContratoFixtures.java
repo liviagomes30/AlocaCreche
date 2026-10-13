@@ -18,6 +18,9 @@ final class EventosContratoFixtures {
               "turmaId": 2,
               "crecheId": 3,
               "vagasDisponiveis": 5,
+              "faixaEtaria": "MATERNAL",
+              "crecheNome": "Creche Sol",
+              "bairro": "Centro",
               "ocorridoEm": "2026-10-05T14:30:15"
             }
             """;

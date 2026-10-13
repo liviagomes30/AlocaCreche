@@ -121,6 +121,18 @@
   .rodape-cartoes { margin-top: 18px; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; color: var(--suave); font-size: .9rem; }
   .rodape-cartoes b { color: var(--texto); }
 
+  /* Detalhes: faixas, creches com vaga e fila agregada */
+  .bloco { margin-top: 26px; }
+  .bloco h2 { margin: 0 0 10px; font-size: 1.1rem; color: var(--roxo-escuro); }
+  .faixas { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+  .faixa { background: #fff; border: 1px solid var(--roxo-borda); border-radius: 16px; padding: 16px 18px; }
+  .faixa b { display: block; font-size: 2rem; font-variant-numeric: tabular-nums; color: var(--roxo-medio); }
+  .faixa span { color: var(--suave); font-size: .9rem; }
+  .tabela-painel { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid var(--roxo-borda); border-radius: 16px; overflow: hidden; }
+  .tabela-painel th, .tabela-painel td { text-align: left; padding: 10px 14px; font-size: .93rem; border-bottom: 1px solid var(--roxo-claro); }
+  .tabela-painel th { background: var(--roxo-claro); color: var(--roxo-escuro); }
+  .tabela-painel td.num { font-weight: 700; font-variant-numeric: tabular-nums; }
+  .vazio { color: var(--suave); font-size: .93rem; margin: 0; }
   .explica { margin-top: 26px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
   .explica section { background: #fff; border: 1px solid var(--roxo-borda); border-radius: 16px; padding: 18px 20px; }
   .explica h2 { margin: 0 0 6px; font-size: 1rem; color: var(--roxo-escuro); }
@@ -135,7 +147,7 @@
   body.tela-cheia .explica { display: none; }
 
   @media (max-width: 820px) {
-    .cartoes, .explica { grid-template-columns: 1fr; }
+    .cartoes, .explica, .faixas { grid-template-columns: 1fr; }
     header { padding-bottom: 76px; }
   }
   @media (prefers-reduced-motion: reduce) {
@@ -215,6 +227,26 @@
     <span>Consultado: <b id="consultadoHa">-</b></span>
   </div>
 
+  <section class="bloco" id="blocoFaixas" hidden>
+    <h2>Vagas por faixa etária</h2>
+    <div class="faixas" id="faixas"></div>
+  </section>
+
+  <section class="bloco" id="blocoCreches" hidden>
+    <h2>Onde há vaga agora</h2>
+    <table class="tabela-painel"><thead><tr><th>Creche</th><th>Bairro</th><th>Faixa</th><th>Vagas</th></tr></thead><tbody id="listaCreches"></tbody></table>
+    <p class="vazio" id="vazioCreches" hidden>Nenhuma turma com vaga livre no momento.</p>
+  </section>
+
+  <section class="bloco" id="blocoFila" hidden>
+    <h2>Fila de espera</h2>
+    <div class="faixas">
+      <div class="faixa"><b id="vFamilias">-</b><span>famílias aguardando vaga</span></div>
+      <div class="faixa"><b id="vEspera">-</b><span>dias de espera, em média</span></div>
+    </div>
+    <p class="vazio" id="avisoFila" style="margin-top:8px"></p>
+  </section>
+
   <div class="explica">
     <section>
       <h2>Como esses números chegam aqui?</h2>
@@ -222,7 +254,7 @@
     </section>
     <section>
       <h2>Quais dados são mostrados?</h2>
-      <p>Apenas totais do município. Nenhum nome, CPF, renda ou dado de família aparece aqui, em respeito à Lei Geral de Proteção de Dados (LGPD).</p>
+      <p>Apenas totais do município e a lista pública de creches com vaga. Nenhum nome de criança, CPF, renda ou dado de família aparece aqui, em respeito à Lei Geral de Proteção de Dados (LGPD). Quando menos de 5 famílias aguardam, o número é ocultado para ninguém ser identificado.</p>
     </section>
   </div>
 </main>
@@ -280,6 +312,55 @@
     return 'há ' + Math.floor(s / 60) + ' min';
   }
 
+  var ROTULO_FAIXA = { BERCARIO: 'Berçário', MATERNAL: 'Maternal', PRE_ESCOLA: 'Pré-escola' };
+
+  function celula(texto, classe) {
+    var td = document.createElement('td');
+    td.textContent = texto;
+    if (classe) { td.className = classe; }
+    return td;
+  }
+
+  function desenharDetalhes(dados) {
+    var faixas = dados.vagasPorFaixa || [];
+    $('blocoFaixas').hidden = faixas.length === 0;
+    var alvoFaixas = $('faixas');
+    alvoFaixas.textContent = '';
+    faixas.forEach(function (f) {
+      var caixa = document.createElement('div');
+      caixa.className = 'faixa';
+      var numero = document.createElement('b');
+      numero.textContent = String(f.vagasDisponiveis);
+      var rotulo = document.createElement('span');
+      rotulo.textContent = (ROTULO_FAIXA[f.faixaEtaria] || f.faixaEtaria) + ' · vagas livres em ' + f.turmas + ' turma(s)';
+      caixa.appendChild(numero);
+      caixa.appendChild(rotulo);
+      alvoFaixas.appendChild(caixa);
+    });
+
+    var creches = dados.crechesComVaga || [];
+    $('blocoCreches').hidden = Number(dados.totalTurmas || 0) === 0;
+    var corpo = $('listaCreches');
+    corpo.textContent = '';
+    creches.forEach(function (c) {
+      var linha = document.createElement('tr');
+      linha.appendChild(celula(c.nome));
+      linha.appendChild(celula(c.bairro || '-'));
+      linha.appendChild(celula(ROTULO_FAIXA[c.faixaEtaria] || c.faixaEtaria || '-'));
+      linha.appendChild(celula(String(c.vagasDisponiveis), 'num'));
+      corpo.appendChild(linha);
+    });
+    $('vazioCreches').hidden = creches.length > 0;
+
+    $('blocoFila').hidden = Number(dados.totalTurmas || 0) === 0;
+    var oculto = dados.familiasAguardandoAbaixoDoMinimo === true;
+    $('vFamilias').textContent = oculto || dados.familiasAguardando == null ? '-' : String(dados.familiasAguardando);
+    $('vEspera').textContent = dados.esperaMediaDias == null ? '-' : String(dados.esperaMediaDias).replace('.', ',');
+    $('avisoFila').textContent = oculto
+      ? 'Há menos de 5 famílias aguardando: o número exato não é divulgado, para proteger a privacidade.'
+      : '';
+  }
+
   function definirNumero(id, chave, novo) {
     var el = $(id);
     var antigo = estado.valores[chave];
@@ -323,6 +404,7 @@
       definirNumero('vVagas', 'vagas', Number(dados.totalVagasDisponiveis || 0));
       definirNumero('vCreches', 'creches', Number(dados.totalCrechesComVaga || 0));
       definirNumero('vTurmas', 'turmas', Number(dados.totalTurmas || 0));
+      desenharDetalhes(dados);
       $('atualizadoEm').textContent = formatarDataHora(dados.atualizadoEm);
       estado.ultimoSucesso = Date.now();
       if (Number(dados.totalTurmas || 0) === 0) {

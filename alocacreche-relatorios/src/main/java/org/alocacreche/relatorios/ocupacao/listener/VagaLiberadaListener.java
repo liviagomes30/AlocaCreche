@@ -34,6 +34,9 @@ public class VagaLiberadaListener {
                 evento.municipioId(),
                 evento.crecheId(),
                 evento.vagasDisponiveis(),
+                evento.faixaEtaria(),
+                evento.crecheNome(),
+                evento.bairro(),
                 evento.eventId());
         painelCacheInvalidador.invalidarAposCommit(evento.municipioId());
 

@@ -53,7 +53,7 @@ class VagaLiberadaListenerTest {
                 .createNativeQuery("SELECT set_config('app.current_tenant', ?1, true)");
         verify(query).setParameter(1, "7");
         verify(query).getSingleResult();
-        verify(repository).upsert(100L, 7L, 10L, 5, 1L);
+        verify(repository).upsert(100L, 7L, 10L, 5, null, null, null, 1L);
         verify(painelCacheInvalidador).invalidarAposCommit(7L);
     }
 
