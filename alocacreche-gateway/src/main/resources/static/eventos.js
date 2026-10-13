@@ -88,6 +88,14 @@ function avaliarEventos() {
   estado.eventos.forEach(function (e) {
     if (e.observavel === false && acoesComObservavel[e.acaoId] && acoesRefletidas[e.acaoId]) { e.estado = 'refletido'; }
   });
+  // A projeção é aplicada em ordem: se um evento mais novo do grupo foi refletido, os mais antigos também foram,
+  // mesmo que um valor intermediário (ex.: fila = 1 entre duas alocações seguidas) nunca tenha sido lido no relatório
+  var gruposComEventoRefletido = {};
+  estado.eventos.forEach(function (e) {
+    var chave = chaveDoGrupo(e);
+    if (e.estado === 'refletido') { gruposComEventoRefletido[chave] = true; }
+    else if (gruposComEventoRefletido[chave]) { e.estado = 'refletido'; }
+  });
   salvarEstado();
   renderizarTimeline();
   atualizarEstadoFinalDoFluxo();
@@ -183,7 +191,57 @@ function aoAcompanharExpiracao() {
   avisar('Expiração da matrícula #' + matriculaId + ' marcada: rode o SQL e espere o job. Veja a linha do tempo.', 'ok');
 }
 
+// Nome da criança de cada inscrição, para contar o que o job fez em linguagem de gente
+async function nomesPorInscricao() {
+  var r = await api('GET', '/api/v1/inscricao/inscricoes', { automatica: true, rotulo: 'Core: inscrições' });
+  var nomes = {};
+  if (r.ok) { r.dados.forEach(function (i) { nomes[i.id] = i.nome; }); }
+  return nomes;
+}
+
+async function aoVencerPrazo() {
+  var matriculaId = Number($('e_expSel').value);
+  var saida = $('e_jobRes');
+  if (!matriculaId) { avisar('Aloque uma vaga primeiro (matrícula PENDENTE).', 'erro'); return; }
+  var r = await api('POST', '/api/v1/matricula/matriculas/' + matriculaId + '/vencer-prazo', { rotulo: 'Vencer o prazo da matrícula ' + matriculaId });
+  saida.textContent = r.ok
+    ? 'Prazo da matrícula #' + matriculaId + ' colocado em ' + String(r.dados.prazoConfirmacao).slice(0, 10) + ' (vencido). Ela ainda está PENDENTE: agora execute o job.'
+    : 'Não foi possível vencer o prazo: ' + mensagemDeErro(r);
+}
+
+// Roda uma rodada do job na hora e conta o que mudou comparando as matrículas antes e depois
+async function aoExecutarJob() {
+  var saida = $('e_jobRes');
+  var botao = $('e_btnJob');
+  botao.disabled = true;
+  saida.textContent = 'Executando uma rodada do job...';
+  try {
+    var antes = await api('GET', '/api/v1/matricula/matriculas', { automatica: true, rotulo: 'Core: matrículas (antes do job)' });
+    var rodada = await api('POST', '/api/v1/matricula/manutencao/executar', { rotulo: 'Executar uma rodada do job de manutenção' });
+    if (!rodada.ok) { saida.textContent = 'Não foi possível executar o job: ' + mensagemDeErro(rodada); return; }
+    var depois = await api('GET', '/api/v1/matricula/matriculas', { automatica: true, rotulo: 'Core: matrículas (depois do job)' });
+    var nomes = await nomesPorInscricao();
+    var statusAntes = {};
+    if (antes.ok) { antes.dados.forEach(function (m) { statusAntes[m.id] = m.status; }); }
+    var mudancas = [];
+    if (depois.ok) {
+      depois.dados.forEach(function (m) {
+        if (statusAntes[m.id] === undefined) { mudancas.push('Nova matrícula #' + m.id + ' (' + m.status + ') para ' + (nomes[m.inscricaoId] || 'inscrição #' + m.inscricaoId) + ': convocada pelo job'); }
+        else if (statusAntes[m.id] !== m.status) { mudancas.push('Matrícula #' + m.id + ' de ' + (nomes[m.inscricaoId] || 'inscrição #' + m.inscricaoId) + ': ' + statusAntes[m.id] + ' → ' + m.status); }
+      });
+    }
+    saida.textContent = mudancas.length ? 'O job fez: ' + mudancas.join(' · ') + '.' : 'O job rodou e não encontrou nada para fazer (nenhum prazo vencido e nenhuma vaga livre com fila).';
+    await carregarDoBanco();
+    aoMudarEstado();
+    atualizarRelatorios();
+  } finally {
+    botao.disabled = false;
+  }
+}
+
 function iniciarEventos() {
+  $('e_btnVencer').onclick = aoVencerPrazo;
+  $('e_btnJob').onclick = aoExecutarJob;
   $('e_expSel').onchange = renderizarJobDeExpiracao;
   $('e_btnCopiarSql').onclick = function () { copiar($('e_expSql').textContent, 'SQL copiado.'); };
   $('e_btnCopiarSqlMatriculas').onclick = function () { copiar($('e_sqlMatriculas').textContent, 'SQL copiado.'); };

@@ -52,6 +52,12 @@
         </div>
       </div>
       <div class="detalhe" id="narradorDetalhe"></div>
+      <div class="narrador-comando" id="narradorComando" style="display:none">
+        <code id="narradorComandoTexto"></code>
+        <button id="btnNarradorCopiar">Copiar comando</button>
+        <button id="btnNarradorAbrir" style="display:none">Abrir no navegador</button>
+        <button id="btnNarradorSimular" title="Usa a pausa simulada do envio, sem precisar do terminal">Simular em vez disso</button>
+      </div>
       <div class="progresso"><i id="narradorBarra" style="width:0"></i></div>
       <ul id="narradorLista"></ul>
     </div>
@@ -353,15 +359,6 @@
 
       <div class="painel destaque">
         <h3>Demonstração guiada da Stack C <span class="selo info">cerca de 2 minutos</span></h3>
-        <p class="dica" style="margin-top:0">Percorre, passo a passo e com narração, tudo o que a Stack C entrega, com a evidência de cada etapa:</p>
-        <ol class="resumo-demo">
-          <li>Segurança própria do MSRelatorios (401, 401 e 403) e o painel público sem login, só com totais.</li>
-          <li>Outbox transacional: uma ação do core grava o evento na mesma transação.</li>
-          <li>Publicador em lote enviando ao RabbitMQ e o MSRelatorios aplicando as projeções.</li>
-          <li>Os quatro relatórios gerenciais conferidos contra o que foi feito.</li>
-          <li>Falha do envio e recuperação automática, sem perder nenhum evento.</li>
-          <li>Idempotência (evento antigo ignorado), fila de rejeição e limite do gateway no painel público.</li>
-        </ol>
         <div class="linha-botoes">
           <button id="c_btnDemoC">Executar demonstração da Stack C</button>
           <label style="display:inline;margin:0">Ritmo
@@ -370,6 +367,12 @@
               <option value="2500" selected>normal</option>
               <option value="4500">lento (apresentação)</option>
             </select></label>
+          <label style="display:inline;margin:0">Falha do RabbitMQ
+            <select id="c_modoFalha" style="width:auto;display:inline-block">
+              <option value="real" selected>parar de verdade (você roda o comando)</option>
+              <option value="simulada">simulada (sem terminal)</option>
+            </select></label>
+          <label style="display:inline;margin:0"><input type="checkbox" id="c_mostrarRabbit" checked> pausar para mostrar o RabbitMQ (painel de gerenciamento)</label>
           <label style="display:inline;margin:0"><input type="checkbox" id="c_demoLimite" checked> incluir o limite do painel público (bloqueia o painel deste computador por cerca de 1 minuto)</label>
         </div>
         <p class="dica">Requisitos: perfil ADMIN, serviços no ar e job de matrículas desligado (a verificação da aba Roteiro confere isso). Use Pausar e Parar no quadro roxo do topo. A demonstração cria uma creche e uma turma novas, sem mexer nas existentes.</p>
@@ -391,6 +394,10 @@
         <div class="painel"><h3>Fila de espera <span class="selo info tecnico">GET /relatorios/fila-espera</span></h3><div class="rolagem" id="c_fila"><span class="vazio">Clique em Consultar.</span></div></div>
         <div class="painel"><h3>Taxa de confirmação <span class="selo info tecnico">GET /relatorios/matricula/taxa-confirmacao</span></h3><div id="c_taxa"><span class="vazio">Clique em Consultar.</span></div></div>
         <div class="painel"><h3>Distância média <span class="selo info tecnico">GET /relatorios/matricula/distancia-media</span></h3><div id="c_dist"><span class="vazio">Clique em Consultar.</span></div></div>
+      </div>
+      <div class="painel">
+        <h3>Crianças na fila de espera <span class="selo info">dados do core</span> <span class="selo info tecnico">GET /inscricao/inscricoes</span></h3>
+        <div class="rolagem" id="c_criancas"><span class="vazio">Clique em Consultar.</span></div>
       </div>
       <div class="painel">
         <h3>Painel público <span class="selo info">sem token</span> <span class="selo info tecnico">GET /relatorios/painel-publico</span></h3>
@@ -567,7 +574,16 @@
               <li>Aloque uma vaga (matrícula PENDENTE) e escolha-a aqui, de preferência numa turma com mais gente na fila:</li>
             </ol>
             <select id="e_expSel" aria-label="Matrícula PENDENTE para expirar"></select>
-            <ol start="2" style="padding-left:18px;margin:6px 0 0"><li>Vença o prazo por SQL no DBeaver (o comando já usa a matrícula escolhida e o município do token; execute como script, Alt+X):</li></ol>
+            <div class="explica" style="margin-top:8px">
+              <b>Sem DBeaver e sem esperar o relógio (recomendado):</b>
+              <div class="linha-botoes">
+                <button id="e_btnVencer" class="fantasma">1. Vencer o prazo desta matrícula</button>
+                <button id="e_btnJob">2. Executar o job agora</button>
+              </div>
+              <p class="dica" id="e_jobRes"></p>
+              <p class="dica">O botão 2 roda uma rodada do job (a mesma lógica do agendador) na hora, mesmo com o job agendado desligado: expira as matrículas vencidas e preenche com a fila as vagas livres. Só funciona com o controle de demonstração ligado (o <code>demo-subir.sh</code> liga).</p>
+            </div>
+            <ol start="2" style="padding-left:18px;margin:6px 0 0"><li>Alternativa: vença o prazo por SQL no DBeaver (o comando já usa a matrícula escolhida e o município do token; execute como script, Alt+X):</li></ol>
             <div class="cmd"><code id="e_expSql"></code><button class="mini sec" id="e_btnCopiarSql">Copiar</button></div>
             <ol start="3" style="padding-left:18px;margin:0"><li>Marque a expiração para acompanhar nos eventos (a tela assume que o job vai rodar):</li></ol>
             <div class="linha-botoes"><button id="e_btnExpiracao" class="fantasma">Acompanhar a expiração</button></div>
@@ -591,6 +607,13 @@
         <p class="dica" style="margin-top:0">Confere serviços, Outbox, RabbitMQ e o job de manutenção. A verificação roda ao abrir esta aba. Se algo mudou na interface, recarregue a página com Ctrl+F5.</p>
         <ul class="lista-guiada compacta" id="pre_lista"></ul>
         <div class="linha-botoes"><button id="pre_btn" class="fantasma">Verificar de novo</button></div>
+      </div>
+
+      <div class="painel">
+        <h3>Dados-base da cola</h3>
+        <p class="dica" style="margin-top:0">Carrega de uma vez os mesmos dados que a cola manda cadastrar à mão: 5 creches, 7 turmas e as 8 famílias na fila da Creche Sol (maternal, 3 vagas), na ordem de chegada da cola. Serve para ensaiar sem digitar tudo. Se o banco já tiver esses CPFs, a tela troca por novos.</p>
+        <div class="linha-botoes"><button id="r_btnMassa" class="fantasma">Carregar dados-base da cola</button></div>
+        <p class="dica" id="r_massaRes"></p>
       </div>
 
       <div class="painel">
@@ -671,6 +694,7 @@
 <script src="/seguranca.js"></script>
 <script src="/eventos.js"></script>
 <script src="/resiliencia.js"></script>
+<script src="/massa.js"></script>
 <script src="/demostackc.js"></script>
 <script src="/roteiro.js"></script>
 <script src="/principal.js"></script>

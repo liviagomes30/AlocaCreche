@@ -15,6 +15,7 @@ function irParaAba(nome) {
   if (nome === 'eventos') { renderizarTimeline(); }
   if (nome === 'seguranca') { renderizarUsuario(); }
   if (nome === 'roteiro') { verificarAmbiente(); }
+  if (nome === 'relatorios' && !detalheCarregado) { consultarDetalhe(); }
 }
 
 function aplicarModo(modo) {
@@ -186,6 +187,7 @@ async function iniciar() {
   iniciarEventos();
   iniciarResiliencia();
   iniciarDemoStackC();
+  iniciarMassa();
   iniciarRoteiro();
   renderizarCabecalhoDeUsuario();
   aplicarModo(sessionStorage.getItem(CHAVES.modo) || 'tecnico');

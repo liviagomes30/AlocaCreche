@@ -137,6 +137,7 @@ var botoesDaDemoEmExecucao = [];
 
 function prepararNarracao(idsBotoes, idRitmo) {
   demo = { rodando: true, pausado: false, parar: false, ritmoId: idRitmo };
+  esconderComandoDoNarrador();
   botoesDaDemoEmExecucao = idsBotoes;
   idsBotoes.forEach(function (id) { $(id).disabled = true; });
   definirNarradorRecolhido(false);
@@ -293,6 +294,25 @@ async function executarDemoCompleta() {
     aviso: 'Demo completa concluída.'
   });
 }
+
+/*
+ * Mostra no quadro do narrador um comando para o apresentador rodar no terminal, com o botão "Copiar comando" e,
+ * se houver aoSimular, o botão "Simular em vez disso". Expande o quadro para o comando não ficar escondido.
+ */
+function mostrarComandoNoNarrador(comando, aoSimular, urlParaAbrir) {
+  definirNarradorRecolhido(false);
+  $('narradorComandoTexto').textContent = comando;
+  $('btnNarradorCopiar').onclick = function () { copiar(comando, 'Comando copiado. Cole no terminal.'); };
+  var abrir = $('btnNarradorAbrir');
+  abrir.style.display = urlParaAbrir ? '' : 'none';
+  abrir.onclick = function () { window.open(urlParaAbrir, '_blank', 'noopener'); };
+  var simular = $('btnNarradorSimular');
+  simular.style.display = aoSimular ? '' : 'none';
+  simular.onclick = function () { esconderComandoDoNarrador(); aoSimular(); };
+  $('narradorComando').style.display = 'flex';
+}
+
+function esconderComandoDoNarrador() { $('narradorComando').style.display = 'none'; }
 
 // Recolhe ou expande o quadro do narrador (recolhido, ele não cobre o conteúdo da tela)
 function definirNarradorRecolhido(recolher) {

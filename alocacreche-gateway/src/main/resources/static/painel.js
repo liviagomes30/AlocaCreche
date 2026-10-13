@@ -4,6 +4,8 @@
  */
 
 var snapshot = null;
+// A aba Stack C carrega os relatórios sozinha na primeira vez que é aberta
+var detalheCarregado = false;
 // Soma das vagas no relatório e no banco a cada atualização (só em memória), para o gráfico ao vivo
 var historicoVagas = [];
 var LIMITE_HISTORICO = 40;
@@ -385,7 +387,73 @@ function jsonBloco(dados) {
   return el('pre', { class: 'json tecnico', texto: mascarar(JSON.stringify(dados, null, 2)) });
 }
 
+// Caixa "Como se chegou neste número": explica a origem do dado e a conta, com os números atuais
+function legendaDoRelatorio(texto) {
+  return el('p', { class: 'comochegou' }, [el('b', { texto: 'Como se chegou neste número: ' }), document.createTextNode(texto)]);
+}
+
+function mesAno(periodo) {
+  var partes = String(periodo).split('-');
+  return partes[1] + '/' + partes[0];
+}
+
+function rotuloDaTurmaDoCore(turma) {
+  var creche = crecheLocal(turma.crecheId);
+  return '#' + turma.id + ' ' + (creche ? creche.nome + ', ' : '') + turma.faixaEtaria;
+}
+
+// Crianças na fila vêm do core (inscrição + fila de espera), não do relatório: o relatório só guarda a contagem
+async function renderizarCriancasNaFila(s, turmaId, crecheId) {
+  var alvo = $('c_criancas');
+  alvo.textContent = '';
+  var r = await api('GET', '/api/v1/inscricao/inscricoes', { rotulo: 'Core: crianças na fila' });
+  if (!r.ok) { alvo.appendChild(mensagemSemAcesso(r)); return; }
+  var turmas = {};
+  (s.turmasCore || []).forEach(function (t) { turmas[t.id] = t; });
+  var fila = r.dados.filter(function (i) {
+    if (i.status !== 'AGUARDANDO' || !i.turmaId) { return false; }
+    if (turmaId && i.turmaId !== turmaId) { return false; }
+    return !crecheId || (turmas[i.turmaId] && turmas[i.turmaId].crecheId === crecheId);
+  }).sort(function (a, b) { return a.turmaId - b.turmaId || a.posicao - b.posicao; });
+
+  var tabela = el('table', { class: 'tabela' });
+  var turmaAnterior = null;
+  preencherTabela(tabela, ['Turma', 'Posição', 'Criança', 'Score', 'Inscrita em'],
+    fila.map(function (i) {
+      // O nome da turma aparece só na primeira linha de cada grupo, para a lista ficar legível
+      var rotuloTurma = i.turmaId === turmaAnterior ? '' : (turmas[i.turmaId] ? rotuloDaTurmaDoCore(turmas[i.turmaId]) : '#' + i.turmaId);
+      turmaAnterior = i.turmaId;
+      return [
+        rotuloTurma,
+        String(i.posicao),
+        i.nome,
+        numero(i.scorePrioridade, 2),
+        new Date(i.dataInscricao).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+      ];
+    }), 'Nenhuma criança aguardando na fila para este filtro.');
+  alvo.appendChild(tabela);
+
+  // Confere, turma a turma, a contagem do core com a do relatório da fila de espera
+  var porTurma = {};
+  fila.forEach(function (i) { porTurma[i.turmaId] = (porTurma[i.turmaId] || 0) + 1; });
+  var contagens = el('p', { class: 'dica' });
+  Object.keys(porTurma).forEach(function (id) {
+    var noRelatorio = filaDaTurma(Number(id), s);
+    var qtdRelatorio = noRelatorio ? noRelatorio.quantidadeAguardando : 0;
+    var igual = qtdRelatorio === porTurma[id];
+    contagens.appendChild(el('span', { style: 'margin-right:12px' }, [
+      document.createTextNode('Turma #' + id + ': ' + porTurma[id] + ' no core, ' + qtdRelatorio + ' no relatório '),
+      selo(igual ? 'igual' : 'sincronizando...', igual ? 'ok' : 'aviso')
+    ]));
+  });
+  alvo.appendChild(contagens);
+  alvo.appendChild(legendaDoRelatorio(
+    'esta lista vem do banco do core (inscrição com status AGUARDANDO e a posição na fila de espera), e não do relatório. O relatório só guarda a contagem por turma, de propósito, para não expor dados pessoais. ' +
+    'A posição é a ordem por score (do maior para o menor) e, no empate, quem se inscreveu antes. Total listado: ' + fila.length + ' criança(s).'));
+}
+
 async function consultarDetalhe(opcoes) {
+  detalheCarregado = true;
   opcoes = opcoes || {};
   var turmaId = Number($('c_fTurma').value) || null;
   var crecheId = Number($('c_fCreche').value) || null;
@@ -403,6 +471,10 @@ async function consultarDetalhe(opcoes) {
       }),
       'Nenhuma turma para o filtro.');
     blocoOcup.appendChild(tabela);
+    var somaVagasDetalhe = s.ocupacao.reduce(function (a, o) { return a + (o.vagasDisponiveis || 0); }, 0);
+    blocoOcup.appendChild(legendaDoRelatorio(
+      'cada linha é o último evento vaga.liberada aplicado à turma na projeção do MSRelatórios (a sequência é o id do evento na Outbox e só avança). ' +
+      '"Vagas no banco" vem direto do core, para comparar; "Na fila" vem do relatório da fila de espera. Agora: ' + somaVagasDetalhe + ' vaga(s) disponível(is) em ' + s.ocupacao.length + ' turma(s).'));
     blocoOcup.appendChild(jsonBloco(r[0].dados));
   } else { blocoOcup.appendChild(mensagemSemAcesso(r[0])); }
 
@@ -413,6 +485,11 @@ async function consultarDetalhe(opcoes) {
     preencherTabela(tabelaFila, ['Turma', 'Creche', 'Aguardando', 'Espera média (dias)'],
       s.fila.map(function (f) { return ['#' + f.turmaId, '#' + f.crecheId, String(f.quantidadeAguardando), numero(f.tempoMedioEsperaDias, 1)]; }), 'Fila vazia para o filtro.');
     blocoFila.appendChild(tabelaFila);
+    var totalAguardando = s.fila.reduce(function (a, f) { return a + f.quantidadeAguardando; }, 0);
+    blocoFila.appendChild(legendaDoRelatorio(
+      'Aguardando = inscrições da turma sem data de saída: entram pelo evento fila.atualizada e saem quando a vaga é alocada. ' +
+      'Espera média = média de dias entre a entrada na fila e a saída (ou até hoje, para quem ainda aguarda), de todas as inscrições da turma, inclusive as já convocadas. ' +
+      'Agora: ' + totalAguardando + ' aguardando em ' + s.fila.length + ' turma(s).'));
     blocoFila.appendChild(jsonBloco(r[1].dados));
   } else { blocoFila.appendChild(mensagemSemAcesso(r[1])); }
 
@@ -425,6 +502,9 @@ async function consultarDetalhe(opcoes) {
       el('div', { class: 'cartao' }, [el('b', { texto: String(t.totalConfirmadas) }), el('span', { texto: 'confirmadas' })]),
       el('div', { class: 'cartao' }, [el('b', { texto: t.taxaConfirmacao === null ? '-' : numero(t.taxaConfirmacao * 100, 0) + '%' }), el('span', { texto: 'taxa de confirmação' })])
     ]));
+    blocoTaxa.appendChild(legendaDoRelatorio(
+      'conta as matrículas convocadas no mês ' + mesAno(periodoSelecionado()) + ' (pela data de convocação). Confirmadas são as de status CONFIRMADA; pendentes, canceladas e expiradas entram no total, mas não como confirmadas. ' +
+      'Conta: ' + t.totalConfirmadas + ' confirmada(s) ÷ ' + t.totalMatriculas + ' matrícula(s) = ' + (t.taxaConfirmacao === null ? 'sem matrículas no período' : numero(t.taxaConfirmacao * 100, 0) + '%') + '.'));
     blocoTaxa.appendChild(jsonBloco(t));
   } else { blocoTaxa.appendChild(mensagemSemAcesso(r[2])); }
 
@@ -435,10 +515,14 @@ async function consultarDetalhe(opcoes) {
     blocoDist.appendChild(el('div', { class: 'cartoes', style: 'margin:0' }, [
       el('div', { class: 'cartao' }, [el('b', { texto: d.distanciaMediaKm === null ? '-' : numero(d.distanciaMediaKm, 2) }), el('span', { texto: 'km (média das alocações do período)' })])
     ]));
+    blocoDist.appendChild(legendaDoRelatorio(
+      'média, em km, da distância gravada em cada matrícula convocada no mês ' + mesAno(periodoSelecionado()) + '. A distância é calculada na alocação (Haversine entre a casa do responsável e a creche) e vale para matrículas de qualquer status. ' +
+      'Resultado: ' + (d.distanciaMediaKm === null ? 'sem matrículas no período' : numero(d.distanciaMediaKm, 2) + ' km') + '.'));
     blocoDist.appendChild(jsonBloco(d));
   } else { blocoDist.appendChild(mensagemSemAcesso(r[3])); }
 
   renderizarPainelPublico(r[4]);
+  await renderizarCriancasNaFila(s, turmaId, crecheId);
   if (opcoes.municipio) {
     avisar('Município ' + opcoes.municipio + ' no relatório de ocupação: ' + r[0].status + (r[0].status === 403 ? ' (isolamento por município funcionando)' : ''), r[0].status === 403 ? 'ok' : 'erro');
   }
@@ -456,6 +540,9 @@ function renderizarPainelPublico(resposta) {
     el('div', { class: 'cartao publico' }, [el('b', { texto: String(p.totalTurmas) }), el('span', { texto: 'turmas' })]),
     el('div', { class: 'cartao publico' }, [el('b', { texto: textoHora(p.atualizadoEm) }), el('span', { texto: 'atualizado em' })])
   ]));
+  alvo.appendChild(legendaDoRelatorio(
+    'vagas disponíveis = soma das vagas livres de todas as turmas do município (' + p.totalVagasDisponiveis + '); creches com vaga = creches com pelo menos uma turma com vaga livre (' + p.totalCrechesComVaga + '); ' +
+    'turmas = turmas com projeção (' + p.totalTurmas + '); atualizado em = última vez que um evento mudou a ocupação. Só totais, sem dados pessoais, e o resultado fica em cache até um novo evento ser aplicado.'));
   alvo.appendChild(el('p', { class: 'dica', texto: 'Resposta ' + resposta.status + ' sem enviar token (' + Math.round(resposta.ms) + ' ms).' }));
 }
 

@@ -202,7 +202,7 @@ aside.registro {
 .registro-item.r-erro { border-left: 4px solid var(--erro); }
 .registro-detalhe { margin-top: 6px; display: none; }
 .registro-item.aberto .registro-detalhe { display: block; }
-.registro-detalhe pre { background: #0d1117; color: #e6edf3; padding: 6px 8px; border-radius: 6px; white-space: pre-wrap; overflow-wrap: anywhere; margin: 4px 0; max-height: 160px; overflow: auto; }
+.registro-detalhe pre { background: #0d1117; color: #e6edf3; padding: 6px 8px; border-radius: 6px; white-space: pre-wrap; overflow-wrap: anywhere; margin: 4px 0; max-height: 260px; overflow: auto; }
 .m { font-weight: 700; font-size: .7rem; padding: 1px 6px; border-radius: 4px; background: #eaeef2; }
 .s { font-weight: 700; padding: 1px 7px; border-radius: 10px; }
 .s.ok { background: var(--ok-fundo); color: var(--ok); }
@@ -332,3 +332,22 @@ li.guiado .selo { text-align: center; justify-self: start; }
 .painel.destaque { border-left: 4px solid var(--azul); }
 .resumo-demo { margin: 6px 0 0; padding-left: 20px; font-size: .9rem; }
 .resumo-demo li { margin: 2px 0; }
+
+/* ---- Legendas dos relatórios e comando no narrador ---- */
+.comochegou { font-size: .8rem; color: var(--suave); background: var(--info-fundo); border-radius: 6px; padding: 6px 10px; margin: 8px 0 0; }
+.comochegou b { color: var(--texto); }
+.narrador-comando { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 8px; background: rgba(0,0,0,.28); border-radius: 6px; padding: 6px 10px; }
+.narrador-comando code { flex: 1 1 220px; font-size: 1.05em; color: #fff; background: transparent; }
+.narrador.recolhido .narrador-comando { display: none !important; }
+
+/* ---- Registro de chamadas: seta de expandir e títulos do payload ---- */
+.registro-item .seta::before { content: '\25B8'; color: var(--suave); }
+.registro-item.aberto .seta::before { content: '\25BE'; }
+.registro-titulo { font-weight: 600; color: var(--texto); margin-top: 6px; }
+.registro-vazio { color: var(--suave); font-style: italic; margin: 2px 0 4px; }
+
+/* ---- Registro de chamadas: descrição da rota e resultado esperado ---- */
+.registro-oque { font-style: italic; color: var(--suave); margin: 4px 0 2px; }
+.registro-esperado { background: var(--info-fundo); color: #5b21b6; border-radius: 6px; padding: 4px 8px; margin: 4px 0; }
+.registro-item.r-esperado { border-left: 4px solid #7c3aed; }
+.registro-item .s.esperado { background: var(--info-fundo); color: #5b21b6; border-radius: 8px; padding: 0 6px; font-weight: 600; }

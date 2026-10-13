@@ -237,7 +237,9 @@ function renderizarIdempotencia() {
   var turmas = snapshot && snapshot.turmasCore ? snapshot.turmasCore : [];
   var opcoes = turmas.map(function (t) {
     var elegivel = t.vagasDisponiveis < t.vagasTotais;
-    return { valor: t.id, rotulo: 'Turma #' + t.id + ' (' + t.vagasDisponiveis + ' de ' + t.vagasTotais + ' vagas)' + (elegivel ? '' : ': sem alocação, evento antigo = atual'), desativada: !elegivel };
+    var creche = crecheLocal(t.crecheId);
+    var nome = (creche ? creche.nome + ', ' : '') + t.faixaEtaria;
+    return { valor: t.id, rotulo: 'Turma #' + t.id + ' (' + nome + '): ' + t.vagasDisponiveis + ' de ' + t.vagasTotais + ' vagas' + (elegivel ? '' : ', sem alocação (evento antigo = atual)'), desativada: !elegivel };
   });
   seletor.textContent = '';
   if (!opcoes.length) { seletor.appendChild(el('option', { value: '', texto: '(carregue os relatórios primeiro)' })); }

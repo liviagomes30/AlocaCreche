@@ -263,7 +263,7 @@ async function acaoDesistir(matriculaId, rotulo) {
     statusPosicao: null, realocada: false, vagasFinais: null
   };
   if (proximo) {
-    var consulta = await api('GET', '/api/v1/inscricao/inscricoes/' + proximo.id + '/posicao?turmaId=' + turmaId, { rotulo: 'Posição do próximo da fila após a desistência' });
+    var consulta = await api('GET', '/api/v1/inscricao/inscricoes/' + proximo.id + '/posicao?turmaId=' + turmaId, { rotulo: 'Posição do próximo da fila após a desistência', esperado: [404], motivoEsperado: 'quem estava na frente da fila já foi convocado pela alocação automática e saiu da fila' });
     resumo.statusPosicao = consulta.status;
     resumo.realocada = consulta.status === 404;
     if (consulta.ok) { proximo.posicao = consulta.dados.posicao; }

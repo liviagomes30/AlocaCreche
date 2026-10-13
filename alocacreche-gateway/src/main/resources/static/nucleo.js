@@ -222,11 +222,14 @@ function registrarChamada(metodo, caminho, status, ms, corpoReq, textoResp, temT
     status: status,
     ms: Math.round(ms),
     corpoReq: mascarar(corpoReq || ''),
-    corpoResp: mascarar(textoResp || '').slice(0, 600),
+    corpoResp: mascarar(textoResp || '').slice(0, 4000),
     temToken: temToken,
     automatica: !!opcoes.automatica,
     rotulo: opcoes.rotulo || '',
-    retryAfter: retryAfter || ''
+    retryAfter: retryAfter || '',
+    // Falha proposital de um passo da demonstração (ex.: 401 sem token): aparece como "esperado", não como erro
+    esperado: Array.isArray(opcoes.esperado) && opcoes.esperado.indexOf(status) >= 0,
+    motivoEsperado: opcoes.motivoEsperado || ''
   };
   entrada.curlSeguro = montarCurl(entrada, entrada.corpoReq);
   // O corpo bruto fica só em memória (não é gravado no sessionStorage)
@@ -269,6 +272,50 @@ function entradasFiltradas() {
   });
 }
 
+// O que cada rota faz, em uma frase, para quem olha o registro entender a chamada sem conhecer a API
+var DESCRICOES_DE_ROTA = {
+  'POST /auth/login': 'Login: devolve o token JWT, que carrega o município e as permissões.',
+  'POST /matricula/creches': 'Cria uma creche (nome, capacidade e endereço com latitude e longitude).',
+  'POST /matricula/turmas': 'Cria uma turma da creche e grava o evento vaga.liberada na Outbox.',
+  'GET /matricula/creches': 'Lista as creches do município (para a tela).',
+  'GET /matricula/turmas': 'Lista as turmas e as vagas no banco do core (para a tela).',
+  'GET /matricula/matriculas': 'Lista as matrículas do município e o status de cada uma (para a tela).',
+  'GET /matricula/creches/proximas': 'Sugere creches da faixa etária, da mais próxima para a mais distante.',
+  'POST /matricula/vagas/alocar': 'Aloca a vaga ao primeiro da fila e cria a matrícula PENDENTE.',
+  'POST /matricula/matriculas/{id}/confirmar': 'Confirma a matrícula PENDENTE dentro do prazo.',
+  'POST /matricula/matriculas/{id}/desistir': 'Cancela a matrícula, devolve a vaga e convoca o próximo da fila.',
+  'POST /matricula/matriculas/{id}/vencer-prazo': 'Demonstração: coloca o prazo de confirmação da matrícula no passado.',
+  'POST /matricula/manutencao/executar': 'Demonstração: uma rodada do job de manutenção (expira prazos vencidos e preenche vagas livres).',
+  'POST /inscricao/responsaveis': 'Cadastra o responsável (o CPF é único).',
+  'POST /inscricao/criancas': 'Cadastra a criança, ligada a um responsável.',
+  'POST /inscricao/inscricoes': 'Inscreve a criança na fila da turma e devolve a posição e o score.',
+  'GET /inscricao/responsaveis': 'Lista os responsáveis (sem CPF) para a tela.',
+  'GET /inscricao/criancas': 'Lista as crianças para a tela.',
+  'GET /inscricao/inscricoes': 'Lista as inscrições, com a posição na fila (para a tela).',
+  'GET /inscricao/inscricoes/{id}/posicao': 'Posição da inscrição na fila (Redis, com fallback no banco). 404 significa que já saiu da fila: foi convocada.',
+  'GET /relatorios/ocupacao': 'Relatório de ocupação: vagas disponíveis por turma, vindas da projeção do MSRelatórios.',
+  'GET /relatorios/fila-espera': 'Relatório da fila de espera: quantos aguardam e a espera média, por turma.',
+  'GET /relatorios/matricula/taxa-confirmacao': 'Taxa de confirmação: matrículas confirmadas sobre as convocadas no mês.',
+  'GET /relatorios/matricula/distancia-media': 'Distância média, em km, das matrículas convocadas no mês.',
+  'GET /relatorios/painel-publico': 'Painel público: totais de vagas, sem login e sem dados pessoais.',
+  'GET /notificacao/outbox': 'Situação da Outbox: eventos pendentes, enviados e com erro, mais o estado do RabbitMQ.',
+  'POST /notificacao/outbox/publicador/pausar': 'Demonstração: pausa o envio da Outbox ao RabbitMQ.',
+  'POST /notificacao/outbox/publicador/retomar': 'Demonstração: retoma o envio da Outbox ao RabbitMQ.',
+  'POST /notificacao/outbox/dlq/provocar': 'Demonstração: publica uma mensagem inválida no RabbitMQ; o MSRelatórios a rejeita e ela cai na fila de rejeição (DLQ).',
+  'POST /notificacao/outbox/dlq/limpar': 'Demonstração: esvazia a fila de rejeição de ocupação, tirando a mensagem inválida de teste.',
+  'POST /notificacao/outbox/reenviar-antigo': 'Demonstração: reenvia o evento mais antigo da turma; o relatório deve ignorá-lo.'
+};
+
+function descricaoDaRota(metodo, caminho) {
+  var rota = caminho.split('?')[0].replace(/^\/api\/v1/, '').replace(/\/\d+(?=\/|$)/g, '/{id}');
+  return DESCRICOES_DE_ROTA[metodo + ' ' + rota] || '';
+}
+
+// Devolve o JSON indentado para leitura; texto que não é JSON volta como está
+function formatarJson(texto) {
+  try { return JSON.stringify(JSON.parse(texto), null, 2); } catch (e) { return texto; }
+}
+
 function renderizarLog() {
   var lista = $('logLista');
   if (!lista) { return; }
@@ -277,23 +324,45 @@ function renderizarLog() {
   var filtradas = entradasFiltradas();
   lista.textContent = '';
   filtradas.slice(0, 120).forEach(function (e) {
-    var item = el('div', { class: 'registro-item r-' + classeStatus(e.status) + (aberto[e.id] ? ' aberto' : ''), 'data-id': e.id }, [
+    var item = el('div', { class: 'registro-item r-' + (e.esperado ? 'esperado' : classeStatus(e.status)) + (aberto[e.id] ? ' aberto' : ''), 'data-id': e.id }, [
       el('div', { class: 'l1' }, [
+        el('span', { class: 'seta', title: 'Clique para ver o payload enviado e a resposta' }),
         el('span', { class: 'hora', texto: e.hora }),
         el('span', { class: 'm', texto: e.metodo }),
         el('span', { class: 'rota', texto: e.caminho, title: e.caminho }),
-        el('span', { class: 's ' + classeStatus(e.status), texto: e.status === 0 ? 'rede' : String(e.status) }),
+        el('span', { class: 's ' + (e.esperado ? 'esperado' : classeStatus(e.status)), texto: e.status === 0 ? 'rede' : String(e.status) + (e.esperado ? ' esperado' : '') }),
         el('span', { class: 'hora', texto: e.ms + ' ms' })
       ])
     ]);
     if (e.rotulo) { item.appendChild(el('div', { class: 'rotulo', texto: e.rotulo + (e.temToken ? '' : ' (sem token)') })); }
-    var detalhe = el('div', { class: 'registro-detalhe tecnico' });
-    if (e.corpoReq) { detalhe.appendChild(el('div', { texto: 'Requisição:' })); detalhe.appendChild(el('pre', { texto: e.corpoReq })); }
-    detalhe.appendChild(el('div', { texto: 'Resposta' + (e.retryAfter ? ' (Retry-After ' + e.retryAfter + ' s)' : '') + ':' }));
-    detalhe.appendChild(el('pre', { texto: e.corpoResp || '(vazia)' }));
+    // Visível também no modo apresentação (sem a classe "tecnico"): é o que se mostra ao clicar na chamada
+    var detalhe = el('div', { class: 'registro-detalhe' });
+    var descricao = descricaoDaRota(e.metodo, e.caminho);
+    if (descricao) { detalhe.appendChild(el('div', { class: 'registro-oque', texto: descricao })); }
+    if (e.esperado) {
+      detalhe.appendChild(el('div', { class: 'registro-esperado', texto: 'Resposta ' + e.status + ' esperada neste passo' + (e.motivoEsperado ? ': ' + e.motivoEsperado : '') + '. Não é uma falha.' }));
+    }
+    detalhe.appendChild(el('div', { class: 'registro-titulo', texto: 'Payload enviado (corpo da requisição)' }));
+    if (e.corpoReq) {
+      detalhe.appendChild(el('pre', { texto: formatarJson(e.corpoReq) }));
+    } else {
+      detalhe.appendChild(el('div', { class: 'registro-vazio' }, [
+        document.createTextNode('Esta chamada não envia corpo (JSON). O que vai junto está na própria URL: '),
+        el('code', { texto: e.caminho })
+      ]));
+    }
+    detalhe.appendChild(el('div', { class: 'registro-titulo', texto: 'Resposta' + (e.retryAfter ? ' (Retry-After ' + e.retryAfter + ' s)' : '') }));
+    detalhe.appendChild(el('pre', { texto: e.corpoResp ? formatarJson(e.corpoResp) : '(vazia)' }));
+    var botoes = el('div', { class: 'linha-botoes', style: 'margin-top:4px' });
     var botao = el('button', { class: 'mini sec', texto: 'Copiar como curl' });
     botao.onclick = function (evento) { evento.stopPropagation(); copiar(curlDaEntrada(e.id), 'curl copiado (sem token)'); };
-    detalhe.appendChild(botao);
+    botoes.appendChild(botao);
+    if (e.corpoReq) {
+      var botaoPayload = el('button', { class: 'mini sec', texto: 'Copiar payload' });
+      botaoPayload.onclick = function (evento) { evento.stopPropagation(); copiar(formatarJson(e.corpoReq), 'Payload copiado'); };
+      botoes.appendChild(botaoPayload);
+    }
+    detalhe.appendChild(botoes);
     item.appendChild(detalhe);
     item.onclick = function () { item.classList.toggle('aberto'); };
     lista.appendChild(item);
