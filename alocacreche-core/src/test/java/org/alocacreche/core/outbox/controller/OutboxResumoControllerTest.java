@@ -15,7 +15,9 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.amqp.AmqpConnectException;
 import org.springframework.amqp.core.AmqpAdmin;
+import org.springframework.amqp.core.Message;
 import org.springframework.amqp.core.QueueInformation;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.http.HttpStatus;
 
 @DisplayName("OutboxResumoController")
@@ -24,9 +26,10 @@ class OutboxResumoControllerTest {
     private final OutboxEventRepository repository = mock(OutboxEventRepository.class);
     private final OutboxPublicadorService publicador = mock(OutboxPublicadorService.class);
     private final AmqpAdmin amqpAdmin = mock(AmqpAdmin.class);
+    private final RabbitTemplate rabbitTemplate = mock(RabbitTemplate.class);
 
     private OutboxResumoController controller(OutboxPublicadorControle controle) {
-        return new OutboxResumoController(repository, controle, publicador, amqpAdmin);
+        return new OutboxResumoController(repository, controle, publicador, amqpAdmin, rabbitTemplate);
     }
 
     @Test
@@ -93,6 +96,31 @@ class OutboxResumoControllerTest {
 
         assertThat(controller.reenviarAntigo(5L).getBody()).containsEntry("eventId", 12L);
         assertThat(controller.reenviarAntigo(6L).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("provocar publica um vaga.liberada sem turmaId no exchange do dominio e limpar esvazia so a DLQ de ocupacao")
+    void provocarELimparDlq() {
+        when(amqpAdmin.purgeQueue("relatorios.ocupacao.dlq")).thenReturn(1);
+        OutboxResumoController controller = controller(new OutboxPublicadorControle(true));
+
+        assertThat(controller.provocarMensagemInvalida().getStatusCode()).isEqualTo(HttpStatus.OK);
+        org.mockito.Mockito.verify(rabbitTemplate)
+                .send(org.mockito.ArgumentMatchers.eq("alocacreche.dominio"), org.mockito.ArgumentMatchers.eq("vaga.liberada"), org.mockito.ArgumentMatchers.any(Message.class));
+        assertThat(controller.limparDlqDeOcupacao().getBody()).containsEntry("removidas", 1);
+    }
+
+    @Test
+    @DisplayName("provocar e limpar a DLQ respondem 403 com o controle desligado e 503 com o broker fora do ar")
+    void provocarELimparRecusam() {
+        OutboxResumoController desligado = controller(new OutboxPublicadorControle(false));
+        assertThat(desligado.provocarMensagemInvalida().getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(desligado.limparDlqDeOcupacao().getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+
+        org.mockito.Mockito.doThrow(new AmqpConnectException(new RuntimeException("sem conexao")))
+                .when(rabbitTemplate).send(anyString(), anyString(), org.mockito.ArgumentMatchers.any(Message.class));
+        assertThat(controller(new OutboxPublicadorControle(true)).provocarMensagemInvalida().getStatusCode())
+                .isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
     }
 
     @Test

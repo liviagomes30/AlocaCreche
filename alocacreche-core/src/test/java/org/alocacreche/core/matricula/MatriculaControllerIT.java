@@ -80,6 +80,7 @@ class MatriculaControllerIT {
         registry.add("spring.datasource.url", postgres::getJdbcUrl);
         registry.add("spring.datasource.username", () -> "alocacreche_app");
         registry.add("spring.datasource.password", () -> "alocacreche_app");
+        registry.add("alocacreche.outbox.controle-demo.habilitado", () -> "true");
     }
 
     @Autowired private TestRestTemplate restTemplate;
@@ -863,6 +864,45 @@ class MatriculaControllerIT {
                 new HttpEntity<>(cabecalhos(tokenCom(municipioComDados, List.of("matricula:creche:list")))),
                 String.class);
         assertThat(semPermissao.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+    }
+
+    @Test
+    @DisplayName("demo do job: ADMIN vence o prazo de uma matricula PENDENTE e uma rodada do job a expira e devolve a vaga")
+    void vencerPrazoEExecutarRodadaExpiraAMatricula() {
+        Long municipio = criarMunicipio();
+        Long turmaId = criarTurmaPorHttp(municipio, 2);
+        inscreverPorHttp(municipio, turmaId, true);
+        String token = tokenCom(municipio, List.of("*"));
+        Long matriculaId = idDe(alocar(turmaId, token), "matriculaId");
+
+        ResponseEntity<String> semPermissao = postar(
+                "/api/v1/matricula/matriculas/" + matriculaId + "/vencer-prazo",
+                null,
+                tokenCom(municipio, List.of("matricula:matricula:status")));
+        assertThat(semPermissao.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+
+        ResponseEntity<String> vencido =
+                postar("/api/v1/matricula/matriculas/" + matriculaId + "/vencer-prazo", null, token);
+        assertThat(vencido.getStatusCode()).isEqualTo(HttpStatus.OK);
+        emTenant(municipio, () -> {
+            assertThat(matriculaRepository.findById(matriculaId).orElseThrow().getStatus())
+                    .isEqualTo(StatusMatricula.PENDENTE);
+            return null;
+        });
+
+        ResponseEntity<String> rodada = postar("/api/v1/matricula/manutencao/executar", null, token);
+        assertThat(rodada.getStatusCode()).isEqualTo(HttpStatus.OK);
+
+        emTenant(municipio, () -> {
+            assertThat(matriculaRepository.findById(matriculaId).orElseThrow().getStatus())
+                    .isEqualTo(StatusMatricula.EXPIRADA);
+            assertThat(turmaRepository.findById(turmaId).orElseThrow().getVagasDisponiveis()).isEqualTo(2);
+            return null;
+        });
+
+        ResponseEntity<String> jaExpirada =
+                postar("/api/v1/matricula/matriculas/" + matriculaId + "/vencer-prazo", null, token);
+        assertThat(jaExpirada.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
     }
 
     private JsonNode listar(String caminho, String token) throws Exception {

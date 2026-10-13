@@ -2,6 +2,7 @@ package org.alocacreche.core.outbox.controller;
 
 import cn.dev33.satoken.annotation.SaCheckPermission;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -13,7 +14,11 @@ import org.alocacreche.core.outbox.service.OutboxPublicadorControle;
 import org.alocacreche.core.outbox.service.OutboxPublicadorService;
 import org.springframework.amqp.AmqpException;
 import org.springframework.amqp.core.AmqpAdmin;
+import org.springframework.amqp.core.Message;
+import org.springframework.amqp.core.MessageBuilder;
+import org.springframework.amqp.core.MessageProperties;
 import org.springframework.amqp.core.QueueInformation;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -36,6 +41,8 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class OutboxResumoController {
 
+    private static final String FILA_DLQ_OCUPACAO = OutboxRabbitConfig.FILAS_DLQ_RELATORIOS.get(0);
+
     private static final String ERRO_CONTROLE_DESLIGADO =
             "Controle de demonstracao desligado (alocacreche.outbox.controle-demo.habilitado=false)";
 
@@ -57,6 +64,7 @@ public class OutboxResumoController {
     private final OutboxPublicadorControle controle;
     private final OutboxPublicadorService publicadorService;
     private final AmqpAdmin amqpAdmin;
+    private final RabbitTemplate rabbitTemplate;
 
     @Value("${alocacreche.matricula.manutencao.habilitado:true}")
     private boolean jobManutencaoHabilitado;
@@ -101,6 +109,41 @@ public class OutboxResumoController {
                     .body(Map.of("erro", "Nenhum evento vaga.liberada processado para a turma " + turmaId));
         }
         return ResponseEntity.ok(Map.of("eventId", eventId.get(), "turmaId", turmaId));
+    }
+
+    /**
+     * Publica no exchange do dominio um vaga.liberada sem turmaId: o MSRelatorios o rejeita e ele cai na fila de
+     * rejeicao (DLQ) de ocupacao. E a "mensagem invalida" da demonstracao, sem passar pela Outbox.
+     */
+    @SaCheckPermission("notificacao:outbox:status")
+    @PostMapping("/dlq/provocar")
+    public ResponseEntity<Map<String, Object>> provocarMensagemInvalida() {
+        if (!controle.controleDemoHabilitado()) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("erro", ERRO_CONTROLE_DESLIGADO));
+        }
+        Message mensagem = MessageBuilder.withBody("{\"eventId\":999999,\"municipioId\":1}".getBytes(StandardCharsets.UTF_8))
+                .setContentType(MessageProperties.CONTENT_TYPE_JSON)
+                .build();
+        try {
+            rabbitTemplate.send(OutboxRabbitConfig.DOMINIO_EXCHANGE, OutboxRabbitConfig.VAGA_LIBERADA_ROUTING_KEY, mensagem);
+        } catch (AmqpException e) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of("erro", "RabbitMQ indisponivel"));
+        }
+        return ResponseEntity.ok(Map.of("publicada", true, "filaDeRejeicao", FILA_DLQ_OCUPACAO));
+    }
+
+    /** Esvazia so a DLQ de ocupacao: tira a mensagem invalida da demonstracao depois de mostra-la. */
+    @SaCheckPermission("notificacao:outbox:status")
+    @PostMapping("/dlq/limpar")
+    public ResponseEntity<Map<String, Object>> limparDlqDeOcupacao() {
+        if (!controle.controleDemoHabilitado()) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("erro", ERRO_CONTROLE_DESLIGADO));
+        }
+        try {
+            return ResponseEntity.ok(Map.of("removidas", amqpAdmin.purgeQueue(FILA_DLQ_OCUPACAO)));
+        } catch (AmqpException e) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of("erro", "RabbitMQ indisponivel"));
+        }
     }
 
     private ResponseEntity<Map<String, Object>> alterarPausa(boolean pausar) {

@@ -4,16 +4,19 @@ import cn.dev33.satoken.annotation.SaCheckPermission;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.alocacreche.core.matricula.service.AlocacaoVagaService;
 import org.alocacreche.core.matricula.service.ConsultaMatriculaService;
 import org.alocacreche.core.matricula.service.AlocarVagaRequest;
 import org.alocacreche.core.matricula.service.ConfirmacaoMatriculaService;
 import org.alocacreche.core.matricula.service.DesistenciaMatriculaService;
+import org.alocacreche.core.matricula.service.ManutencaoDemoService;
 import org.alocacreche.core.matricula.service.MatriculaAlocadaResponse;
 import org.alocacreche.core.matricula.service.MatriculaCanceladaResponse;
 import org.alocacreche.core.matricula.service.MatriculaConfirmadaResponse;
 import org.springframework.http.HttpStatus;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -32,6 +35,35 @@ public class MatriculaController {
     private final ConfirmacaoMatriculaService confirmacaoMatriculaService;
     private final DesistenciaMatriculaService desistenciaMatriculaService;
     private final ConsultaMatriculaService consultaMatriculaService;
+    private final ManutencaoDemoService manutencaoDemoService;
+
+    // Mesma chave da Outbox: so a demonstracao liga, nunca a producao
+    @Value("${alocacreche.outbox.controle-demo.habilitado:false}")
+    private boolean controleDemoHabilitado;
+
+    @SaCheckPermission("matricula:matricula:expirar")
+    @PostMapping("/matriculas/{id}/vencer-prazo")
+    public ResponseEntity<?> vencerPrazo(@PathVariable("id") Long matriculaId) {
+        if (!controleDemoHabilitado) {
+            return controleDemoDesligado();
+        }
+        return ResponseEntity.ok(manutencaoDemoService.vencerPrazo(matriculaId));
+    }
+
+    @SaCheckPermission("matricula:matricula:expirar")
+    @PostMapping("/manutencao/executar")
+    public ResponseEntity<?> executarRodadaDoJob() {
+        if (!controleDemoHabilitado) {
+            return controleDemoDesligado();
+        }
+        manutencaoDemoService.executarRodadaDoJob();
+        return ResponseEntity.ok(Map.of("executado", true));
+    }
+
+    private ResponseEntity<Map<String, String>> controleDemoDesligado() {
+        return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN)
+                .body(Map.of("erro", "Controle de demonstracao desligado (alocacreche.outbox.controle-demo.habilitado=false)"));
+    }
 
     @SaCheckPermission("matricula:matricula:list")
     @GetMapping("/matriculas")
