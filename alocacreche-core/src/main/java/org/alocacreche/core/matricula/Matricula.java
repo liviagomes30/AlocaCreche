@@ -49,7 +49,7 @@ public class Matricula extends EntidadeMultiTenant {
 
     /**
      * Nao esta no diagrama de classes original - adicionado porque o contrato do evento
-     * MatriculaAtualizada (MSRelatorios, ver docs/context/relatorios.md) precisa desse valor pra
+     * MatriculaAtualizada (MSRelatorios) precisa desse valor pra
      * calcular distancia media de alocacao sem regeocodificar. Calculado via
      * GeolocalizacaoService no momento da alocacao. Confirmar com a stack de Relatorios antes de
      * considerar este campo definitivo (docs/adr/0004-divisao-equipe-tres-integrantes.md).

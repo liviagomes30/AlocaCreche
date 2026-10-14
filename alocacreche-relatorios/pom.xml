@@ -15,8 +15,7 @@
     <name>AlocaCreche - MSRelatorios</name>
     <description>
         Unico microsservico real do sistema: deploy e banco proprios, projecoes de leitura
-        (CQRS) consumidas assincronamente via RabbitMQ/Outbox do monolito. Ver
-        docs/context/relatorios.md.
+        (CQRS) consumidas assincronamente via RabbitMQ/Outbox do monolito.
     </description>
 
     <dependencies>

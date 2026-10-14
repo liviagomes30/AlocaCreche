@@ -593,7 +593,7 @@
             <div class="cmd"><code id="e_sqlMatriculas"></code><button class="mini sec" id="e_btnCopiarSqlMatriculas">Copiar</button></div>
           </div>
         </div>
-        <p class="dica tecnico">A tabela matricula tem RLS: no DBeaver, defina o município da sessão com <code>set_config</code> antes do UPDATE, como no comando acima (as consultas prontas estão em <code>docs/apresentacao/consultas-dbeaver.sql</code>). O prazo vencido é uma data fixa de 2000 de propósito: a JVM grava o prazo no próprio fuso e o now() do Postgres (em container, geralmente UTC) pode estar horas à frente, o que faria o prazo "nunca vencer".</p>
+        <p class="dica tecnico">A tabela matricula tem RLS: no DBeaver, defina o município da sessão com <code>set_config</code> antes do UPDATE, como no comando acima. O prazo vencido é uma data fixa de 2000 de propósito: a JVM grava o prazo no próprio fuso e o now() do Postgres (em container, geralmente UTC) pode estar horas à frente, o que faria o prazo "nunca vencer".</p>
       </div>
     </section>
 

@@ -10,8 +10,7 @@ import org.springframework.transaction.event.TransactionalEventListener;
 /**
  * Reage a vaga liberada alocando o proximo da fila. Bean separado de {@link AlocacaoVagaService}
  * de proposito: a chamada atravessa o proxy, entao o {@code @Retryable} de la e o
- * {@code @Transactional(REQUIRES_NEW)} de {@link AlocacaoVagaTransacional} valem (self-invocation,
- * docs/arquitetura/notas-tecnicas.md).
+ * {@code @Transactional(REQUIRES_NEW)} de {@link AlocacaoVagaTransacional} valem (self-invocation).
  *
  * <p>Roda depois do commit da desistencia, com o municipio que veio no evento (nao depende do
  * token). Uma falha aqui nao desfaz a desistencia, ja confirmada: so e registrada. Se este evento

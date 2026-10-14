@@ -65,8 +65,7 @@ fixados do lado consumidor (`VagaLiberadaEvent`, `FilaEsperaAtualizadaEvent`,
 
 ## Consequências
 
-- `docs/context/notificacao-plataforma.md` descreve a mecânica do Publicador Outbox, Gateway e
-  multi-tenancy corretamente, mas o campo "dono" nesse arquivo passa a ser lido como "operado pela
-  integrante de MSRelatorios" enquanto esta ADR estiver em vigor, não "quem faz Notificação".
+- O Publicador Outbox, o Gateway e o multi-tenancy passam a ser operados pela integrante de
+  MSRelatorios enquanto esta ADR estiver em vigor, não por quem faz Notificação.
 - Se a equipe voltar a 4 integrantes, a decisão 6 original da ADR 0001 volta a ser a divisão padrão —
   esta ADR fica registrada como o arranjo válido apenas enquanto a equipe for de 3.

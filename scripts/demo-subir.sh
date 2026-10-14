@@ -327,7 +327,7 @@ iniciar_core() {
     "${extras[@]}"
 }
 
-# Sequencia do core: ver docs/arquitetura/roteiro-demo-relatorios.md (secoes 4 a 6). A tabela municipio
+# Sequencia do core: a tabela municipio
 # so nasce na primeira subida (ddl-auto=update) e, depois que o schema.sql aplica RLS, reiniciar com
 # "update" falha na verificacao das FKs; por isso a segunda subida usa ddl-auto=none.
 subir_core() {

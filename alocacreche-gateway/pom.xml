@@ -16,7 +16,7 @@
     <description>
         Spring Cloud Gateway. Infraestrutura compartilhada, deploy proprio — roteia para
         alocacreche-core e alocacreche-relatorios sem acoplar a nenhum dos dois no
-        codigo-fonte. Ver docs/context/notificacao-plataforma.md.
+        codigo-fonte.
     </description>
 
     <dependencyManagement>

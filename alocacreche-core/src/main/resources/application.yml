@@ -6,7 +6,7 @@ spring:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/alocacreche}
     # NUNCA o usuario bootstrap do container (sempre superuser, ignora RLS
     # incondicionalmente) - conecta como a role dedicada nao-superuser criada em
-    # docker/postgres-core-init/01-app-role.sql. Ver AD-002 / notas-tecnicas.md.
+    # docker/postgres-core-init/01-app-role.sql.
     username: ${SPRING_DATASOURCE_USERNAME:alocacreche_app}
     password: ${SPRING_DATASOURCE_PASSWORD:alocacreche_app}
 

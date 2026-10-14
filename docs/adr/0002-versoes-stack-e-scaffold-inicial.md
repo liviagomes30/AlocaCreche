@@ -57,7 +57,7 @@ de cada módulo livre para os donos implementarem.
 
    Nenhuma entidade de domínio (`Inscricao`, `Matricula`, `Turma`, `Creche`, `Municipio`,
    `Notificacao`, `Responsavel`, `Crianca`, `FilaEspera`) foi criada pelo scaffold — cada
-   uma é responsabilidade do dono do módulo correspondente (ver `docs/context/`), para não
+   uma é responsabilidade do dono do módulo correspondente, para não
    antecipar decisões de modelagem que são trabalho de quem vai implementar.
 
 8. **Infra local via `docker-compose.yml` na raiz**: dois containers Postgres separados

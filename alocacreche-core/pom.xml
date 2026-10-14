@@ -15,8 +15,8 @@
     <name>AlocaCreche - Core (monolito modular)</name>
     <description>
         Nucleo transacional: Inscricao and Fila, Matricula and Vagas/Creches, Notificacao e
-        plataforma (Gateway config, seguranca, multi-tenancy). Ver docs/context/ para o
-        detalhe de cada pacote antes de implementar.
+        plataforma (Gateway config, seguranca, multi-tenancy).
+        Cada pacote de dominio tem um unico dono.
     </description>
 
     <dependencies>

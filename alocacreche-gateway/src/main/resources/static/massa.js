@@ -1,6 +1,5 @@
 /*
- * Massa de dados da apresentação: as mesmas creches, turmas e famílias que a cola (docs/apresentacao/cola.md)
- * manda cadastrar à mão. A demonstração guiada da Stack C usa estes dados, e o botão "Carregar dados-base"
+ * Massa de dados da apresentação: as mesmas creches, turmas e famílias usadas na apresentação. A demonstração guiada da Stack C usa estes dados, e o botão "Carregar dados-base"
  * da aba Roteiro também, para o ensaio. Se mudar algo aqui, mude a cola.
  *
  * Score = renda x 0,4 + vulnerabilidade x 0,3 (distância 0 na inscrição; pesos do município demo).

@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component;
  * devolve vagas), depois {@code reconciliarVagasDisponiveis} (aloca em toda turma com vaga livre e
  * fila nao vazia - inclusive as vagas que a expiracao acabou de devolver e as que uma desistencia
  * nao conseguiu realocar). Sem transacao propria: cada passo chama um bean injetado que abre a
- * sua, com o {@code SET LOCAL} do municipio (self-invocation, docs/arquitetura/notas-tecnicas.md).
+ * sua, com o {@code SET LOCAL} do municipio (self-invocation).
  * A falha de uma matricula ou turma e registrada e nao impede as demais.
  */
 @Slf4j

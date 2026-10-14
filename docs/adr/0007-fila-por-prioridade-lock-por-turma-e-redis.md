@@ -82,8 +82,7 @@ implementação:
 - Ao devolver uma vaga (desistência ou expiração), um evento interno pós-commit aciona a alocação do próximo
   da fila, sem token, com o município do evento. Esse evento não é durável: o job `@Scheduled` de manutenção
   (habilitável por configuração, intervalo padrão de 2 minutos) expira matrículas com prazo vencido e aloca
-  turmas com vaga livre e fila não vazia, abrindo uma transação com `SET LOCAL` por município. Detalhes,
-  retry da alocação e cuidados de demonstração em `docs/context/matricula-vagas.md`.
+  turmas com vaga livre e fila não vazia, abrindo uma transação com `SET LOCAL` por município.
 
 ## Consequências
 

@@ -1,5 +1,4 @@
--- Row-Level Security do nucleo transacional (ADR 0001, decisao 14; mecanica completa em
--- docs/arquitetura/notas-tecnicas.md#multi-tenancy-com-row-level-security-postgresql).
+-- Row-Level Security do nucleo transacional (ADR 0001, decisao 14).
 -- Idempotente: roda a cada startup (sem ferramenta de migration ainda), depois do
 -- ddl-auto=update criar as tabelas (spring.jpa.defer-datasource-initialization=true).
 --
