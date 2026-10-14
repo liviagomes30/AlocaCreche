@@ -289,8 +289,8 @@ deixe marcada a opção do limite só se for o último passo). Ela **cadastra so
 | Turma lotada com fila | Creche Aurora (1 vaga): Júlio entra na fila sem vaga (**posição 1**), turma lotada segue na sugestão (**0 vagas**); a Irene desiste e o Júlio é convocado |
 | Filas em várias turmas | Wagner e Vera entram na fila da Creche Esperança lotada (Vera passa para a posição 1) e a Olívia na da Creche Aurora; o painel mostra um bloco por turma (Sol 4, Esperança 2, Aurora 1) e o filtro por creche mostra só uma |
 | Painel público × banco | os totais do painel (sem login) batem com a soma do core: vagas livres, creches com vaga e turmas |
-| Idempotência | evento antigo reenviado; vagas e sequência **iguais** antes e depois |
-| DLQ | a demo publica uma mensagem inválida: a DLQ vai de **0 para 1** (card "na DLQ" e fila `relatorios.ocupacao.dlq` no RabbitMQ) e depois é limpa; RabbitMQ no ar |
+| Idempotência (2 passos) | 1: evento antigo reenviado. 2: vagas e sequência do relatório **iguais** antes e depois |
+| DLQ | a demo publica uma mensagem inválida: a DLQ ganha **1 mensagem** (card "na DLQ" e fila `relatorios.ocupacao.dlq` no RabbitMQ) e ela **fica lá**; RabbitMQ no ar |
 | Limite (opcional) | ~120 atendidas e o resto **429** com `Retry-After`; o painel público bloqueia ~1 min |
 
 ### C2. Números finais esperados (banco limpo, depois da demonstração guiada)

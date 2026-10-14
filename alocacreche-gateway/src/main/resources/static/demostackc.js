@@ -137,7 +137,7 @@ function montarPassosDaStackC(contexto, base, incluirLimite) {
         return Object.keys(base.turmas).length + ' turmas em 5 creches cadastradas; um evento vaga.liberada por turma gravado na Outbox, na mesma transação.';
       } },
 
-    { aba: 'inscricao', titulo: 'As 8 famílias entram na fila, por ordem de chegada', detalhe: 'As 8 famílias da cola entram por ordem de chegada. A fila é ordenada por score; Gisele e Diego empatam em 0,40 e vale quem chegou antes.',
+    { aba: 'inscricao', titulo: 'As 8 famílias entram na fila, por ordem de chegada', detalhe: 'As 8 famílias da cola entram por ordem de chegada. A fila é ordenada por score; Laura e Heitor empatam em 0,40 e vale quem chegou antes.',
       rodar: async function () {
         var fila = await inscreverTodasAsFamiliasDaCola(contexto.turmaId);
         contexto.inscricoes = fila.inscricoes;
@@ -152,16 +152,16 @@ function montarPassosDaStackC(contexto, base, incluirLimite) {
           if (!ok) { falhas++; }
         }
         if (falhas) { throw new Error(falhas + ' posição(ões) diferente(s) do esperado na cola'); }
-        return '8 inscrições; Ana (0,70) em 1º e Fábio (0,00), que chegou primeiro, em 8º; empate Gisele x Diego resolvido por ordem de chegada.' + (fila.cpfsSubstituidos ? ' (' + fila.cpfsSubstituidos + ' CPF(s) já existiam neste banco e foram trocados.)' : '');
+        return '8 inscrições; Lia (0,70) em 1º e Pedro (0,00), que chegou primeiro, em 8º; empate Laura x Heitor resolvido por ordem de chegada.' + (fila.cpfsSubstituidos ? ' (' + fila.cpfsSubstituidos + ' CPF(s) já existiam neste banco e foram trocados.)' : '');
       } },
 
-    { aba: 'matricula', titulo: 'Alocar a primeira vaga e confirmar a matrícula', detalhe: 'Aloca a vaga à Ana (maior score) e confirma. A turma vai de 3 para 2 vagas e a fila de 8 para 7.',
+    { aba: 'matricula', titulo: 'Alocar a primeira vaga e confirmar a matrícula', detalhe: 'Aloca a vaga à Lia (maior score) e confirma. A turma vai de 3 para 2 vagas e a fila de 8 para 7.',
       rodar: async function () {
         var m = checar(await acaoAlocar(contexto.turmaId), 'alocar');
-        if (m.matricula.inscricaoId !== contexto.inscricoes.ana) { throw new Error('a primeira vaga deveria ir para a Ana (inscrição #' + contexto.inscricoes.ana + ')'); }
+        if (m.matricula.inscricaoId !== contexto.inscricoes.ana) { throw new Error('a primeira vaga deveria ir para a Lia (inscrição #' + contexto.inscricoes.ana + ')'); }
         contexto.matriculaId = m.dados.matriculaId;
         checar(await acaoConfirmar(contexto.matriculaId), 'confirmar');
-        return 'matrícula #' + contexto.matriculaId + ' da Ana alocada e confirmada (turma com 2 vagas e 7 famílias na fila).';
+        return 'matrícula #' + contexto.matriculaId + ' da Lia alocada e confirmada (turma com 2 vagas e 7 famílias na fila).';
       } },
 
     { aba: 'eventos', titulo: 'O publicador envia os eventos ao RabbitMQ', detalhe: 'O publicador envia os eventos pendentes da Outbox ao RabbitMQ em lote e só marca como processado o que o broker confirma.',
@@ -207,8 +207,8 @@ function montarPassosDaStackC(contexto, base, incluirLimite) {
       } },
 
     { aba: 'eventos', titulo: contexto.simulada ? 'Falha: o envio da Outbox para' : 'Falha: o RabbitMQ para', detalhe: contexto.simulada ?
-      'Pausa o publicador do core para simular o RabbitMQ fora. Com o envio parado, a demo aloca o Bruno, inscreve o Marcos e confirma a matrícula do Bruno: 5 eventos se acumulam na Outbox.' :
-      'Pare o RabbitMQ com o comando do quadro; a tela detecta sozinha. Com o broker parado, a demo aloca o Bruno, inscreve o Marcos e confirma a matrícula do Bruno: 5 eventos se acumulam na Outbox.',
+      'Pausa o publicador do core para simular o RabbitMQ fora. Com o envio parado, a demo aloca o Davi Souza, inscreve o Théo e confirma a matrícula do Davi Souza: 5 eventos se acumulam na Outbox.' :
+      'Pare o RabbitMQ com o comando do quadro; a tela detecta sozinha. Com o broker parado, a demo aloca o Davi Souza, inscreve o Théo e confirma a matrícula do Davi Souza: 5 eventos se acumulam na Outbox.',
       rodar: async function () {
         if (!contexto.simulada) {
           var parou = await aguardarAcaoNoTerminal({
@@ -235,12 +235,12 @@ function montarPassosDaStackC(contexto, base, incluirLimite) {
           contexto.pausou = true;
         }
         var m = checar(await acaoAlocar(contexto.turmaId, contexto.simulada ? 'Alocar a segunda vaga (envio pausado)' : 'Alocar a segunda vaga (RabbitMQ parado)'), 'alocar');
-        if (m.matricula.inscricaoId !== contexto.inscricoes.bruno) { throw new Error('a segunda vaga deveria ir para o Bruno (inscrição #' + contexto.inscricoes.bruno + ')'); }
+        if (m.matricula.inscricaoId !== contexto.inscricoes.bruno) { throw new Error('a segunda vaga deveria ir para o Davi Souza (inscrição #' + contexto.inscricoes.bruno + ')'); }
         contexto.matriculaBruno = m.dados.matriculaId;
         // Mais eventos enquanto o broker está fora: uma nova inscrição (fila.atualizada) e a confirmação da matrícula (matricula.atualizada)
-        checar(await inscreverFamiliaDaCola('marcos', contexto.turmaId), 'inscrever o Marcos durante a falha');
-        checar(await acaoConfirmar(contexto.matriculaBruno), 'confirmar a matrícula do Bruno durante a falha');
-        registrarNaLista('durante a falha: alocação do Bruno (3 eventos), inscrição do Marcos (1) e confirmação do Bruno (1) = 5 eventos novos', true);
+        checar(await inscreverFamiliaDaCola('marcos', contexto.turmaId), 'inscrever o Théo durante a falha');
+        checar(await acaoConfirmar(contexto.matriculaBruno), 'confirmar a matrícula do Davi Souza durante a falha');
+        registrarNaLista('durante a falha: alocação do Davi Souza (3 eventos), inscrição do Théo (1) e confirmação do Davi Souza (1) = 5 eventos novos', true);
         var ok = await esperarCondicaoDemo(function () {
           var l = linhaDoRelatorio(contexto.turmaId);
           var c = coreDaTurma(snapshot, contexto.turmaId);
@@ -295,54 +295,54 @@ function montarPassosDaStackC(contexto, base, incluirLimite) {
         return resultadoRecuperacao;
       } },
 
-    { aba: 'matricula', titulo: 'Desistência: a vaga volta e o próximo da fila é convocado', detalhe: 'O Bruno desiste: a vaga volta e a Carla, próxima da fila, é convocada sozinha. Esperado: 1 vaga e 6 na fila.',
+    { aba: 'matricula', titulo: 'Desistência: a vaga volta e o próximo da fila é convocado', detalhe: 'O Davi Souza desiste: a vaga volta e a Alice, próxima da fila, é convocada sozinha. Esperado: 1 vaga e 6 na fila.',
       rodar: async function () {
-        var r = checar(await acaoDesistir(contexto.matriculaBruno, 'Desistir da matrícula do Bruno (demo)'), 'desistir');
+        var r = checar(await acaoDesistir(contexto.matriculaBruno, 'Desistir da matrícula do Davi Souza (demo)'), 'desistir');
         var resumo = r.resumo;
         if (!resumo.realocada) { throw new Error('a vaga devolvida não foi dada ao próximo da fila'); }
-        if (resumo.proximo.id !== contexto.inscricoes.carla) { throw new Error('o próximo convocado deveria ser a Carla (inscrição #' + contexto.inscricoes.carla + ')'); }
-        registrarNaLista('matrícula do Bruno CANCELADA; vaga voltou a ' + resumo.vagasAposCancelar + ' e a Carla (inscrição #' + resumo.proximo.id + ') foi convocada sozinha', true);
+        if (resumo.proximo.id !== contexto.inscricoes.carla) { throw new Error('o próximo convocado deveria ser a Alice (inscrição #' + contexto.inscricoes.carla + ')'); }
+        registrarNaLista('matrícula do Davi Souza CANCELADA; vaga voltou a ' + resumo.vagasAposCancelar + ' e a Alice (inscrição #' + resumo.proximo.id + ') foi convocada sozinha', true);
         var motivo = await aguardarRelatorios(contexto.turmaId, 1, 6);
         if (motivo) { throw new Error(motivo); }
         return 'relatório com 1 vaga e 6 famílias na fila, igual ao banco.';
       } },
 
-    { aba: 'eventos', titulo: 'Job de manutenção: o prazo vence e a matrícula expira', detalhe: 'A demo vence o prazo da matrícula da Carla e roda uma rodada do job. Esperado: ela vira EXPIRADA e o job convoca Gisele e Diego.',
+    { aba: 'eventos', titulo: 'Job de manutenção: o prazo vence e a matrícula expira', detalhe: 'A demo vence o prazo da matrícula da Alice e roda uma rodada do job. Esperado: ela vira EXPIRADA e o job convoca Laura e Heitor.',
       rodar: async function () {
         var antes = checar(await api('GET', '/api/v1/matricula/matriculas', { automatica: true, rotulo: 'Core: matrículas (antes do job)' }), 'listar matrículas');
         var carla = antes.dados.filter(function (m) { return m.inscricaoId === contexto.inscricoes.carla && m.status === 'PENDENTE'; })[0];
-        if (!carla) { throw new Error('não achei a matrícula PENDENTE da Carla'); }
-        var vencido = checar(await api('POST', '/api/v1/matricula/matriculas/' + carla.id + '/vencer-prazo', { rotulo: 'Vencer o prazo da matrícula da Carla' }), 'vencer o prazo');
-        registrarNaLista('prazo da matrícula #' + carla.id + ' da Carla colocado em ' + String(vencido.dados.prazoConfirmacao).slice(0, 10) + ' (vencido); ela ainda está PENDENTE', true);
+        if (!carla) { throw new Error('não achei a matrícula PENDENTE da Alice'); }
+        var vencido = checar(await api('POST', '/api/v1/matricula/matriculas/' + carla.id + '/vencer-prazo', { rotulo: 'Vencer o prazo da matrícula da Alice' }), 'vencer o prazo');
+        registrarNaLista('prazo da matrícula #' + carla.id + ' da Alice colocado em ' + String(vencido.dados.prazoConfirmacao).slice(0, 10) + ' (vencido); ela ainda está PENDENTE', true);
         var tentativa = await api('POST', '/api/v1/matricula/matriculas/' + carla.id + '/confirmar', { sem401: true, esperado: [409], motivoEsperado: 'o prazo de confirmação já venceu', rotulo: 'Confirmar a matrícula com o prazo vencido' });
-        registrarNaLista('confirmar a matrícula da Carla com o prazo vencido: HTTP ' + tentativa.status + ' (esperado 409)', tentativa.status === 409);
+        registrarNaLista('confirmar a matrícula da Alice com o prazo vencido: HTTP ' + tentativa.status + ' (esperado 409)', tentativa.status === 409);
         if (tentativa.status !== 409) { throw new Error('confirmar depois do prazo deveria responder 409'); }
         checar(await api('POST', '/api/v1/matricula/manutencao/executar', { rotulo: 'Executar uma rodada do job de manutenção' }), 'rodada do job');
         var depois = checar(await api('GET', '/api/v1/matricula/matriculas', { automatica: true, rotulo: 'Core: matrículas (depois do job)' }), 'listar matrículas');
         var statusCarla = depois.dados.filter(function (m) { return m.id === carla.id; })[0].status;
-        registrarNaLista('matrícula da Carla: ' + statusCarla + ' (esperado EXPIRADA)', statusCarla === 'EXPIRADA');
-        if (statusCarla !== 'EXPIRADA') { throw new Error('a matrícula da Carla deveria ter expirado'); }
+        registrarNaLista('matrícula da Alice: ' + statusCarla + ' (esperado EXPIRADA)', statusCarla === 'EXPIRADA');
+        if (statusCarla !== 'EXPIRADA') { throw new Error('a matrícula da Alice deveria ter expirado'); }
         var nomePorInscricao = {};
         Object.keys(contexto.inscricoes).forEach(function (chave) { nomePorInscricao[contexto.inscricoes[chave]] = MASSA.familias[chave].responsavel; });
         var convocadas = depois.dados.filter(function (m) { return m.turmaId === contexto.turmaId && m.status === 'PENDENTE' && m.id > carla.id; });
         registrarNaLista('o job convocou ' + convocadas.length + ' família(s) da fila: ' + convocadas.map(function (m) { return nomePorInscricao[m.inscricaoId] || '#' + m.inscricaoId; }).join(' e '), convocadas.length === 2);
         var motivo = await aguardarRelatorios(contexto.turmaId, 0, 4);
         if (motivo) { throw new Error(motivo); }
-        return 'matrícula da Carla expirada, vaga devolvida e preenchida pelo job; relatório com 0 vagas e 4 famílias na fila, igual ao banco.';
+        return 'matrícula da Alice expirada, vaga devolvida e preenchida pelo job; relatório com 0 vagas e 4 famílias na fila, igual ao banco.';
       } },
 
     { aba: 'matricula', titulo: 'Outra creche: preencher todas as vagas de uma turma', detalhe: 'Creche Esperança, turma de 2 vagas: duas famílias ocupam as vagas e confirmam. Esperado: nova alocação dá 409 e o relatório mostra 0 vagas.',
       rodar: async function () {
         var turma = contexto.turmas['esperanca-MATERNAL'];
-        var karina = checar(await inscreverFamiliaDaCola('karina', turma), 'inscrever a Karina');
-        var leandro = checar(await inscreverFamiliaDaCola('leandro', turma), 'inscrever o Leandro');
+        var karina = checar(await inscreverFamiliaDaCola('karina', turma), 'inscrever a Lucas');
+        var leandro = checar(await inscreverFamiliaDaCola('leandro', turma), 'inscrever o Nina');
         var m1 = checar(await acaoAlocar(turma, 'Alocar a 1ª vaga da Creche Esperança'), 'alocar');
-        if (m1.matricula.inscricaoId !== karina.dados.inscricaoId) { throw new Error('a 1ª vaga deveria ir para a Karina (score 0,70)'); }
+        if (m1.matricula.inscricaoId !== karina.dados.inscricaoId) { throw new Error('a 1ª vaga deveria ir para a Lucas (score 0,70)'); }
         var m2 = checar(await acaoAlocar(turma, 'Alocar a 2ª vaga da Creche Esperança'), 'alocar');
-        if (m2.matricula.inscricaoId !== leandro.dados.inscricaoId) { throw new Error('a 2ª vaga deveria ir para o Leandro (score 0,20)'); }
-        checar(await acaoConfirmar(m1.dados.matriculaId), 'confirmar a matrícula da Karina');
-        checar(await acaoConfirmar(m2.dados.matriculaId), 'confirmar a matrícula do Leandro');
-        registrarNaLista('Karina (0,70) ficou com a 1ª vaga e o Leandro (0,20) com a 2ª; as duas matrículas foram confirmadas', true);
+        if (m2.matricula.inscricaoId !== leandro.dados.inscricaoId) { throw new Error('a 2ª vaga deveria ir para o Nina (score 0,20)'); }
+        checar(await acaoConfirmar(m1.dados.matriculaId), 'confirmar a matrícula da Lucas');
+        checar(await acaoConfirmar(m2.dados.matriculaId), 'confirmar a matrícula do Nina');
+        registrarNaLista('Lucas (0,70) ficou com a 1ª vaga e o Nina (0,20) com a 2ª; as duas matrículas foram confirmadas', true);
         var cheia = await api('POST', '/api/v1/matricula/vagas/alocar', { corpo: { turmaId: turma }, esperado: [409], motivoEsperado: 'a turma está lotada, não há vaga para alocar', rotulo: 'Alocar com a turma lotada' });
         registrarNaLista('alocar com a turma lotada: HTTP ' + cheia.status + ' (esperado 409)', cheia.status === 409);
         if (cheia.status !== 409) { throw new Error('uma turma lotada deveria recusar a alocação com 409'); }
@@ -351,14 +351,14 @@ function montarPassosDaStackC(contexto, base, incluirLimite) {
         return 'Creche Esperança lotada (2 de 2 vagas, as duas confirmadas); relatório com 0 vagas e fila vazia; alocar de novo responde 409.';
       } },
 
-    { aba: 'matricula', titulo: 'Turma lotada: a fila cresce sem vaga e a desistência convoca', detalhe: 'Creche Aurora, turma de 1 vaga: a Irene fica com a vaga e o Júlio entra na fila sem vaga. A turma lotada segue na sugestão de creches; quando a Irene desiste, o Júlio é convocado.',
+    { aba: 'matricula', titulo: 'Turma lotada: a fila cresce sem vaga e a desistência convoca', detalhe: 'Creche Aurora, turma de 1 vaga: a Bia fica com a vaga e o Caio entra na fila sem vaga. A turma lotada segue na sugestão de creches; quando a Bia desiste, o Caio é convocado.',
       rodar: async function () {
         var turma = contexto.turmas['aurora-MATERNAL'];
-        var irene = checar(await inscreverFamiliaDaCola('irene', turma), 'inscrever a Irene');
+        var irene = checar(await inscreverFamiliaDaCola('irene', turma), 'inscrever a Bia');
         var m = checar(await acaoAlocar(turma, 'Alocar a única vaga da Creche Aurora'), 'alocar');
-        if (m.matricula.inscricaoId !== irene.dados.inscricaoId) { throw new Error('a única vaga deveria ir para a Irene'); }
-        var julio = checar(await inscreverFamiliaDaCola('julio', turma), 'inscrever o Júlio');
-        registrarNaLista('Júlio entrou na fila da turma lotada: posição ' + julio.dados.posicao + ' (esperado 1)', julio.dados.posicao === 1);
+        if (m.matricula.inscricaoId !== irene.dados.inscricaoId) { throw new Error('a única vaga deveria ir para a Bia'); }
+        var julio = checar(await inscreverFamiliaDaCola('julio', turma), 'inscrever o Caio');
+        registrarNaLista('Caio entrou na fila da turma lotada: posição ' + julio.dados.posicao + ' (esperado 1)', julio.dados.posicao === 1);
         var motivo = await aguardarRelatorios(turma, 0, 1);
         if (motivo) { throw new Error(motivo); }
         registrarNaLista('relatório: Creche Aurora com 0 vagas e 1 família na fila', true);
@@ -369,24 +369,24 @@ function montarPassosDaStackC(contexto, base, incluirLimite) {
         registrarNaLista('sugestão a partir de Pinheiros: a turma lotada continua na lista' + (lotada ? ', a ' + numero(lotada.distanciaKm, 2) + ' km, com ' + lotada.vagasDisponiveis + ' vaga(s)' : ' (não apareceu)'), naLista);
         if (!naLista) { throw new Error('a turma lotada deveria aparecer na sugestão com 0 vagas'); }
 
-        var d = checar(await acaoDesistir(m.dados.matriculaId, 'Irene desiste da Creche Aurora'), 'desistir');
-        if (!d.resumo.realocada || d.resumo.proximo.id !== julio.dados.inscricaoId) { throw new Error('a vaga devolvida deveria ir sozinha para o Júlio'); }
-        registrarNaLista('a Irene desistiu e o Júlio foi convocado sozinho', true);
+        var d = checar(await acaoDesistir(m.dados.matriculaId, 'Bia desiste da Creche Aurora'), 'desistir');
+        if (!d.resumo.realocada || d.resumo.proximo.id !== julio.dados.inscricaoId) { throw new Error('a vaga devolvida deveria ir sozinha para o Caio'); }
+        registrarNaLista('a Bia desistiu e o Caio foi convocado sozinho', true);
         var motivoFinal = await aguardarRelatorios(turma, 0, 0);
         if (motivoFinal) { throw new Error(motivoFinal); }
-        return 'Creche Aurora: o Júlio entrou na fila sem vaga (0 vagas e 1 na fila); com a desistência da Irene ele foi convocado (0 vagas e fila vazia).';
+        return 'Creche Aurora: o Caio entrou na fila sem vaga (0 vagas e 1 na fila); com a desistência da Bia ele foi convocado (0 vagas e fila vazia).';
       } },
 
     { aba: 'relatorios', titulo: 'Filas em várias turmas e creches', detalhe: 'Mais famílias esperam nas turmas lotadas de Esperança e Aurora. O painel mostra um bloco por turma e a demo filtra por creche.',
       rodar: async function () {
         var esperanca = contexto.turmas['esperanca-MATERNAL'];
         var aurora = contexto.turmas['aurora-MATERNAL'];
-        var wagner = checar(await inscreverFamiliaDaCola('wagner', esperanca), 'inscrever o Wagner');
-        var vera = checar(await inscreverFamiliaDaCola('vera', esperanca), 'inscrever a Vera');
-        var olivia = checar(await inscreverFamiliaDaCola('olivia', aurora), 'inscrever a Olívia');
+        var wagner = checar(await inscreverFamiliaDaCola('wagner', esperanca), 'inscrever o Davi Pires');
+        var vera = checar(await inscreverFamiliaDaCola('vera', esperanca), 'inscrever a Sara');
+        var olivia = checar(await inscreverFamiliaDaCola('olivia', aurora), 'inscrever a Ravi');
         var posicaoWagner = await acaoConsultarPosicao(wagner.dados.inscricaoId, esperanca);
-        registrarNaLista('Creche Esperança (turma lotada): a Vera (0,60) entrou na posição ' + vera.dados.posicao + ' e o Wagner (0,10) ficou na ' + posicaoWagner.dados.posicao, vera.dados.posicao === 1 && posicaoWagner.dados.posicao === 2);
-        registrarNaLista('Creche Aurora (turma lotada): a Olívia (0,40) entrou na posição ' + olivia.dados.posicao, olivia.dados.posicao === 1);
+        registrarNaLista('Creche Esperança (turma lotada): a Sara (0,60) entrou na posição ' + vera.dados.posicao + ' e o Davi Pires (0,10) ficou na ' + posicaoWagner.dados.posicao, vera.dados.posicao === 1 && posicaoWagner.dados.posicao === 2);
+        registrarNaLista('Creche Aurora (turma lotada): a Ravi (0,40) entrou na posição ' + olivia.dados.posicao, olivia.dados.posicao === 1);
         if (vera.dados.posicao !== 1 || posicaoWagner.dados.posicao !== 2 || olivia.dados.posicao !== 1) { throw new Error('posições diferentes do esperado nas filas das outras creches'); }
         var turmasParaConferir = [[esperanca, 0, 2], [aurora, 0, 1], [contexto.turmaId, 0, 4]];
         for (var i = 0; i < turmasParaConferir.length; i++) {
@@ -435,17 +435,24 @@ function montarPassosDaStackC(contexto, base, incluirLimite) {
         return 'o painel público mostra os mesmos totais do banco: ' + core.vagas + ' vaga(s), ' + core.creches + ' creche(s) com vaga e ' + core.turmas + ' turma(s).';
       } },
 
-    { aba: 'eventos', titulo: 'Idempotência: o evento antigo é ignorado', detalhe: 'Reenvia o evento mais antigo da turma. Esperado: o relatório o ignora (a sequência é menor que a já aplicada) e não volta atrás.',
+    { aba: 'eventos', titulo: 'Idempotência 1: reenviar um evento antigo', detalhe: 'A demo reenvia ao RabbitMQ o evento vaga.liberada mais antigo da turma, com a sequência menor que a já aplicada.',
       rodar: async function () {
-        var prova = await executarProvaDeIdempotencia(contexto.turmaId);
-        if (prova.erro) { throw new Error(prova.erro); }
+        contexto.prova = await executarProvaDeIdempotencia(contexto.turmaId);
+        if (contexto.prova.erro) { throw new Error(contexto.prova.erro); }
+        registrarNaLista('evento #' + contexto.prova.eventId + ' reenviado (o relatório já estava na sequência ' + contexto.prova.antes.ultimaSequenciaAplicada + ')', true);
+        return 'o evento antigo #' + contexto.prova.eventId + ' foi reenviado ao MSRelatórios.';
+      } },
+
+    { aba: 'eventos', titulo: 'Idempotência 2: o relatório não mudou', detalhe: 'Compara o relatório antes e depois do reenvio. Esperado: vagas e sequência iguais, porque o evento antigo foi descartado.',
+      rodar: async function () {
+        var prova = contexto.prova;
         registrarNaLista('vagas no relatório: ' + prova.antes.vagasDisponiveis + ' antes e ' + (prova.depois ? prova.depois.vagasDisponiveis : '-') + ' depois', prova.ignorado);
         registrarNaLista('sequência aplicada: ' + prova.antes.ultimaSequenciaAplicada + ' antes e ' + (prova.depois ? prova.depois.ultimaSequenciaAplicada : '-') + ' depois', prova.ignorado);
         if (!prova.ignorado) { throw new Error('o relatório foi alterado por um evento antigo'); }
-        return 'o evento #' + prova.eventId + ' foi reenviado e descartado; o relatório não regrediu.';
+        return 'o evento #' + prova.eventId + ' foi descartado; o relatório não regrediu.';
       } },
 
-    { aba: 'eventos', titulo: 'Fila de rejeição: uma mensagem inválida cai na DLQ', detalhe: 'A demo publica uma mensagem inválida. Esperado: o MSRelatórios a rejeita e ela cai na DLQ (0 para 1); depois a demo a limpa.',
+    { aba: 'eventos', titulo: 'Fila de rejeição: uma mensagem inválida cai na DLQ', detalhe: 'A demo publica uma mensagem inválida. Esperado: o MSRelatórios a rejeita e ela cai na DLQ (uma a mais) e fica lá para você mostrar.',
       rodar: async function () {
         await lerResumoOutbox();
         var base = resumoOutbox.dlqMensagens === null ? 0 : resumoOutbox.dlqMensagens;
@@ -457,15 +464,8 @@ function montarPassosDaStackC(contexto, base, incluirLimite) {
         if (contexto.mostrarRabbit) {
           await pausarParaMostrarRabbit('Mostre a fila relatorios.ocupacao.dlq com 1 mensagem (aba Queues).');
         }
-        if (base === 0) {
-          checar(await api('POST', CAMINHO_OUTBOX + '/dlq/limpar', { rotulo: 'Limpar a mensagem de teste da DLQ' }), 'limpar a DLQ');
-          var limpa = await esperarCondicaoDemo(function () { return resumoOutbox && resumoOutbox.dlqMensagens === 0; }, 15000);
-          registrarNaLista('DLQ limpa: voltou a ' + (limpa ? '0' : resumoOutbox.dlqMensagens), limpa);
-        } else {
-          registrarNaLista('a DLQ já tinha ' + base + ' mensagem(ns) antes da demo e não foi limpa', true);
-        }
         registrarNaLista('RabbitMQ: ' + (resumoOutbox.brokerDisponivel ? 'no ar' : 'fora do ar'), resumoOutbox.brokerDisponivel);
-        return 'a mensagem inválida foi rejeitada para a DLQ (0 → 1) e a mensagem de teste foi limpa.';
+        return 'a mensagem inválida foi rejeitada para a DLQ (' + base + ' → ' + resumoOutbox.dlqMensagens + ') e continua lá.';
       } }
   ];
 
@@ -506,7 +506,7 @@ function montarPassosDaStackC(contexto, base, incluirLimite) {
         'Job de manutenção: matrícula com prazo vencido expira, a vaga volta e a fila é preenchida (ManutencaoMatriculaScheduler)',
         'Outras creches: turma lotada recusa alocação (409), a fila cresce sem vaga, a desistência convoca e o painel público confere com o banco',
         'Filas em várias turmas e creches no painel, com a contagem do core ao lado da do relatório e filtro por creche',
-        'Idempotência: evento antigo ou duplicado não regride o relatório',
+        'Idempotência: evento antigo reenviado e ignorado, sem regredir o relatório',
         'Consumidor com tentativas e fila de rejeição; gateway com limite por IP no painel público'
       ].forEach(function (linha) { registrarNaLista(linha, true); });
       return 'todos os componentes da Stack C foram exercitados com evidência.';
